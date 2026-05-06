@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Trailer Inspection - Nickey Dispatch V 6.0</title>
+<meta name="theme-color" content="#000000">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#eee;min-height:100vh;font-size:16px;line-height:1.5;padding-bottom:40px}
+
+.hdr{background:#000;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #ffd700;position:sticky;top:0;z-index:100}
+.hdr-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#ffd700;letter-spacing:1.5px;line-height:1.1}
+.back-btn{background:#1a1a1a;color:#ffd700;padding:8px 14px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;border:1px solid #ffd700;cursor:pointer}
+
+.form-link-row{display:flex;gap:8px;padding:10px 16px;background:#000;border-bottom:1px solid #333}
+.form-link{flex:1;padding:10px;background:#1a1a1a;color:#aaa;border:1px solid #444;border-radius:8px;text-align:center;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;font-family:'Rajdhani',sans-serif}
+.form-link.active{background:#000;color:#ffd700;border-color:#ffd700}
+
+.trip-toggle{display:flex;gap:8px;padding:14px 16px;background:#000;border-bottom:1px solid #333;position:sticky;top:55px;z-index:90}
+.toggle-btn{flex:1;padding:14px;background:#1a1a1a;color:#888;border:1.5px solid #444;border-radius:8px;font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:'Rajdhani',sans-serif}
+.toggle-btn.active{background:#000;color:#ffd700;border-color:#ffd700}
+
+.trip-section-hdr{background:#000;padding:10px 16px;color:#ffd700;font-family:'Rajdhani',sans-serif;letter-spacing:2px;text-transform:uppercase;font-size:14px;font-weight:700;text-align:center;border-bottom:1px solid #ffd700}
+
+.sec{background:#151515;border-radius:12px;border:1px solid #2a2a2a;margin:14px 16px}
+.sh{background:#000;padding:12px 16px;border-radius:12px 12px 0 0;border-bottom:1px solid #ffd700}
+.st{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffd700}
+.sb{padding:14px}
+
+.pulled-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pulled-cell{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:10px}
+.pulled-cell .label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.pulled-cell .value{font-family:'Rajdhani',sans-serif;font-size:18px;color:#ffd700;font-weight:700;letter-spacing:1px;line-height:1.2;word-break:break-word}
+.pulled-cell .value.empty{color:#555;font-style:italic;font-size:16px}
+
+.item-row{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.item-label{font-size:15px;color:#eee;flex:1;font-weight:600}
+.item-buttons{display:flex;gap:6px;flex-shrink:0}
+.item-btn{padding:8px 14px;background:#0f0f0f;color:#888;border:1.5px solid #444;border-radius:18px;font-size:13px;font-weight:700;cursor:pointer;min-width:78px;display:flex;align-items:center;justify-content:center;gap:4px;font-family:'Source Sans 3',sans-serif}
+.item-btn.safe.active{background:#28a745;color:#fff;border-color:#1e7e34}
+.item-btn.concern.active{background:#cc0000;color:#fff;border-color:#8a0000}
+
+.gas-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gas-btn{padding:14px 8px;background:#1a1a1a;color:#eee;border:1.5px solid #333;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:1px}
+.gas-btn.active{background:#000;color:#ffd700;border-color:#ffd700}
+
+.gauge-input{width:100%;border:1.5px solid #444;border-radius:8px;padding:14px;font-size:18px;background:#1a1a1a;color:#ffd700;outline:none;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px}
+.gauge-input:focus{border-color:#ffd700}
+
+.remarks-area{width:100%;border:1.5px solid #444;border-radius:8px;padding:14px;font-size:16px;background:#1a1a1a;color:#eee;outline:none;font-family:'Source Sans 3',sans-serif;min-height:100px;resize:vertical}
+.remarks-area:focus{border-color:#ffd700}
+
+.save-btn{display:block;width:calc(100% - 32px);margin:14px 16px;padding:16px;background:#28a745;color:#fff;border:none;border-radius:10px;font-size:18px;font-weight:700;cursor:pointer;text-align:center;letter-spacing:1px;font-family:'Source Sans 3',sans-serif}
+
+.autosave-pill{position:fixed;top:115px;right:14px;background:rgba(30,60,30,0.95);border:1px solid #4caf50;color:#a5d6a7;font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px;z-index:150;opacity:0;transition:opacity 0.3s;pointer-events:none;font-family:'Source Sans 3',sans-serif}
+.autosave-pill.show{opacity:1}
+
+.no-data-warn{background:#2a2500;border:1px solid #ffd700;border-radius:8px;padding:12px 14px;margin:12px 16px;color:#ffe680;font-size:14px;line-height:1.4}
+.no-data-warn strong{color:#ffd700}
+</style>
+<script src="ndsync.js" defer></script>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-title">🚛 INSPECTIONS</div>
+  <a href="index.html" class="back-btn">← BACK</a>
+</div>
+
+<div class="form-link-row">
+  <a class="form-link active" href="inspection.html">Trailer Inspection</a>
+  <a class="form-link" href="intermodal.html">Intermodal</a>
+</div>
+
+<div class="trip-toggle">
+  <button class="toggle-btn active" id="preTripBtn" onclick="setTripType('pre')">PRE-TRIP</button>
+  <button class="toggle-btn" id="postTripBtn" onclick="setTripType('post')">POST-TRIP</button>
+</div>
+
+<div class="trip-section-hdr" id="tripSectionHdr">PRE-TRIP INSPECTION</div>
+
+<div class="autosave-pill" id="autosavePill">💾 Auto-saved</div>
+
+<div class="no-data-warn" id="noDataWarn" style="display:none;">
+  ⚠️ <strong>Heads up:</strong> No active dispatch data found. Trailer #, Customer, and Pickup # will be blank. Fill out the main dispatch form first if you want them auto-filled.
+</div>
+
+<div class="sec">
+  <div class="sh"><div class="st">Driver & Trip Info</div></div>
+  <div class="sb">
+    <div class="pulled-grid" style="margin-bottom:10px;">
+      <div class="pulled-cell">
+        <div class="label">Driver</div>
+        <div class="value" id="dispDriver">—</div>
+      </div>
+      <div class="pulled-cell">
+        <div class="label">Date</div>
+        <div class="value" id="dispDate">—</div>
+      </div>
+    </div>
+    <div class="pulled-grid">
+      <div class="pulled-cell">
+        <div class="label">Pickup #</div>
+        <div class="value empty" id="dispPickup">—</div>
+      </div>
+      <div class="pulled-cell">
+        <div class="label">Trailer</div>
+        <div class="value empty" id="dispTrailer">—</div>
+      </div>
+    </div>
+    <div class="pulled-cell" style="margin-top:10px;">
+      <div class="label">Customer</div>
+      <div class="value empty" id="dispCustomer">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sh"><div class="st">Inspection Items</div></div>
+  <div class="sb" id="inspectionItems"></div>
+</div>
+
+<div class="sec">
+  <div class="sh"><div class="st">Gas Level (Reefer Tank)</div></div>
+  <div class="sb">
+    <div class="gas-grid" id="gasGrid"></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sh"><div class="st">Customer Gauge — Live (Gallons)</div></div>
+  <div class="sb">
+    <input type="number" class="gauge-input" id="liveGauge" placeholder="Enter live gauge reading">
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sh"><div class="st">Remarks</div></div>
+  <div class="sb">
+    <textarea class="remarks-area" id="remarks" placeholder="Note any concerns, defects, or items needing attention..."></textarea>
+  </div>
+</div>
+
+<button class="save-btn" onclick="saveInspection()">💾 Save Inspection</button>
+
+<script>
+const INSPECTION_ITEMS = [
+  "Marker Lights","Placards","Load Securement","Bill of Lading / Paperwork",
+  "ABS","Landing Gear","Tires","Hatches & Cabinets Secure",
+  "Lug Nuts","License Plate","Fifth Wheel Coupler Bolts"
+];
+const GAS_LEVELS = ["Empty","1/8","1/4","3/8","1/2","5/8","3/4","7/8","Full"];
+
+let tripType = 'pre';
+let inspectionData = {
+  type:'pre', items:{}, gasLevel:'', liveGauge:'', remarks:'',
+  driver:'', date:'', pickup:'', trailer:'', customer:''
+};
+
+function pullDispatchData(){
+  const driver = localStorage.getItem('currentDriver') || 'Unknown Driver';
+  inspectionData.driver = driver;
+  document.getElementById('dispDriver').textContent = driver;
+
+  const today = new Date().toISOString().split('T')[0];
+  inspectionData.date = today;
+  document.getElementById('dispDate').textContent = today;
+
+  let pickup='', trailer='', customer='';
+  try {
+    const draft = localStorage.getItem('nickeyDraftLoad');
+    if (draft){
+      const d = JSON.parse(draft);
+      pickup = d.pickup || ''; trailer = d.trailer || ''; customer = d.customer || '';
+    }
+  } catch(e){}
+  if (!pickup && !trailer && !customer){
+    try {
+      const records = JSON.parse(localStorage.getItem('nickeySavedRecords') || '[]');
+      if (records.length > 0){
+        const latest = records[records.length-1];
+        pickup = latest.pickup || ''; trailer = latest.trailer || ''; customer = latest.customer || '';
+      }
+    } catch(e){}
+  }
+
+  inspectionData.pickup = pickup;
+  inspectionData.trailer = trailer;
+  inspectionData.customer = customer;
+
+  const pEl = document.getElementById('dispPickup');
+  const tEl = document.getElementById('dispTrailer');
+  const cEl = document.getElementById('dispCustomer');
+
+  if (pickup){ pEl.textContent='#'+pickup; pEl.classList.remove('empty'); } else { pEl.textContent='—'; pEl.classList.add('empty'); }
+  if (trailer){ tEl.textContent=trailer; tEl.classList.remove('empty'); } else { tEl.textContent='—'; tEl.classList.add('empty'); }
+  if (customer){ cEl.textContent=customer; cEl.classList.remove('empty'); } else { cEl.textContent='—'; cEl.classList.add('empty'); }
+
+  if (!pickup && !trailer && !customer){
+    document.getElementById('noDataWarn').style.display = 'block';
+  }
+}
+
+function buildInspectionItems(){
+  const c = document.getElementById('inspectionItems');
+  c.innerHTML = '';
+  INSPECTION_ITEMS.forEach((item, idx) => {
+    const id = 'item-' + idx;
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML =
+      '<div class="item-label">' + item + '</div>' +
+      '<div class="item-buttons">' +
+        '<button class="item-btn safe" data-id="' + id + '" data-status="safe" onclick="setItemStatus(\'' + id + '\',\'safe\')">✓ Safe</button>' +
+        '<button class="item-btn concern" data-id="' + id + '" data-status="concern" onclick="setItemStatus(\'' + id + '\',\'concern\')">⚠ Concern</button>' +
+      '</div>';
+    c.appendChild(row);
+  });
+}
+
+function setItemStatus(id, status){
+  document.querySelectorAll('[data-id="' + id + '"]').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-id="' + id + '"][data-status="' + status + '"]').classList.add('active');
+  inspectionData.items[id] = status;
+  autoSave();
+}
+
+function buildGasGrid(){
+  const c = document.getElementById('gasGrid');
+  c.innerHTML = '';
+  GAS_LEVELS.forEach(level => {
+    const btn = document.createElement('button');
+    btn.className = 'gas-btn';
+    btn.textContent = level;
+    btn.dataset.level = level;
+    btn.onclick = function(){ setGasLevel(level); };
+    c.appendChild(btn);
+  });
+}
+
+function setGasLevel(level){
+  document.querySelectorAll('.gas-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.gas-btn[data-level="' + level + '"]').classList.add('active');
+  inspectionData.gasLevel = level;
+  autoSave();
+}
+
+function setTripType(type){
+  tripType = type;
+  inspectionData.type = type;
+  document.getElementById('preTripBtn').classList.toggle('active', type === 'pre');
+  document.getElementById('postTripBtn').classList.toggle('active', type === 'post');
+  document.getElementById('tripSectionHdr').textContent = (type === 'pre' ? 'PRE-TRIP' : 'POST-TRIP') + ' INSPECTION';
+  autoSave();
+}
+
+let autoSaveTimer = null;
+function autoSave(){
+  inspectionData.liveGauge = document.getElementById('liveGauge').value;
+  inspectionData.remarks = document.getElementById('remarks').value;
+  localStorage.setItem('nickeyTrailerInspectionDraft', JSON.stringify(inspectionData));
+  clearTimeout(autoSaveTimer);
+  const pill = document.getElementById('autosavePill');
+  pill.classList.add('show');
+  autoSaveTimer = setTimeout(() => pill.classList.remove('show'), 1500);
+}
+
+function loadDraft(){
+  try {
+    const draft = localStorage.getItem('nickeyTrailerInspectionDraft');
+    if (!draft) return;
+    const d = JSON.parse(draft);
+    if (!d) return;
+    if (d.type) setTripType(d.type);
+    if (d.items){
+      Object.keys(d.items).forEach(id => setItemStatus(id, d.items[id]));
+    }
+    if (d.gasLevel) setGasLevel(d.gasLevel);
+    if (d.liveGauge) document.getElementById('liveGauge').value = d.liveGauge;
+    if (d.remarks) document.getElementById('remarks').value = d.remarks;
+  } catch(e){ console.error('Draft load failed:', e); }
+}
+
+function saveInspection(){
+  inspectionData.liveGauge = document.getElementById('liveGauge').value;
+  inspectionData.remarks = document.getElementById('remarks').value;
+  inspectionData.savedAt = new Date().toISOString();
+  inspectionData.id = 'INSP-' + Date.now();
+
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('nickeyInspectionHistory') || '[]'); } catch(e){ history = []; }
+  history.push(JSON.parse(JSON.stringify(inspectionData)));
+  localStorage.setItem('nickeyInspectionHistory', JSON.stringify(history));
+  localStorage.setItem('nickeyLatestInspection', JSON.stringify(inspectionData));
+  localStorage.removeItem('nickeyTrailerInspectionDraft');
+
+  alert('✓ Inspection saved!\n\nIt will be attached to your dispatch email when you send the load to Daniel.');
+  setTimeout(() => { window.location.href = 'index.html'; }, 300);
+}
+
+window.onload = function(){
+  pullDispatchData();
+  buildInspectionItems();
+  buildGasGrid();
+  loadDraft();
+  document.getElementById('liveGauge').addEventListener('input', autoSave);
+  document.getElementById('remarks').addEventListener('input', autoSave);
+};
+</script>
+</body>
+</html>
