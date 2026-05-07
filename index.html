@@ -453,7 +453,43 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <button class="back-btn" onclick="closeSavedRecords()">✕ Close</button>
   </div>
 </div>
+<!-- Settings Modal -->
+<div class="emerg-overlay" id="settingsOverlay">
+  <div class="emerg-modal" style="border-color:#ffd700;max-width:520px;">
+    <div class="emerg-header" style="background:#1e3a8a;">
+      <div class="emerg-title">⚙️ SETTINGS</div>
+      <div class="emerg-close" onclick="closeSettings()">✕</div>
+    </div>
 
+    <!-- Tab buttons -->
+    <div style="display:flex;margin:14px 14px 0;border-bottom:1px solid #444;">
+      <button onclick="switchSettingsTab(0)" id="tab0" 
+              style="flex:1;padding:12px;background:#1e3a8a;color:#ffd700;border:none;border-radius:8px 8px 0 0;font-weight:700;">Customers</button>
+      <button onclick="switchSettingsTab(1)" id="tab1" 
+              style="flex:1;padding:12px;background:#333;color:#ddd;border:none;border-radius:8px 8px 0 0;">Trailers</button>
+    </div>
+
+    <!-- CUSTOMERS TAB -->
+    <div id="settingsCustomers" style="padding:14px 14px 0;">
+      <div id="customerList" style="max-height:340px;overflow-y:auto;"></div>
+      <button onclick="addNewCustomer()" 
+              style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">
+        + Add New Customer
+      </button>
+    </div>
+
+    <!-- TRAILERS TAB -->
+    <div id="settingsTrailers" style="display:none;padding:14px 14px 0;">
+      <div id="trailerList" style="max-height:340px;overflow-y:auto;"></div>
+      <button onclick="addNewTrailer()" 
+              style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">
+        + Add New Trailer
+      </button>
+    </div>
+
+    <button class="back-btn" onclick="closeSettings()">← Back</button>
+  </div>
+</div>
 <!-- Roadside Emergencies Modal -->
 <div class="emerg-overlay" id="emergencyOverlay">
   <div class="emerg-modal">
@@ -462,18 +498,10 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
       <div class="emerg-close" onclick="closeEmergency()">✕</div>
     </div>
     <div id="emergBody" style="padding:14px 18px;"></div>
-    
 
-
-    
-    <div style="padding:14px;">
-      <!-- Tab buttons -->
-      <div style="display:flex;margin-bottom:14px;border-bottom:1px solid #444;">
-        <button onclick="switchSettingsTab(0)" id="tab0" 
-                style="flex:1;padding:12px;background:#1e3a8a;color:#ffd700;border:none;border-radius:8px 8px 0 0;font-weight:700;">Customers</button>
-        <button onclick="switchSettingsTab(1)" id="tab1" 
-                style="flex:1;padding:12px;background:#333;color:#ddd;border:none;border-radius:8px 8px 0 0;">Trailers</button>
-      </div>
+    <button class="back-btn" onclick="closeEmergency()">✕</button>
+  </div>
+</div>
 
       <!-- CUSTOMERS TAB -->
       <div id="settingsCustomers">
