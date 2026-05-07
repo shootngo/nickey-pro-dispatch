@@ -803,7 +803,6 @@ function saveRecord(){
 
 function viewSavedRecords(){
   toggleMenu();
-  // Always reload from localStorage in case sync pulled new data
   try {
     const s = localStorage.getItem("nickeySavedRecords");
     if (s) savedRecords = JSON.parse(s) || [];
@@ -812,24 +811,35 @@ function viewSavedRecords(){
   const body = document.getElementById("savedRecordsBody");
   if (savedRecords.length === 0){
     body.innerHTML = '<div style="padding:30px 10px;text-align:center;color:#aaa;">No saved records yet.</div>';
-  } else {
-    let h = '';
-    savedRecords.slice().reverse().forEach((r, idx) => {
-      const realIndex = savedRecords.length - 1 - idx;
-      const ft = (r.fuelEntries || []).reduce((s, f) => s + (parseFloat(f.amount) || 0), 0);
-      h += `<div onclick="loadRecordIntoForm(${realIndex}); closeSavedRecords();" 
-                style="background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;cursor:pointer;">
+    return;
+  }
+
+  let h = '';
+  savedRecords.slice().reverse().forEach((r, idx) => {
+    const realIndex = savedRecords.length - 1 - idx;
+    const ft = (r.fuelEntries || []).reduce((s, f) => s + (parseFloat(f.amount) || 0), 0);
+    
+    h += `<div style="background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;position:relative;">
+      <div onclick="loadRecordIntoForm(${realIndex}); closeSavedRecords();" style="cursor:pointer;">
         <div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;">Pickup #${r.pickup}</div>
         <div style="font-size:13px;color:#aaa;">${r.date} • ${r.customer}</div>
         <div style="font-size:13px;color:#4caf50;margin-top:4px;">Base Pay: $${(r.basePay || 0).toFixed(2)}${ft > 0 ? ' • Fuel: $' + ft.toFixed(2) : ''}</div>
-        <div style="font-size:11px;color:#888;margin-top:6px;">👆 Tap to load & edit on this device</div>
-      </div>`;
-    });
-    body.innerHTML = h;
-  }
+      </div>
+      
+      <button onclick="deleteSavedRecord(${realIndex}); event.stopImmediatePropagation();" 
+              style="position:absolute;top:12px;right:12px;background:#3a2a2a;color:#ff8888;border:none;border-radius:6px;padding:6px 10px;font-size:13px;">
+        🗑️
+      </button>
+    </div>`;
+  });
+  
+  body.innerHTML = h;
   document.getElementById("savedRecordsOverlay").style.display = "flex";
 }
-function closeSavedRecords(){ document.getElementById("savedRecordsOverlay").style.display = "none"; }
+
+function closeSavedRecords(){ 
+  document.getElementById("savedRecordsOverlay").style.display = "none"; 
+}
 
 function sendEmail(){
   toggleMenu();
@@ -1265,6 +1275,15 @@ function loadRecordIntoForm(index){
   pill.textContent = "📥 Record loaded — ready to edit";
   pill.style.opacity = "1";
   setTimeout(() => pill.style.opacity = "0", 2200);
+}function deleteSavedRecord(index){
+  if (!confirm("Delete this record permanently?")) return;
+  
+  savedRecords.splice(index, 1);
+  localStorage.setItem("nickeySavedRecords", JSON.stringify(savedRecords));
+  document.dispatchEvent(new CustomEvent('ndsync:save'));
+  
+  alert("Record deleted");
+  viewSavedRecords();   // refresh the list
 }
 </script>
 </body>
