@@ -106,6 +106,11 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 .sds-card ul{margin:10px 0;padding-left:20px;font-size:15px;line-height:1.4}
 .sds-card .btn{background:#333;color:#ffd700;border:none;padding:8px 14px;border-radius:6px;font-size:14px;margin-top:10px;width:100%;cursor:pointer}
 .sds-card .btn:hover{background:#ffd700;color:#111}
+
+/* Pay Analyzer specific */
+.pay-result-box{background:#0f2a0f;border:3px solid #4caf50;border-radius:16px;padding:24px;text-align:center;margin:20px 0}
+.pay-result-value{font-family:'Rajdhani',sans-serif;font-size:52px;font-weight:800;color:#4caf50;letter-spacing:2px}
+.pay-result-label{font-size:15px;color:#a5d6a7;margin-top:6px;letter-spacing:1px}
 </style>
 </head>
 <body>
@@ -246,6 +251,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <div class="menu-item" onclick="saveRecord()">💾 Save Record</div>
     <div class="menu-item" onclick="sendEmail()">✉️ Email to Daniel</div>
     <div class="menu-item" onclick="viewSavedRecords()">📋 View Saved Records</div>
+    <div class="menu-item" onclick="openPayAnalyzer()" style="background:linear-gradient(135deg,#1e3a8a 0%,#2d4fbd 100%);color:#ffd700;border:2px solid #ffd700;">📊 Pay Analyzer</div>
     <a href="earnings.html" class="menu-item" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">💰 Earnings & Expenses</a>
     <a href="inspection.html" class="menu-item">🚛 Trailer Inspection</a>
     <div class="menu-item" onclick="openRoadsideEmergencies()">🚨 Roadside Emergencies</div>
@@ -254,6 +260,43 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <div class="menu-item" onclick="clearForm()" style="color:#ff8888;">🗑️ Clear Form</div>
   </div>
 </div>
+
+<!-- PAY ANALYZER MODAL -->
+<div class="emerg-overlay" id="payAnalyzerOverlay">
+  <div class="emerg-modal" style="border-color:#4caf50;max-width:520px;">
+    <div class="emerg-header" style="background:#1e3a8a;">
+      <div class="emerg-title">📊 PAY ANALYZER</div>
+      <div class="emerg-close" onclick="closePayAnalyzer()">✕</div>
+    </div>
+    <div style="padding:20px 18px 10px;">
+      <div style="margin-bottom:18px;">
+        <div style="font-size:13px;color:#aaa;letter-spacing:1px;margin-bottom:4px;">CURRENT BASE PAY</div>
+        <div id="paBasePay" style="font-family:'Rajdhani',sans-serif;font-size:42px;font-weight:800;color:#ffd700;">$0.00</div>
+      </div>
+
+      <div class="fld">
+        <label>Customer (optional)</label>
+        <select id="paCustomer" class="customer-select" onchange="updatePayAnalyzer()"></select>
+      </div>
+
+      <div class="fld" style="margin-top:16px;">
+        <label>Total Miles Driven</label>
+        <input type="number" id="paMiles" step="0.1" placeholder="Enter total miles" style="font-size:24px;text-align:center;" oninput="updatePayAnalyzer()">
+      </div>
+
+      <div class="pay-result-box">
+        <div class="pay-result-value" id="paCentsPerMile">—</div>
+        <div class="pay-result-label">CENTS PER MILE</div>
+      </div>
+
+      <div style="font-size:13px;color:#888;text-align:center;margin-top:8px;">
+        Calculation: Base Pay ÷ Miles
+      </div>
+    </div>
+    <button class="back-btn" onclick="closePayAnalyzer()">✕ Close</button>
+  </div>
+</div>
+
 <div class="emerg-overlay" id="savedRecordsOverlay">
   <div class="emerg-modal" style="border-color:#ffd700;max-width:560px;">
     <div class="emerg-header" style="background:#1e3a8a;"><div class="emerg-title">📋 SAVED RECORDS</div><div class="emerg-close" onclick="closeSavedRecords()">✕</div></div>
@@ -285,10 +328,9 @@ const TRUCK_IMG='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMD
 document.getElementById('splashTruckImg').src=TRUCK_IMG;
 setTimeout(()=>{document.getElementById('splashOverlay').classList.add('hidden');setTimeout(()=>{document.getElementById('splashOverlay').style.display='none'},700)},2500);
 let currentDriver="",savedRecords=[],editingRecordIdx=-1;
-let customers=[{name:"Cytec Mount Joy Tennessee",limit:0,pay:800},{name:"Foster Farms Farmerville Louisiana",limit:5100,pay:1220},{name:"Harrison Produce Bethlehem Georgia",limit:5400,pay:1807.20},{name:"Hydrox Elgin Illinois",limit:0,pay:2256},{name:"Lincoln Premium Produce Fremont Nebraska",limit:7400,pay:3068},{name:"Maxson",limit:0,pay:388.80},{name:"Moore Jack Jasper Alabama",limit:5400,pay:848.80},{name:"Mountaire Lumber Bridge",limit:5600,pay:3116.80},{name:"Mountaire Siler City",limit:5400,pay:4000},{name:"Pecola",limit:0,pay:1264.80},{name:"Pilgrim's Pride De Queen Arkansas",limit:5100,pay:1175.20},{name:"P.L. Developments Piedmont South Carolina",limit:9500,pay:2256},{name:"Purdue Pocahontas Arkansas",limit:5300,pay:552},{name:"V.I.J.O.N. Smyrna Tennessee",limit:5000,pay:948},{name:"Washburn Tunnel Wastewater Facility Pasadena Texas",limit:5500,pay:2403.20},{name:"Wolf River",limit:0,pay:352},{name:"WSC",limit:0,pay:200}];
+let customers=[{name:"Cytec Mount Joy Tennessee",limit:0,pay:800,address:""},{name:"Foster Farms Farmerville Louisiana",limit:5100,pay:1220,address:""},{name:"Harrison Produce Bethlehem Georgia",limit:5400,pay:1807.20,address:""},{name:"Hydrox Elgin Illinois",limit:0,pay:2256,address:""},{name:"Lincoln Premium Produce Fremont Nebraska",limit:7400,pay:3068,address:""},{name:"Maxson",limit:0,pay:388.80,address:""},{name:"Moore Jack Jasper Alabama",limit:5400,pay:848.80,address:""},{name:"Mountaire Lumber Bridge",limit:5600,pay:3116.80,address:""},{name:"Mountaire Siler City",limit:5400,pay:4000,address:""},{name:"Pecola",limit:0,pay:1264.80,address:""},{name:"Pilgrim's Pride De Queen Arkansas",limit:5100,pay:1175.20,address:""},{name:"P.L. Developments Piedmont South Carolina",limit:9500,pay:2256,address:""},{name:"Purdue Pocahontas Arkansas",limit:5300,pay:552,address:""},{name:"V.I.J.O.N. Smyrna Tennessee",limit:5000,pay:948,address:""},{name:"Washburn Tunnel Wastewater Facility Pasadena Texas",limit:5500,pay:2403.20,address:""},{name:"Wolf River",limit:0,pay:352,address:""},{name:"WSC",limit:0,pay:200,address:""}];
 const allTrailers=["SD 94","SD 55-20","SD 45","SD 37","ISO 144930","ISO 144926","ISO 144927","ISO 144925","ISO 144924","ISO 144923","ISO 144922","ISO 134915","ISO 134914","ISO 134908","ISO 134906","ISO 134912","DV 18118"];
 
-// === FORM PERSISTENCE (localStorage) ===
 const FORM_STORAGE_KEY = "nickeyDispatchFormState";
 
 function saveFormState() {
@@ -311,41 +353,27 @@ function saveFormState() {
     reimbursements: [],
     fuelEntries: []
   };
-
-  // Reimbursements
   document.querySelectorAll('#reimbContainer .reimb-row').forEach(row => {
     const desc = row.querySelector('input[type="text"]')?.value || "";
     const amt = row.querySelector('input[type="number"]')?.value || "";
     if (desc || amt) state.reimbursements.push({ desc, amt });
   });
-
-  // Fuel entries
   document.querySelectorAll('.fuel-entry').forEach(entry => {
     const station = entry.querySelector('.fuel-station-input')?.value || "";
     const amount = entry.querySelector('.fuel-amount-input')?.value || "";
     const gallons = entry.querySelector('.fuel-gallons-input')?.value || "";
-    if (station || amount || gallons) {
-      state.fuelEntries.push({ station, amount, gallons });
-    }
+    if (station || amount || gallons) state.fuelEntries.push({ station, amount, gallons });
   });
-
   localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(state));
-
-  // Flash autosave pill
   const pill = document.getElementById("autosavePill");
-  if (pill) {
-    pill.classList.add("show");
-    setTimeout(() => pill.classList.remove("show"), 1200);
-  }
+  if (pill) { pill.classList.add("show"); setTimeout(() => pill.classList.remove("show"), 1200); }
 }
 
 function restoreFormState() {
   const raw = localStorage.getItem(FORM_STORAGE_KEY);
   if (!raw) return;
-
   let state;
   try { state = JSON.parse(raw); } catch(e) { return; }
-
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };
   setVal("td", state.td);
   setVal("pki", state.pki);
@@ -362,13 +390,10 @@ function restoreFormState() {
   setVal("liveGauge", state.liveGauge);
   setVal("departureLoad", state.departureLoad);
   setVal("nts", state.nts);
-
   upPk();
   calcAndUpdate();
   updateWarning();
   updateRemaining();
-
-  // Reimbursements
   const reimbCont = document.getElementById("reimbContainer");
   reimbCont.innerHTML = "";
   if (state.reimbursements && state.reimbursements.length > 0) {
@@ -380,19 +405,13 @@ function restoreFormState() {
       if (descInp) descInp.value = r.desc || "";
       if (amtInp) amtInp.value = r.amt || "";
     });
-  } else {
-    addReimbRow();
-  }
+  } else { addReimbRow(); }
   updateReimbTotal();
-
-  // Fuel entries
   const fuelCont = document.getElementById("fuelContainer");
   fuelCont.innerHTML = "";
   if (state.fuelEntries && state.fuelEntries.length > 0) {
     state.fuelEntries.forEach(f => addFuelEntry(f));
-  } else {
-    addFuelEntry();
-  }
+  } else { addFuelEntry(); }
   updateFuelGrandTotal();
 }
 
@@ -410,25 +429,18 @@ function setupFormPersistence() {
       }
     }
   });
-
-  // Watch dynamic sections
   const reimbCont = document.getElementById("reimbContainer");
   if (reimbCont) {
     const obs = new MutationObserver(() => saveFormState());
     obs.observe(reimbCont, { childList: true, subtree: true });
   }
-
   const fuelCont = document.getElementById("fuelContainer");
   if (fuelCont) {
     const obs = new MutationObserver(() => saveFormState());
     obs.observe(fuelCont, { childList: true, subtree: true });
   }
-
-  // Restore saved data
   restoreFormState();
 }
-
-// === END OF PERSISTENCE CODE ===
 
 function setupDriverName(){let s=localStorage.getItem("currentDriver");if(!s){s=prompt("Enter your full name:","Frank Mulkey");if(!s||!s.trim())s="Unknown Driver";s=s.trim();localStorage.setItem("currentDriver",s)}currentDriver=s;document.getElementById("driverBadge").textContent="👤 "+currentDriver}
 function populateCustomerDropdown(){const s=document.getElementById("customerSelect");s.innerHTML='<option value="">— Select Customer —</option>';customers.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=c.name;s.appendChild(o)})}
@@ -455,17 +467,16 @@ function viewSavedRecords(){toggleMenu();try{const s=localStorage.getItem("nicke
 function closeSavedRecords(){document.getElementById("savedRecordsOverlay").style.display="none"}
 function loadRecordIntoForm(idx){if(idx<0||idx>=savedRecords.length)return;const r=savedRecords[idx];editingRecordIdx=idx;document.getElementById("editBanner").classList.add("active");document.getElementById("editPickupLabel").textContent="Pickup #"+r.pickup;document.getElementById("td").value=r.date;document.getElementById("pki").value=r.pickup;upPk();document.getElementById("customerSelect").value=r.customer;document.getElementById("bpay").value=r.basePay;document.getElementById("thl").value=r.highLimit;document.getElementById("tki").value=r.trailer;document.getElementById("arrivalDate").value=r.arrivalDate;document.getElementById("arrivalTime").value=r.arrivalTime;document.getElementById("departureDate").value=r.departureDate;document.getElementById("departureTime").value=r.departureTime;document.getElementById("tw").value=r.tankerWeight;document.getElementById("atl").value=r.arrivalGallons;document.getElementById("departureLoad").value=r.departureLoad;document.getElementById("nts").value=r.notes;document.getElementById("reimbContainer").innerHTML="";(r.reimbursements||[]).forEach(rei=>addReimbRow());document.querySelectorAll('#reimbContainer input[type="text"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].desc});document.querySelectorAll('#reimbContainer input[type="number"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].amount});document.getElementById("fuelContainer").innerHTML="";(r.fuelEntries||[]).forEach(f=>addFuelEntry(f));updateWarning();updateRemaining();updateReimbTotal();updateFuelGrandTotal();window.scrollTo(0,0)}
 function deleteSavedRecord(idx){if(confirm("Delete this record?")){savedRecords.splice(idx,1);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));viewSavedRecords()}}
-function sendEmail(){toggleMenu();const date=document.getElementById("td").value;const pickup=document.getElementById("pki").value;const customer=document.getElementById("customerSelect").value;const trailer=document.getElementById("tki").value;const subject=encodeURIComponent('Pickup #'+pickup+' - '+customer+' - '+date);const body=encodeURIComponent('Daniel,\n\nDispatch info:\n\nDriver: '+currentDriver+'\nDate: '+date+'\nPickup #: '+pickup+'\nCustomer: '+customer+'\nTrailer: '+trailer+'\n\nFrank');window.location.href='mailto:DKlein@nickeywarehouse.com?subject='+subject+'&body='+body}
 function printForm(){toggleMenu();window.print()}
 function toggleMenu(){const o=document.getElementById("menuOverlay");o.style.display=(o.style.display==="flex")?"none":"flex"}
 const roadsideData={superD:{title:"Super D Tankers",items:[{name:"Unit #52",vin:"1XPBDP9X1ND795521",plate:"M530742 (TN)"},{name:"Unit #94",vin:"1XPWDP9XXKD494094",plate:"M491844 (TN)"},{name:"Unit #45",vin:"1XPBD49X9MD691045",plate:"M530744 (TN)"},{name:"Unit #37",vin:"1XPBDP9X4ND795537",plate:"M530743 (TN)"},{name:"Unit #5520 (Volvo)",vin:"4V4NC9EJ8MN276520",plate:"M530745 (TN)"}]},shops:[{name:"Dobbs Peterbilt - Memphis",phone:"901-345-7811",addr:"4314 Old Lamar Ave, Memphis TN"},{name:"Dobbs Peterbilt - Nashville",phone:"615-256-3491",addr:"825 Visco Dr, Nashville TN"},{name:"Dobbs Peterbilt - Knoxville",phone:"865-637-3030",addr:"4001 N Cherry St, Knoxville TN"},{name:"Dobbs Peterbilt - Jackson",phone:"731-422-2191",addr:"110 Stonebrook Pl, Jackson TN"},{name:"Element Fleet Roadside",phone:"800-243-2476",addr:"24/7 Roadside Assistance"}]};
 function openRoadsideEmergencies(){toggleMenu();let h='<div style="margin-bottom:18px;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid #ffd700;padding-bottom:8px;">🚙 SUPER D TANKERS</div>';roadsideData.superD.items.forEach(u=>{h+='<div style="background:#252525;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-weight:700;color:#ffd700;">'+u.name+'</div><div style="font-size:12px;color:#aaa;font-family:monospace;">VIN: '+u.vin+'</div><div style="font-size:12px;color:#aaa;">Plate: '+u.plate+'</div></div>'});h+='</div>';h+='<div><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid #cc0000;padding-bottom:6px;margin-bottom:8px;">🔧 REPAIR SHOPS</div>';roadsideData.shops.forEach(s=>{h+='<div style="background:#252525;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-weight:700;color:#fff;">'+s.name+'</div><div style="font-size:13px;color:#aaa;">'+s.addr+'</div><a href="tel:'+s.phone.replace(/-/g,'')+'" style="display:inline-block;margin-top:8px;background:#b71c1c;color:#fff;padding:8px 14px;border-radius:6px;font-weight:700;text-decoration:none;font-size:14px;">'+s.phone+'</a></div>'});h+='</div>';document.getElementById("emergBody").innerHTML=h;document.getElementById("emergencyOverlay").style.display="flex"}
 function closeEmergency(){document.getElementById("emergencyOverlay").style.display="none"}
-function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex"}
+function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex";renderCustomerList()}
 function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
 function switchSettingsTab(tab){document.getElementById("tab0").style.background=tab===0?"#1e3a8a":"#333";document.getElementById("tab0").style.color=tab===0?"#ffd700":"#ddd";document.getElementById("tab1").style.background=tab===1?"#1e3a8a":"#333";document.getElementById("tab1").style.color=tab===1?"#ffd700":"#ddd";document.getElementById("settingsCustomers").style.display=tab===0?"block":"none";document.getElementById("settingsTrailers").style.display=tab===1?"block":"none"}
 function changeDriverName(){const name=prompt("Enter driver name:",currentDriver);if(name&&name.trim()){currentDriver=name.trim();localStorage.setItem("currentDriver",currentDriver);document.getElementById("driverBadge").textContent="👤 "+currentDriver;toggleMenu()}}
-function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0});populateCustomerDropdown();alert("Customer added!")}}
+function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();localStorage.setItem("nickeyCustomers",JSON.stringify(customers));alert("Customer added!")}}
 function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());populateTrailerDropdown();alert("Trailer added!")}}
 function exitEditMode(){if(confirm("Exit edit mode and return to new record?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}}
 function pasteDispatchText(){alert("Paste dispatch functionality - manual entry for now")}
@@ -476,7 +487,167 @@ function clearForm(){if(editingRecordIdx!==-1){if(confirm("Exit edit mode and cl
 function clearAllFormFields(){["pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("pkd").innerHTML="PICKUP #";document.getElementById("ttval").textContent="— GAL TOTAL";document.getElementById("ttval").dataset.tankerGal="0";const b=document.getElementById("tankWarnBox");if(b){b.className="tankwarn-box";document.getElementById("tankStatusTxt").textContent="ENTER WEIGHT ABOVE"}updateRemaining();document.getElementById("reimbContainer").innerHTML="";addReimbRow();updateReimbTotal();document.getElementById("fuelContainer").innerHTML="";addFuelEntry();localStorage.removeItem(FORM_STORAGE_KEY)}
 function loadSavedRecords(){const s=localStorage.getItem("nickeySavedRecords");if(s){try{savedRecords=JSON.parse(s);savedRecords.forEach(r=>{if(!r.fuelEntries)r.fuelEntries=(r.fuel&&(r.fuel.amount||r.fuel.station))?[r.fuel]:[];if(r.actualPay===undefined)r.actualPay=null;if(r.bookkeepingComplete===undefined)r.bookkeepingComplete=false;if(!r.id)r.id='REC-'+r.timestamp})}catch(e){savedRecords=[]}}}
 function updateRemaining(){const tg=parseFloat(document.getElementById("ttval").dataset.tankerGal)||0;const a=parseFloat(document.getElementById("atl").value)||0;const l=document.getElementById("liveGauge").value;const b=document.getElementById("remainingBox");const v=document.getElementById("remainingValue");const sub=document.getElementById("remainingSub");if(tg===0||l===""||isNaN(parseFloat(l))){b.className="remaining-box";v.textContent="—";sub.textContent="Enter tanker weight, arrival level, and live gauge";return}const rem=tg-(parseFloat(l)-a);if(rem<0){b.className="remaining-box empty";v.textContent="0";sub.textContent="Tank is empty"}else if(rem<500){b.className="remaining-box low";v.textContent=rem.toFixed(1);sub.textContent="Low fuel warning"}else{b.className="remaining-box";v.textContent=rem.toFixed(1);sub.textContent="Fuel remaining"}}
-setupDriverName();populateCustomerDropdown();populateTrailerDropdown();loadSavedRecords();setTdy();addReimbRow();addFuelEntry();setupFormPersistence();
+
+// === PAY ANALYZER FUNCTIONS ===
+function openPayAnalyzer() {
+  toggleMenu();
+  const overlay = document.getElementById("payAnalyzerOverlay");
+  overlay.style.display = "flex";
+
+  const basePay = parseFloat(document.getElementById("bpay").value) || 0;
+  document.getElementById("paBasePay").textContent = "$" + basePay.toFixed(2);
+
+  const paSelect = document.getElementById("paCustomer");
+  paSelect.innerHTML = '<option value="">— Select Customer —</option>';
+  customers.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.name;
+    opt.textContent = c.name;
+    paSelect.appendChild(opt);
+  });
+
+  const currentCustomer = document.getElementById("customerSelect").value;
+  if (currentCustomer) paSelect.value = currentCustomer;
+
+  document.getElementById("paMiles").value = "";
+  document.getElementById("paCentsPerMile").textContent = "—";
+
+  document.getElementById("paMiles").oninput = updatePayAnalyzer;
+  updatePayAnalyzer();
+}
+
+function closePayAnalyzer() {
+  document.getElementById("payAnalyzerOverlay").style.display = "none";
+}
+
+function updatePayAnalyzer() {
+  const basePay = parseFloat(document.getElementById("paBasePay").textContent.replace("$","")) || 0;
+  const miles = parseFloat(document.getElementById("paMiles").value) || 0;
+  const resultEl = document.getElementById("paCentsPerMile");
+
+  if (miles <= 0) {
+    resultEl.textContent = "—";
+    return;
+  }
+
+  const centsPerMile = (basePay / miles) * 100;
+  resultEl.textContent = centsPerMile.toFixed(1) + " ¢";
+}
+
+// Render customer list with address editing
+function renderCustomerList() {
+  const container = document.getElementById("customerList");
+  container.innerHTML = "";
+  customers.forEach((c, index) => {
+    const div = document.createElement("div");
+    div.style.cssText = "background:#252525;border:1px solid #444;border-radius:8px;padding:12px;margin-bottom:10px;";
+    div.innerHTML = `
+      <div style="font-weight:700;color:#ffd700;">${c.name}</div>
+      <div style="margin:8px 0;">
+        <label style="font-size:12px;color:#aaa;">Base Pay</label>
+        <input type="number" step="0.01" value="${c.pay}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;" onchange="updateCustomerField(${index}, 'pay', this.value)">
+      </div>
+      <div style="margin:8px 0;">
+        <label style="font-size:12px;color:#aaa;">High Limit (gallons)</label>
+        <input type="number" value="${c.limit}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;" onchange="updateCustomerField(${index}, 'limit', this.value)">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#aaa;">Address (for reference)</label>
+        <input type="text" value="${c.address || ''}" placeholder="123 Main St, City, State" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;" onchange="updateCustomerField(${index}, 'address', this.value)">
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function updateCustomerField(index, field, value) {
+  if (field === "pay" || field === "limit") {
+    customers[index][field] = parseFloat(value) || 0;
+  } else {
+    customers[index][field] = value;
+  }
+  localStorage.setItem("nickeyCustomers", JSON.stringify(customers));
+  populateCustomerDropdown();
+}
+
+function loadSavedCustomers() {
+  const saved = localStorage.getItem("nickeyCustomers");
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        customers = parsed;
+      }
+    } catch(e) {}
+  }
+}
+
+// === IMPROVED EMAIL FUNCTION ===
+function sendEmail() {
+  toggleMenu();
+
+  let state = {};
+  try {
+    const saved = localStorage.getItem('nickeyDispatchFormState');
+    if (saved) state = JSON.parse(saved);
+  } catch(e){}
+
+  let insp = {};
+  try {
+    const latest = localStorage.getItem('nickeyLatestInspection');
+    if (latest) insp = JSON.parse(latest);
+  } catch(e){}
+
+  const driver = localStorage.getItem('currentDriver') || 'Unknown Driver';
+  const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  let body = `NICKEY DISPATCH REPORT\n`;
+  body += `──────────────────────\n\n`;
+
+  body += `DRIVER:           ${driver}\n`;
+  body += `DATE:             ${date}\n`;
+  body += `PICKUP #:         ${state.pki || '—'}\n`;
+  body += `TRAILER:          ${state.tki || insp.trailer || '—'}\n`;
+  body += `CUSTOMER:         ${state.customerSelect || insp.customer || '—'}\n\n`;
+
+  if (insp && (Object.keys(insp.items || {}).length > 0 || insp.remarks || insp.gasLevel)) {
+    body += `TRAILER INSPECTION - ${(insp.type || 'pre').toUpperCase()}-TRIP\n`;
+    body += `─────────────────────────────\n`;
+
+    if (insp.items) {
+      Object.keys(insp.items).forEach(key => {
+        const status = insp.items[key] === 'safe' ? '✅' : '⚠️';
+        const label = key.replace('item-', '');
+        const statusText = insp.items[key] === 'safe' ? 'SAFE' : 'CONCERN';
+        body += `${status} ${label.padEnd(25)} ${statusText}\n`;
+      });
+    }
+
+    if (insp.gasLevel) body += `\nREEFER TANK:          ${insp.gasLevel}\n`;
+    if (insp.liveGauge) body += `LIVE GAUGE:           ${insp.liveGauge} gallons\n`;
+
+    if (insp.remarks) {
+      body += `\nREMARKS:\n${insp.remarks}\n`;
+    }
+  }
+
+  body += `\n\nSent from Nickey Dispatch V 6.0`;
+
+  const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
+
+  window.location.href = `mailto:DKlein@nickeywarehouse.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// Final setup
+setupDriverName();
+loadSavedCustomers();
+populateCustomerDropdown();
+populateTrailerDropdown();
+loadSavedRecords();
+setTdy();
+addReimbRow();
+addFuelEntry();
+setupFormPersistence();
 </script>
 </body>
 </html>
