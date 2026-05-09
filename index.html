@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Nickey Professional Dispatch V 6.0</title>
+<meta name="theme-color" content="#1e3a8a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nickey Dispatch">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#1e3a8a;--red:#cc0000;--gold:#ffd700;--rad:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-height:100vh;font-size:17.5px}
+.splash-overlay{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.7s ease;overflow:hidden}
+.splash-overlay.hidden{opacity:0;pointer-events:none}
+.splash-title{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:6px;color:#ffd700;margin-bottom:1.5rem;text-align:center;line-height:1;text-shadow:0 0 20px rgba(255,215,0,0.5);z-index:5}
+.splash-version{font-size:0.9rem;letter-spacing:3px;color:#fff;margin-top:0.4rem}
+.splash-truck-wrap{position:relative;width:90%;max-width:520px;filter:drop-shadow(0 10px 30px rgba(0,0,0,0.8))}
+.splash-truck-img{width:100%;height:auto;display:block;position:relative;z-index:2}
+.splash-flames{position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at center, rgba(255,140,0,0.6) 0%, rgba(255,69,0,0.3) 30%, transparent 60%);z-index:1;pointer-events:none;animation:flamePulse 0.6s ease-in-out infinite;mix-blend-mode:screen}
+@keyframes flamePulse{0%,100%{opacity:0.7;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+.splash-headlights{position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse 30% 20% at 35% 60%, rgba(255,255,200,0.9) 0%, transparent 50%),radial-gradient(ellipse 30% 20% at 65% 60%, rgba(255,255,200,0.9) 0%, transparent 50%);z-index:3;pointer-events:none;animation:headlightFlash 1.2s ease-in-out infinite;mix-blend-mode:screen}
+@keyframes headlightFlash{0%,40%,100%{opacity:0.2}20%{opacity:1}60%,80%{opacity:0.4}}
+.splash-loading{margin-top:2rem;display:flex;gap:10px;z-index:5}
+.splash-loading span{width:10px;height:10px;background:#ffd700;border-radius:50%;animation:splashDot 1.4s ease-in-out infinite}
+.splash-loading span:nth-child(2){animation-delay:0.2s}
+.splash-loading span:nth-child(3){animation-delay:0.4s}
+@keyframes splashDot{0%,80%,100%{transform:scale(0.5);opacity:0.4}40%{transform:scale(1);opacity:1}}
+.hdr{background:#111;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #ffd700;position:sticky;top:0;z-index:100}
+.hdr-logo{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:#fff}
+.driver-badge{font-size:14.5px;color:#4caf50;font-weight:600}
+.hamburger{font-size:28px;cursor:pointer;padding:5px 10px;color:#ffd700}
+.sec{background:#252525;border-radius:12px;border:1px solid #333;margin-bottom:18px}
+.sh{background:var(--blue);padding:13px 16px;border-radius:12px 12px 0 0}
+.st{font-family:'Rajdhani',sans-serif;font-size:14.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff}
+.sb{padding:18px}
+.fld{margin-bottom:18px}
+.fld label{font-size:14px;font-weight:600;color:#ccc;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:7px}
+.fld input,.fld select,.fld textarea{border:1.8px solid #555;border-radius:var(--rad);padding:14px;font-size:18px;background:#2a2a2a;color:#eee;width:100%;outline:none}
+.fld input:focus,.fld select:focus{border-color:#ffd700}
+.pkwrap{position:relative}
+.pkdisp{font-family:'Rajdhani',sans-serif;font-size:42px;font-weight:700;letter-spacing:3px;margin-top:8px}
+.pb{color:#ffffff}
+.pr{color:#ffd700}
+.tankwarn-box{border-radius:10px;padding:20px;border:3px solid #555;margin:14px 0}
+.tankwarn-box.safe{border-color:#28a745;background:#0a2a0a}
+.tankwarn-box.caution{border-color:#ffd700;background:#2a2500}
+.tankwarn-box.danger{border-color:#cc0000;background:#2a0a0a;animation:dangerPulse 0.6s infinite}
+@keyframes dangerPulse{0%{border-color:#cc0000;background:#2a0a0a}50%{border-color:#ff0000;background:#550000}100%{border-color:#cc0000;background:#2a0a0a}}
+.tankwarn-box.danger #tankStatusTxt{animation:textBlink 0.6s infinite}
+@keyframes textBlink{0%,100%{opacity:1}50%{opacity:0.2}}
+.customer-select,.trailer-select{font-size:18px;padding:14px}
+.reimb-row{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin-bottom:12px;align-items:end}
+.reimb-total{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;text-align:right;color:#ffd700;margin-top:12px;padding:10px 0}
+.fuel-entry{background:#1f1f1f;border:1px solid #444;border-radius:10px;padding:12px;margin-bottom:10px;position:relative}
+.fuel-entry .remove-fuel-btn{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:#3a2a2a;color:#ff8888;border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.fuel-station-wrap{position:relative}
+.fuel-station-suggestions{position:absolute;top:100%;left:0;right:0;background:#2a2a2a;border:1px solid #555;border-top:none;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:10;display:none}
+.fuel-station-suggestions.show{display:block}
+.fuel-station-suggestion{padding:10px 14px;font-size:16px;cursor:pointer;color:#eee;border-bottom:1px solid #333}
+.fuel-station-suggestion:hover{background:#1e3a8a;color:#fff}
+.fuel-station-suggestion .uses{font-size:11px;color:#aaa;margin-left:6px}
+.fuel-grand-total{background:#2a2500;border:1px solid #ffd700;border-radius:8px;padding:10px;text-align:right;margin-top:8px;font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#ffd700}
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;z-index:200;align-items:center;justify-content:center}
+.menu{background:#1f1f1f;width:85%;max-width:320px;border-radius:12px;padding:20px;border:2px solid #ffd700}
+.menu-item{padding:16px;font-size:18px;font-weight:600;background:#2a2a2a;margin-bottom:10px;border-radius:8px;cursor:pointer;text-align:center;color:#eee;text-decoration:none;display:block}
+.menu-item:hover{background:#ffd700;color:#111}
+.edit-banner{display:none;background:linear-gradient(90deg,#1e3a8a 0%,#2d4fbd 100%);border:2px solid #ffd700;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#fff;font-family:'Rajdhani',sans-serif;align-items:center;justify-content:space-between;gap:12px}
+.edit-banner.active{display:flex}
+.edit-banner .edit-label{font-size:15px;font-weight:700;letter-spacing:1px}
+.edit-banner .edit-pickup{color:#ffd700;font-size:18px;font-weight:700;letter-spacing:1px}
+.edit-banner .exit-edit-btn{background:#333;color:#ffd700;border:1px solid #ffd700;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.remaining-box{border-radius:10px;padding:16px;border:2px solid #1e3a8a;background:#0a1a2a;margin-top:14px;text-align:center}
+.remaining-box.empty{border-color:#cc0000;background:#2a0a0a;animation:dangerPulse 0.6s infinite}
+.remaining-box.low{border-color:#ffd700;background:#2a2500}
+.remaining-label{font-family:'Rajdhani',sans-serif;font-size:13px;color:#a5d6a7;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.remaining-value{font-family:'Rajdhani',sans-serif;font-size:36px;font-weight:700;color:#4caf50;letter-spacing:1px}
+.remaining-box.low .remaining-value{color:#ffd700}
+.remaining-box.empty .remaining-value{color:#ff6666}
+.remaining-sub{font-size:12px;color:#888;margin-top:4px;font-style:italic}
+.datetime-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.datetime-row .date-input,.datetime-row .time-input{padding:14px;font-size:16px}
+.datetime-row .now-btn{height:52px;padding:0 14px;background:#1e3a8a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.emerg-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:none;z-index:300;align-items:flex-start;justify-content:center;overflow-y:auto}
+.emerg-modal{background:#1a1a1a;width:96%;max-width:520px;border-radius:14px;border:2px solid #cc0000;margin:10px auto 30px;padding-bottom:20px}
+.emerg-header{background:#cc0000;padding:16px 18px;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between}
+.emerg-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:1.5px;line-height:1.2}
+.emerg-close{background:#8a0000;color:#fff;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;border:none;font-size:15px}
+.back-btn{display:block;width:calc(100% - 36px);margin:16px 18px 0;padding:14px;background:#333;border:none;border-radius:8px;color:#ffd700;font-size:16px;font-weight:600;cursor:pointer;text-align:center}
+.autosave-pill{position:fixed;top:72px;right:14px;background:rgba(30,60,30,0.95);border:1px solid #4caf50;color:#a5d6a7;font-size:12px;font-weight:600;padding:6px 12px;border-radius:14px;z-index:150;opacity:0;transition:opacity 0.3s}
+.autosave-pill.show{opacity:1}
+.action-btn{width:100%;padding:14px;background:#4caf50;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-bottom:12px}
+.action-btn.blue{background:#1e3a8a}
+.action-btn.gold{background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700}
+.sds-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:10px}
+.sds-card{background:#1f1f1f;border:2px solid #ffd700;border-radius:12px;padding:16px;color:#eee;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s}
+.sds-card:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(255,215,0,0.3)}
+.sds-card h4{font-family:'Rajdhani',sans-serif;font-size:20px;color:#ffd700;margin-bottom:10px;border-bottom:1px solid #444;padding-bottom:6px}
+.sds-card .hazard{color:#ff6666;font-weight:700}
+.sds-card .ppe{color:#4caf50;font-weight:600}
+.sds-card ul{margin:10px 0;padding-left:20px;font-size:15px;line-height:1.4}
+.sds-card .btn{background:#333;color:#ffd700;border:none;padding:8px 14px;border-radius:6px;font-size:14px;margin-top:10px;width:100%;cursor:pointer}
+.sds-card .btn:hover{background:#ffd700;color:#111}
+</style>
+</head>
+<body>
+<div class="splash-overlay" id="splashOverlay">
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 6.0</div></div>
+  <div class="splash-truck-wrap">
+    <img class="splash-truck-img" id="splashTruckImg" alt="">
+    <div class="splash-flames"></div>
+    <div class="splash-headlights"></div>
+  </div>
+  <div class="splash-loading"><span></span><span></span><span></span></div>
+</div>
+<div class="hdr">
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 6.0</span></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="driver-badge" id="driverBadge">👤 Loading...</div>
+    <div class="hamburger" onclick="toggleMenu()">☰</div>
+  </div>
+</div>
+<div style="padding:18px;max-width:960px;margin:0 auto">
+  <div class="autosave-pill" id="autosavePill">💾 Auto-saved</div>
+  <div class="edit-banner" id="editBanner">
+    <div><div class="edit-label">✏️ EDITING</div><div class="edit-pickup" id="editPickupLabel">Pickup #—</div></div>
+    <button class="exit-edit-btn" onclick="exitEditMode()">Exit Edit Mode</button>
+  </div>
+  <div class="sec">
+    <div class="sh"><div class="st">Trip Information</div></div>
+    <div class="sb">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">
+        <div class="fld"><label>Pickup Date</label><input type="date" id="td"></div>
+        <button onclick="setTdy()" style="padding:12px 20px;background:#333;color:#ffd700;border:none;border-radius:6px;font-size:15px">Today</button>
+      </div>
+      <div class="fld">
+        <label>Pickup Number</label>
+        <div class="pkwrap">
+          <input type="text" id="pki" maxlength="12" inputmode="numeric" pattern="[0-9]*" oninput="upPk()" style="font-size:30px;text-align:center">
+          <div class="pkdisp" id="pkd">PICKUP #</div>
+        </div>
+        <button type="button" onclick="pasteDispatchText()" style="background:#4caf50;color:#fff;border:none;padding:12px 20px;font-size:16px;border-radius:6px;width:100%;margin-top:10px;cursor:pointer">📋 Paste Dispatch</button>
+      </div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sh"><div class="st">Customer & Equipment</div></div>
+    <div class="sb">
+      <div class="fld"><label>Customer</label><select id="customerSelect" class="customer-select" onchange="loadCustomerData()"><option value="">— Select Customer —</option></select></div>
+      <div class="fld"><label>Base Pay</label><input type="number" id="bpay" step="0.01" placeholder="0.00" style="font-size:18px"></div>
+      <div class="fld"><label>Customer High Limit (gallons)</label><input type="number" id="thl" placeholder="5400" style="font-size:18px" oninput="updateWarning()"></div>
+      <div class="fld"><label>Tanker / Trailer Number</label><select id="tki" class="trailer-select" onchange="calcAndUpdate()"><option value="">— Select Trailer —</option></select></div>
+      <div class="fld"><label>Arrival at Customer</label><div class="datetime-row"><input type="date" class="date-input" id="arrivalDate"><input type="time" class="time-input" id="arrivalTime"><button type="button" class="now-btn" onclick="setDateTimeNow('arrivalDate','arrivalTime')">🕒 Now</button></div></div>
+      <div class="fld"><label>Departure from Customer</label><div class="datetime-row"><input type="date" class="date-input" id="departureDate"><input type="time" class="time-input" id="departureTime"><button type="button" class="now-btn" onclick="setDateTimeNow('departureDate','departureTime')">🕒 Now</button></div></div>
+      <a href="inspection.html" class="action-btn blue" style="text-decoration:none;display:block;text-align:center;">🚛 Trailer Inspection</a>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sh"><div class="st">Load Information</div></div>
+    <div class="sb">
+      <div class="fld"><label>Tanker Weight (pounds)</label><input type="number" id="tw" placeholder="0" oninput="calcAndUpdate()" style="font-size:18px"></div>
+      <div class="fld"><label>Customer Tank Level - Arrival (gallons)</label><input type="number" id="atl" placeholder="0" oninput="calcAndUpdate()" style="font-size:18px"></div>
+      <div class="tankwarn-box" id="tankWarnBox">
+        <div id="tankStatusTxt" style="text-align:center;font-weight:700;margin-bottom:10px">ENTER WEIGHT ABOVE</div>
+        <div id="ttval" style="font-family:'Rajdhani',sans-serif;font-size:42px;font-weight:700;text-align:center;color:#ffd700">— GAL TOTAL</div>
+      </div>
+      <div class="fld" style="margin-top:18px;"><label>Customer Gauge - Live (gallons)</label><input type="number" id="liveGauge" placeholder="Updates live as you pump" oninput="updateRemaining()" style="font-size:18px"></div>
+      <div class="remaining-box" id="remainingBox">
+        <div class="remaining-label">⛽ Gallons Remaining in Tanker</div>
+        <div class="remaining-value" id="remainingValue">—</div>
+        <div class="remaining-sub" id="remainingSub">Enter tanker weight, arrival level, and live gauge</div>
+      </div>
+      <div class="fld" style="margin-top:18px;"><label>Customer Tank Level - Departure (gallons)</label><input type="number" id="departureLoad" placeholder="Final gauge reading on departure" style="font-size:18px"></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sh"><div class="st">Reimbursements</div></div>
+    <div class="sb" id="reimbContainer"></div>
+    <div style="padding:0 18px 18px;">
+      <button onclick="addReimbRow()" style="width:100%;padding:14px;background:#333;color:#ffd700;border:none;border-radius:8px;font-size:16px;font-weight:600;">+ Add Expense Item</button>
+      <div class="reimb-total" id="reimbTotal">Total Reimbursement: $0.00</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sh"><div class="st">⛽ Fuel This Trip</div></div>
+    <div class="sb">
+      <p style="font-size:13px;color:#aaa;margin-bottom:12px;">Log every diesel stop on this trip — flows to Earnings & Expenses</p>
+      <div id="fuelContainer"></div>
+      <button onclick="addFuelEntry()" style="width:100%;padding:14px;background:#333;color:#ffd700;border:none;border-radius:8px;font-size:16px;font-weight:600;">+ Add Fuel Entry</button>
+      <div class="fuel-grand-total" id="fuelGrandTotal">Total Fuel: $0.00</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sh"><div class="st">Notes</div></div>
+    <div class="sb"><textarea id="nts" rows="5" placeholder="Any additional notes..." style="width:100%;padding:15px;font-size:17px;background:#2a2a2a;color:#eee;border:1.8px solid #555;border-radius:8px"></textarea></div>
+  </div>
+  <div class="sec" id="sdsSection">
+    <div class="sh"><div class="st">⚠️ Chemical Safety Quick Reference (SDS)</div></div>
+    <div class="sb">
+      <p style="font-size:14px;color:#aaa;margin-bottom:12px;">Tap any card for full details • For emergency use only</p>
+      <div class="sds-grid">
+        <div class="sds-card" onclick="window.open('sds.html?chem=superd','_blank')">
+          <h4>🔴 SUPER D 500 / PERSYNT 500</h4>
+          <p><strong>50% Hydrogen Peroxide (H₂O₂)</strong></p>
+          <p class="hazard">⚠️ Strong Oxidizer (Cat 2) • Corrosive • Fire/Explosion risk</p>
+          <p class="ppe">PPE: Butyl/neoprene gloves, face shield, goggles, flame-resistant clothing</p>
+          <ul><li>Can cause fire or explosion on contact with combustibles</li><li>Severe burns to skin and eyes</li><li>Keep away from heat, sparks, organics</li></ul>
+          <button class="btn">View Full SDS Details</button>
+        </div>
+        <div class="sds-card" onclick="window.open('sds.html?chem=vigorox','_blank')">
+          <h4>🟠 VIGOROX WWT II</h4>
+          <p><strong>Evonik • PAA 15% + H₂O₂ 24%</strong></p>
+          <p class="hazard">⚠️ Corrosive • Combustible • Severe burns</p>
+          <p class="ppe">PPE: Butyl/neoprene gloves, goggles + face shield, protective clothing</p>
+          <ul><li>Biocide — used in wastewater treatment</li><li>Very toxic to aquatic life</li><li>Never mix with other chemicals</li></ul>
+          <button class="btn">View Full SDS Details</button>
+        </div>
+        <div class="sds-card" onclick="window.open('sds.html?chem=spectrum','_blank')">
+          <h4>🟡 SPECTRUM 22</h4>
+          <p><strong>Evonik • PAA 20-23% + H₂O₂ 8.5-10.5%</strong></p>
+          <p class="hazard">⚠️ Corrosive • Oxidizer • Severe burns</p>
+          <p class="ppe">PPE: Butyl gloves, face shield + goggles, apron, respirator if vapors</p>
+          <ul><li>Used for poultry processing</li><li>Causes severe skin/eye burns</li><li>May cause respiratory irritation</li></ul>
+          <button class="btn">View Full SDS Details</button>
+        </div>
+        <div class="sds-card" onclick="window.open('sds.html?chem=placards','_blank')">
+          <h4>🚛 DOT PLACARDS &amp; ERG HANDBOOK</h4>
+          <p><strong>Two Required Placards</strong></p>
+          <p class="hazard">Class 5.1 or 5.2 Oxidizer (yellow) + Class 8 Corrosive (white/black)</p>
+          <p class="ppe">PPE: Butyl gloves, face shield + goggles, apron, respirator if vapors</p>
+          <ul><li>ERG Guide 140 – Oxidizers (2024)</li><li>Initial isolation: 150–300 ft</li><li>Call CHEMTREC 1-800-424-9300</li></ul>
+          <button class="btn">View Placard &amp; ERG Details</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="menuOverlay" onclick="if(event.target === this) toggleMenu()">
+  <div class="menu">
+    <div class="menu-item" onclick="printForm()">🖨️ Print / Save as PDF</div>
+    <div class="menu-item" onclick="saveRecord()">💾 Save Record</div>
+    <div class="menu-item" onclick="sendEmail()">✉️ Email to Daniel</div>
+    <div class="menu-item" onclick="viewSavedRecords()">📋 View Saved Records</div>
+    <a href="earnings.html" class="menu-item" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">💰 Earnings & Expenses</a>
+    <a href="inspection.html" class="menu-item">🚛 Trailer Inspection</a>
+    <div class="menu-item" onclick="openRoadsideEmergencies()">🚨 Roadside Emergencies</div>
+    <div class="menu-item" onclick="openSettings()">⚙️ Settings</div>
+    <div class="menu-item" onclick="changeDriverName()">👤 Change Driver Name</div>
+    <div class="menu-item" onclick="clearForm()" style="color:#ff8888;">🗑️ Clear Form</div>
+  </div>
+</div>
+<div class="emerg-overlay" id="savedRecordsOverlay">
+  <div class="emerg-modal" style="border-color:#ffd700;max-width:560px;">
+    <div class="emerg-header" style="background:#1e3a8a;"><div class="emerg-title">📋 SAVED RECORDS</div><div class="emerg-close" onclick="closeSavedRecords()">✕</div></div>
+    <div id="savedRecordsBody" style="padding:14px 18px;"></div>
+    <button class="back-btn" onclick="closeSavedRecords()">✕ Close</button>
+  </div>
+</div>
+<div class="emerg-overlay" id="settingsOverlay">
+  <div class="emerg-modal" style="border-color:#ffd700;max-width:520px;">
+    <div class="emerg-header" style="background:#1e3a8a;"><div class="emerg-title">⚙️ SETTINGS</div><div class="emerg-close" onclick="closeSettings()">✕</div></div>
+    <div style="display:flex;margin:14px 14px 0;border-bottom:1px solid #444;">
+      <button onclick="switchSettingsTab(0)" id="tab0" style="flex:1;padding:12px;background:#1e3a8a;color:#ffd700;border:none;border-radius:8px 8px 0 0;font-weight:700;">Customers</button>
+      <button onclick="switchSettingsTab(1)" id="tab1" style="flex:1;padding:12px;background:#333;color:#ddd;border:none;border-radius:8px 8px 0 0;">Trailers</button>
+    </div>
+    <div id="settingsCustomers" style="padding:14px 14px 0;"><div id="customerList" style="max-height:340px;overflow-y:auto;"></div><button onclick="addNewCustomer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Customer</button></div>
+    <div id="settingsTrailers" style="display:none;padding:14px 14px 0;"><div id="trailerList" style="max-height:340px;overflow-y:auto;"></div><button onclick="addNewTrailer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Trailer</button></div>
+    <button class="back-btn" onclick="closeSettings()">← Back</button>
+  </div>
+</div>
+<div class="emerg-overlay" id="emergencyOverlay">
+  <div class="emerg-modal">
+    <div class="emerg-header"><div class="emerg-title">🚨 ROADSIDE EMERGENCIES</div><div class="emerg-close" onclick="closeEmergency()">✕</div></div>
+    <div id="emergBody" style="padding:14px 18px;"></div>
+    <button class="back-btn" onclick="closeEmergency()">✕</button>
+  </div>
+</div>
+<script>
+const TRUCK_IMG='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGRj/wAARCAC0ALQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlbaWmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/2Q==';
+document.getElementById('splashTruckImg').src=TRUCK_IMG;
+setTimeout(()=>{document.getElementById('splashOverlay').classList.add('hidden');setTimeout(()=>{document.getElementById('splashOverlay').style.display='none'},700)},2500);
+let currentDriver="",savedRecords=[],editingRecordIdx=-1;
+let customers=[{name:"Cytec Mount Joy Tennessee",limit:0,pay:800},{name:"Foster Farms Farmerville Louisiana",limit:5100,pay:1220},{name:"Harrison Produce Bethlehem Georgia",limit:5400,pay:1807.20},{name:"Hydrox Elgin Illinois",limit:0,pay:2256},{name:"Lincoln Premium Produce Fremont Nebraska",limit:7400,pay:3068},{name:"Maxson",limit:0,pay:388.80},{name:"Moore Jack Jasper Alabama",limit:5400,pay:848.80},{name:"Mountaire Lumber Bridge",limit:5600,pay:3116.80},{name:"Mountaire Siler City",limit:5400,pay:4000},{name:"Pecola",limit:0,pay:1264.80},{name:"Pilgrim's Pride De Queen Arkansas",limit:5100,pay:1175.20},{name:"P.L. Developments Piedmont South Carolina",limit:9500,pay:2256},{name:"Purdue Pocahontas Arkansas",limit:5300,pay:552},{name:"V.I.J.O.N. Smyrna Tennessee",limit:5000,pay:948},{name:"Washburn Tunnel Wastewater Facility Pasadena Texas",limit:5500,pay:2403.20},{name:"Wolf River",limit:0,pay:352},{name:"WSC",limit:0,pay:200}];
+const allTrailers=["SD 94","SD 55-20","SD 45","SD 37","ISO 144930","ISO 144926","ISO 144927","ISO 144925","ISO 144924","ISO 144923","ISO 144922","ISO 134915","ISO 134914","ISO 134908","ISO 134906","ISO 134912","DV 18118"];
+
+// === FORM PERSISTENCE (localStorage) ===
+const FORM_STORAGE_KEY = "nickeyDispatchFormState";
+
+function saveFormState() {
+  const state = {
+    td: document.getElementById("td").value,
+    pki: document.getElementById("pki").value,
+    customerSelect: document.getElementById("customerSelect").value,
+    bpay: document.getElementById("bpay").value,
+    thl: document.getElementById("thl").value,
+    tki: document.getElementById("tki").value,
+    arrivalDate: document.getElementById("arrivalDate").value,
+    arrivalTime: document.getElementById("arrivalTime").value,
+    departureDate: document.getElementById("departureDate").value,
+    departureTime: document.getElementById("departureTime").value,
+    tw: document.getElementById("tw").value,
+    atl: document.getElementById("atl").value,
+    liveGauge: document.getElementById("liveGauge").value,
+    departureLoad: document.getElementById("departureLoad").value,
+    nts: document.getElementById("nts").value,
+    reimbursements: [],
+    fuelEntries: []
+  };
+
+  // Reimbursements
+  document.querySelectorAll('#reimbContainer .reimb-row').forEach(row => {
+    const desc = row.querySelector('input[type="text"]')?.value || "";
+    const amt = row.querySelector('input[type="number"]')?.value || "";
+    if (desc || amt) state.reimbursements.push({ desc, amt });
+  });
+
+  // Fuel entries
+  document.querySelectorAll('.fuel-entry').forEach(entry => {
+    const station = entry.querySelector('.fuel-station-input')?.value || "";
+    const amount = entry.querySelector('.fuel-amount-input')?.value || "";
+    const gallons = entry.querySelector('.fuel-gallons-input')?.value || "";
+    if (station || amount || gallons) {
+      state.fuelEntries.push({ station, amount, gallons });
+    }
+  });
+
+  localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(state));
+
+  // Flash autosave pill
+  const pill = document.getElementById("autosavePill");
+  if (pill) {
+    pill.classList.add("show");
+    setTimeout(() => pill.classList.remove("show"), 1200);
+  }
+}
+
+function restoreFormState() {
+  const raw = localStorage.getItem(FORM_STORAGE_KEY);
+  if (!raw) return;
+
+  let state;
+  try { state = JSON.parse(raw); } catch(e) { return; }
+
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ""; };
+  setVal("td", state.td);
+  setVal("pki", state.pki);
+  setVal("customerSelect", state.customerSelect);
+  setVal("bpay", state.bpay);
+  setVal("thl", state.thl);
+  setVal("tki", state.tki);
+  setVal("arrivalDate", state.arrivalDate);
+  setVal("arrivalTime", state.arrivalTime);
+  setVal("departureDate", state.departureDate);
+  setVal("departureTime", state.departureTime);
+  setVal("tw", state.tw);
+  setVal("atl", state.atl);
+  setVal("liveGauge", state.liveGauge);
+  setVal("departureLoad", state.departureLoad);
+  setVal("nts", state.nts);
+
+  upPk();
+  calcAndUpdate();
+  updateWarning();
+  updateRemaining();
+
+  // Reimbursements
+  const reimbCont = document.getElementById("reimbContainer");
+  reimbCont.innerHTML = "";
+  if (state.reimbursements && state.reimbursements.length > 0) {
+    state.reimbursements.forEach(r => {
+      addReimbRow();
+      const lastRow = reimbCont.lastElementChild;
+      const descInp = lastRow.querySelector('input[type="text"]');
+      const amtInp = lastRow.querySelector('input[type="number"]');
+      if (descInp) descInp.value = r.desc || "";
+      if (amtInp) amtInp.value = r.amt || "";
+    });
+  } else {
+    addReimbRow();
+  }
+  updateReimbTotal();
+
+  // Fuel entries
+  const fuelCont = document.getElementById("fuelContainer");
+  fuelCont.innerHTML = "";
+  if (state.fuelEntries && state.fuelEntries.length > 0) {
+    state.fuelEntries.forEach(f => addFuelEntry(f));
+  } else {
+    addFuelEntry();
+  }
+  updateFuelGrandTotal();
+}
+
+function setupFormPersistence() {
+  const inputs = ["td","pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts"];
+  inputs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("input", () => {
+        clearTimeout(window._saveTimeout);
+        window._saveTimeout = setTimeout(saveFormState, 300);
+      });
+      if (el.tagName === "SELECT" || el.type === "date" || el.type === "time") {
+        el.addEventListener("change", saveFormState);
+      }
+    }
+  });
+
+  // Watch dynamic sections
+  const reimbCont = document.getElementById("reimbContainer");
+  if (reimbCont) {
+    const obs = new MutationObserver(() => saveFormState());
+    obs.observe(reimbCont, { childList: true, subtree: true });
+  }
+
+  const fuelCont = document.getElementById("fuelContainer");
+  if (fuelCont) {
+    const obs = new MutationObserver(() => saveFormState());
+    obs.observe(fuelCont, { childList: true, subtree: true });
+  }
+
+  // Restore saved data
+  restoreFormState();
+}
+
+// === END OF PERSISTENCE CODE ===
+
+function setupDriverName(){let s=localStorage.getItem("currentDriver");if(!s){s=prompt("Enter your full name:","Frank Mulkey");if(!s||!s.trim())s="Unknown Driver";s=s.trim();localStorage.setItem("currentDriver",s)}currentDriver=s;document.getElementById("driverBadge").textContent="👤 "+currentDriver}
+function populateCustomerDropdown(){const s=document.getElementById("customerSelect");s.innerHTML='<option value="">— Select Customer —</option>';customers.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=c.name;s.appendChild(o)})}
+function populateTrailerDropdown(){const s=document.getElementById("tki");s.innerHTML='<option value="">— Select Trailer —</option>';allTrailers.forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=t;s.appendChild(o)})}
+function loadCustomerData(){const s=document.getElementById("customerSelect").value;const c=customers.find(x=>x.name===s);if(c){document.getElementById("thl").value=c.limit||"";document.getElementById("bpay").value=c.pay||"";updateWarning()}}
+function getTotalGallons(){const tg=parseFloat(document.getElementById('ttval').dataset.tankerGal)||0;const ag=parseFloat(document.getElementById('atl').value)||0;return tg+ag}
+function updateWarning(){const t=getTotalGallons();const l=parseFloat(document.getElementById('thl').value)||999999;const b=document.getElementById("tankWarnBox");const txt=document.getElementById("tankStatusTxt");const v=document.getElementById("ttval");if(t===0){b.className="tankwarn-box";txt.textContent="ENTER WEIGHT ABOVE";v.style.color="#ffd700";return}v.textContent=t.toFixed(1)+" GAL TOTAL";if(t>l){b.className="tankwarn-box danger";txt.innerHTML="⚠️ WARNING — TANK OVERFILL";txt.style.color="#ff6666";v.style.color="#ff6666"}else if(t>=l-200){b.className="tankwarn-box caution";txt.textContent="CAUTION — NEAR HIGH LIMIT";txt.style.color="#ffd700";v.style.color="#ffd700"}else{b.className="tankwarn-box safe";txt.textContent="SAFE TO PUMP";txt.style.color="#28a745";v.style.color="#ffd700"}}
+function calcGal(){const w=parseFloat(document.getElementById('tw').value)||0;if(!w){document.getElementById('ttval').textContent='— GAL TOTAL';document.getElementById('ttval').dataset.tankerGal="0";updateWarning();return}const tv=document.getElementById('tki').value||"";let div=9.43;if(tv.indexOf("SD")===0)div=10;else if(tv.indexOf("ISO")===0)div=9.43;const gal=(w/div).toFixed(1);document.getElementById('ttval').dataset.tankerGal=gal;updateWarning()}
+function calcAndUpdate(){calcGal();updateWarning()}
+let reimbCounter=0;
+function addReimbRow(){reimbCounter++;const c=document.getElementById("reimbContainer");const r=document.createElement("div");r.className="reimb-row";r.id="reimb-row-"+reimbCounter;r.innerHTML='<div class="fld"><label>Description</label><input type="text" placeholder="e.g. Reefer fuel, lights" oninput="updateReimbTotal()"></div><div class="fld"><label>Amount ($)</label><input type="number" step="0.01" placeholder="0.00" oninput="updateReimbTotal()"></div><button onclick="removeReimbRow('+reimbCounter+')" style="padding:12px 16px;background:#3a2a2a;color:#ff8888;border:none;border-radius:6px;font-size:15px;height:48px;margin-top:28px;">Remove</button>';c.appendChild(r);updateReimbTotal()}
+function removeReimbRow(id){const r=document.getElementById("reimb-row-"+id);if(r)r.remove();updateReimbTotal()}
+function updateReimbTotal(){let t=0;document.querySelectorAll('#reimbContainer input[type="number"]').forEach(i=>t+=parseFloat(i.value)||0);document.getElementById("reimbTotal").textContent="Total Reimbursement: $"+t.toFixed(2)}
+let fuelCounter=0;
+function getFuelStations(){try{return JSON.parse(localStorage.getItem('fuelStations')||'{}')}catch(e){return{}}}
+function saveFuelStation(name){if(!name||!name.trim())return;const s=getFuelStations();const k=name.trim();s[k]=(s[k]||0)+1;localStorage.setItem('fuelStations',JSON.stringify(s))}
+function addFuelEntry(prefill){fuelCounter++;const id=fuelCounter;const c=document.getElementById('fuelContainer');const e=document.createElement('div');e.className='fuel-entry';e.id='fuel-entry-'+id;e.innerHTML='<button class="remove-fuel-btn" onclick="removeFuelEntry('+id+')">✕</button><div class="fld"><label>Station Name</label><div class="fuel-station-wrap"><input type="text" class="fuel-station-input" data-id="'+id+'" placeholder="Type station name" autocomplete="off" value="'+(prefill&&prefill.station?prefill.station.replace(/"/g,'&quot;'):'')+'">\n<div class="fuel-station-suggestions" id="fuelSugg-'+id+'"></div></div></div><div class="fld"><label>Amount Spent ($)</label><input type="number" step="0.01" placeholder="0.00" class="fuel-amount-input" data-id="'+id+'" value="'+(prefill&&prefill.amount?prefill.amount:'')+'" oninput="updateFuelGrandTotal()"></div><div class="fld" style="margin-bottom:0"><label>Gallons Pumped (optional)</label><input type="number" step="0.01" placeholder="0.00" class="fuel-gallons-input" data-id="'+id+'" value="'+(prefill&&prefill.gallons?prefill.gallons:'')+'" style="font-size:18px"></div>';c.appendChild(e);setupStationAutocomplete(e.querySelector('.fuel-station-input'),e.querySelector('.fuel-station-suggestions'));updateFuelGrandTotal()}
+function removeFuelEntry(id){const e=document.getElementById('fuel-entry-'+id);if(e)e.remove();updateFuelGrandTotal()}
+function updateFuelGrandTotal(){let t=0;document.querySelectorAll('.fuel-amount-input').forEach(i=>t+=parseFloat(i.value)||0);document.getElementById('fuelGrandTotal').textContent='Total Fuel: $'+t.toFixed(2)}
+function setupStationAutocomplete(input,sugg){if(!input)return;input.addEventListener('input',function(){const v=input.value.toLowerCase().trim();const s=getFuelStations();const m=Object.keys(s).filter(x=>v===''||x.toLowerCase().includes(v)).sort((a,b)=>s[b]-s[a]).slice(0,6);if(m.length===0){sugg.classList.remove('show');return}sugg.innerHTML=m.map(x=>'<div class="fuel-station-suggestion" data-station="'+x.replace(/"/g,'&quot;')+'">'+x+'<span class="uses">x'+s[x]+'</span></div>').join('');sugg.classList.add('show');sugg.querySelectorAll('.fuel-station-suggestion').forEach(el=>{el.addEventListener('click',function(){input.value=el.dataset.station;sugg.classList.remove('show');updateFuelGrandTotal()})})});input.addEventListener('focus',function(){if(input.value==='')input.dispatchEvent(new Event('input'))});input.addEventListener('blur',function(){setTimeout(()=>sugg.classList.remove('show'),200)})}
+function collectFuelEntries(){const e=[];document.querySelectorAll('.fuel-entry').forEach(en=>{const s=en.querySelector('.fuel-station-input').value.trim();const a=parseFloat(en.querySelector('.fuel-amount-input').value)||0;const g=parseFloat(en.querySelector('.fuel-gallons-input').value)||0;if(s||a>0||g>0)e.push({station:s,amount:a,gallons:g})});return e}
+function saveRecord(){toggleMenu();const f=collectFuelEntries();f.forEach(x=>{if(x.station)saveFuelStation(x.station)});const r={id:editingRecordIdx!==-1?savedRecords[editingRecordIdx].id:'REC-'+Date.now(),driverName:currentDriver,date:document.getElementById("td").value,pickup:document.getElementById("pki").value,customer:document.getElementById("customerSelect").value,basePay:parseFloat(document.getElementById("bpay").value)||0,highLimit:document.getElementById("thl").value,trailer:document.getElementById("tki").value,arrivalDate:document.getElementById("arrivalDate").value,arrivalTime:document.getElementById("arrivalTime").value,departureDate:document.getElementById("departureDate").value,departureTime:document.getElementById("departureTime").value,tankerWeight:document.getElementById("tw").value,arrivalGallons:document.getElementById("atl").value,departureLoad:document.getElementById("departureLoad").value,totalGallons:document.getElementById("ttval").textContent,notes:document.getElementById("nts").value,reimbursements:[],fuelEntries:f,actualPay:null,bookkeepingComplete:false,timestamp:new Date().toISOString()};const ai=document.querySelectorAll('#reimbContainer input[type="number"]');const di=document.querySelectorAll('#reimbContainer input[type="text"]');for(let i=0;i<ai.length;i++){if(ai[i].value){r.reimbursements.push({desc:di[i]?di[i].value:"",amount:parseFloat(ai[i].value)||0})}}if(editingRecordIdx!==-1&&editingRecordIdx<savedRecords.length){const o=savedRecords[editingRecordIdx];r.actualPay=o.actualPay;r.bookkeepingComplete=o.bookkeepingComplete||false;r.timestamp=o.timestamp||r.timestamp;r.updatedAt=new Date().toISOString();savedRecords[editingRecordIdx]=r;localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record updated!");editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy();return}savedRecords.push(r);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record saved!")}
+function viewSavedRecords(){toggleMenu();try{const s=localStorage.getItem("nickeySavedRecords");if(s)savedRecords=JSON.parse(s)||[]}catch(e){}const b=document.getElementById("savedRecordsBody");if(savedRecords.length===0){b.innerHTML='<div style="padding:30px 10px;text-align:center;color:#aaa;">No saved records yet.</div>';document.getElementById("savedRecordsOverlay").style.display="flex";return}let h='';savedRecords.slice().reverse().forEach((r,idx)=>{const realIdx=savedRecords.length-1-idx;const ft=(r.fuelEntries||[]).reduce((s,f)=>s+(parseFloat(f.amount)||0),0);h+=`<div style="background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;position:relative;"><div onclick="loadRecordIntoForm(${realIdx}); closeSavedRecords();" style="cursor:pointer;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;">Pickup #${r.pickup}</div><div style="font-size:13px;color:#aaa;">${r.date} • ${r.customer}</div><div style="font-size:13px;color:#4caf50;margin-top:4px;">Base Pay: $${(r.basePay||0).toFixed(2)}${ft>0?' • Fuel: $'+ft.toFixed(2):''}</div></div><button onclick="deleteSavedRecord(${realIdx}); event.stopImmediatePropagation();" style="position:absolute;top:12px;right:12px;background:#3a2a2a;color:#ff8888;border:none;border-radius:6px;padding:6px 10px;font-size:13px;">🗑️</button></div>`});b.innerHTML=h;document.getElementById("savedRecordsOverlay").style.display="flex"}
+function closeSavedRecords(){document.getElementById("savedRecordsOverlay").style.display="none"}
+function loadRecordIntoForm(idx){if(idx<0||idx>=savedRecords.length)return;const r=savedRecords[idx];editingRecordIdx=idx;document.getElementById("editBanner").classList.add("active");document.getElementById("editPickupLabel").textContent="Pickup #"+r.pickup;document.getElementById("td").value=r.date;document.getElementById("pki").value=r.pickup;upPk();document.getElementById("customerSelect").value=r.customer;document.getElementById("bpay").value=r.basePay;document.getElementById("thl").value=r.highLimit;document.getElementById("tki").value=r.trailer;document.getElementById("arrivalDate").value=r.arrivalDate;document.getElementById("arrivalTime").value=r.arrivalTime;document.getElementById("departureDate").value=r.departureDate;document.getElementById("departureTime").value=r.departureTime;document.getElementById("tw").value=r.tankerWeight;document.getElementById("atl").value=r.arrivalGallons;document.getElementById("departureLoad").value=r.departureLoad;document.getElementById("nts").value=r.notes;document.getElementById("reimbContainer").innerHTML="";(r.reimbursements||[]).forEach(rei=>addReimbRow());document.querySelectorAll('#reimbContainer input[type="text"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].desc});document.querySelectorAll('#reimbContainer input[type="number"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].amount});document.getElementById("fuelContainer").innerHTML="";(r.fuelEntries||[]).forEach(f=>addFuelEntry(f));updateWarning();updateRemaining();updateReimbTotal();updateFuelGrandTotal();window.scrollTo(0,0)}
+function deleteSavedRecord(idx){if(confirm("Delete this record?")){savedRecords.splice(idx,1);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));viewSavedRecords()}}
+function sendEmail(){toggleMenu();const date=document.getElementById("td").value;const pickup=document.getElementById("pki").value;const customer=document.getElementById("customerSelect").value;const trailer=document.getElementById("tki").value;const subject=encodeURIComponent('Pickup #'+pickup+' - '+customer+' - '+date);const body=encodeURIComponent('Daniel,\n\nDispatch info:\n\nDriver: '+currentDriver+'\nDate: '+date+'\nPickup #: '+pickup+'\nCustomer: '+customer+'\nTrailer: '+trailer+'\n\nFrank');window.location.href='mailto:DKlein@nickeywarehouse.com?subject='+subject+'&body='+body}
+function printForm(){toggleMenu();window.print()}
+function toggleMenu(){const o=document.getElementById("menuOverlay");o.style.display=(o.style.display==="flex")?"none":"flex"}
+const roadsideData={superD:{title:"Super D Tankers",items:[{name:"Unit #52",vin:"1XPBDP9X1ND795521",plate:"M530742 (TN)"},{name:"Unit #94",vin:"1XPWDP9XXKD494094",plate:"M491844 (TN)"},{name:"Unit #45",vin:"1XPBD49X9MD691045",plate:"M530744 (TN)"},{name:"Unit #37",vin:"1XPBDP9X4ND795537",plate:"M530743 (TN)"},{name:"Unit #5520 (Volvo)",vin:"4V4NC9EJ8MN276520",plate:"M530745 (TN)"}]},shops:[{name:"Dobbs Peterbilt - Memphis",phone:"901-345-7811",addr:"4314 Old Lamar Ave, Memphis TN"},{name:"Dobbs Peterbilt - Nashville",phone:"615-256-3491",addr:"825 Visco Dr, Nashville TN"},{name:"Dobbs Peterbilt - Knoxville",phone:"865-637-3030",addr:"4001 N Cherry St, Knoxville TN"},{name:"Dobbs Peterbilt - Jackson",phone:"731-422-2191",addr:"110 Stonebrook Pl, Jackson TN"},{name:"Element Fleet Roadside",phone:"800-243-2476",addr:"24/7 Roadside Assistance"}]};
+function openRoadsideEmergencies(){toggleMenu();let h='<div style="margin-bottom:18px;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid #ffd700;padding-bottom:8px;">🚙 SUPER D TANKERS</div>';roadsideData.superD.items.forEach(u=>{h+='<div style="background:#252525;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-weight:700;color:#ffd700;">'+u.name+'</div><div style="font-size:12px;color:#aaa;font-family:monospace;">VIN: '+u.vin+'</div><div style="font-size:12px;color:#aaa;">Plate: '+u.plate+'</div></div>'});h+='</div>';h+='<div><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid #cc0000;padding-bottom:6px;margin-bottom:8px;">🔧 REPAIR SHOPS</div>';roadsideData.shops.forEach(s=>{h+='<div style="background:#252525;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-weight:700;color:#fff;">'+s.name+'</div><div style="font-size:13px;color:#aaa;">'+s.addr+'</div><a href="tel:'+s.phone.replace(/-/g,'')+'" style="display:inline-block;margin-top:8px;background:#b71c1c;color:#fff;padding:8px 14px;border-radius:6px;font-weight:700;text-decoration:none;font-size:14px;">'+s.phone+'</a></div>'});h+='</div>';document.getElementById("emergBody").innerHTML=h;document.getElementById("emergencyOverlay").style.display="flex"}
+function closeEmergency(){document.getElementById("emergencyOverlay").style.display="none"}
+function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex"}
+function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
+function switchSettingsTab(tab){document.getElementById("tab0").style.background=tab===0?"#1e3a8a":"#333";document.getElementById("tab0").style.color=tab===0?"#ffd700":"#ddd";document.getElementById("tab1").style.background=tab===1?"#1e3a8a":"#333";document.getElementById("tab1").style.color=tab===1?"#ffd700":"#ddd";document.getElementById("settingsCustomers").style.display=tab===0?"block":"none";document.getElementById("settingsTrailers").style.display=tab===1?"block":"none"}
+function changeDriverName(){const name=prompt("Enter driver name:",currentDriver);if(name&&name.trim()){currentDriver=name.trim();localStorage.setItem("currentDriver",currentDriver);document.getElementById("driverBadge").textContent="👤 "+currentDriver;toggleMenu()}}
+function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0});populateCustomerDropdown();alert("Customer added!")}}
+function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());populateTrailerDropdown();alert("Trailer added!")}}
+function exitEditMode(){if(confirm("Exit edit mode and return to new record?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}}
+function pasteDispatchText(){alert("Paste dispatch functionality - manual entry for now")}
+function setTdy(){document.getElementById("td").value=new Date().toISOString().split("T")[0]}
+function setDateTimeNow(d,t){const n=new Date();document.getElementById(d).value=n.toISOString().split("T")[0];document.getElementById(t).value=String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0")}
+function upPk(){const v=document.getElementById('pki').value;const d=document.getElementById('pkd');if(!v){d.innerHTML='PICKUP #';return}if(v.length<=4)d.innerHTML='<span class="pr">'+v+'</span>';else d.innerHTML='<span class="pb">'+v.slice(0,v.length-4)+'</span><span class="pr">'+v.slice(-4)+'</span>'}
+function clearForm(){if(editingRecordIdx!==-1){if(confirm("Exit edit mode and clear the form?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}return}if(confirm("Clear this form?")){clearAllFormFields();setTdy()}}
+function clearAllFormFields(){["pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("pkd").innerHTML="PICKUP #";document.getElementById("ttval").textContent="— GAL TOTAL";document.getElementById("ttval").dataset.tankerGal="0";const b=document.getElementById("tankWarnBox");if(b){b.className="tankwarn-box";document.getElementById("tankStatusTxt").textContent="ENTER WEIGHT ABOVE"}updateRemaining();document.getElementById("reimbContainer").innerHTML="";addReimbRow();updateReimbTotal();document.getElementById("fuelContainer").innerHTML="";addFuelEntry();localStorage.removeItem(FORM_STORAGE_KEY)}
+function loadSavedRecords(){const s=localStorage.getItem("nickeySavedRecords");if(s){try{savedRecords=JSON.parse(s);savedRecords.forEach(r=>{if(!r.fuelEntries)r.fuelEntries=(r.fuel&&(r.fuel.amount||r.fuel.station))?[r.fuel]:[];if(r.actualPay===undefined)r.actualPay=null;if(r.bookkeepingComplete===undefined)r.bookkeepingComplete=false;if(!r.id)r.id='REC-'+r.timestamp})}catch(e){savedRecords=[]}}}
+function updateRemaining(){const tg=parseFloat(document.getElementById("ttval").dataset.tankerGal)||0;const a=parseFloat(document.getElementById("atl").value)||0;const l=document.getElementById("liveGauge").value;const b=document.getElementById("remainingBox");const v=document.getElementById("remainingValue");const sub=document.getElementById("remainingSub");if(tg===0||l===""||isNaN(parseFloat(l))){b.className="remaining-box";v.textContent="—";sub.textContent="Enter tanker weight, arrival level, and live gauge";return}const rem=tg-(parseFloat(l)-a);if(rem<0){b.className="remaining-box empty";v.textContent="0";sub.textContent="Tank is empty"}else if(rem<500){b.className="remaining-box low";v.textContent=rem.toFixed(1);sub.textContent="Low fuel warning"}else{b.className="remaining-box";v.textContent=rem.toFixed(1);sub.textContent="Fuel remaining"}}
+setupDriverName();populateCustomerDropdown();populateTrailerDropdown();loadSavedRecords();setTdy();addReimbRow();addFuelEntry();setupFormPersistence();
+</script>
+</body>
+</html>
