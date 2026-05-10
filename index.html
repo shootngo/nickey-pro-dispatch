@@ -552,7 +552,89 @@ function changeDriverName(){const name=prompt("Enter driver name:",currentDriver
 function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();localStorage.setItem("nickeyCustomers",JSON.stringify(customers));alert("Customer added!")}}
 function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());populateTrailerDropdown();alert("Trailer added!")}}
 function exitEditMode(){if(confirm("Exit edit mode and return to new record?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}}
-function pasteDispatchText(){alert("Paste dispatch functionality - manual entry for now")}
+
+// === FIXED PASTE DISPATCH FUNCTION (extracts pickup number automatically) ===
+function pasteDispatchText() {
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(text => {
+      if (text && text.trim()) {
+        extractPickupFromText(text);
+      } else {
+        alert("Clipboard is empty. Please copy the dispatch text first.");
+      }
+    }).catch(() => {
+      // Fallback for browsers that block clipboard
+      const manualText = prompt("Clipboard access blocked. Paste the full dispatch text here:");
+      if (manualText && manualText.trim()) {
+        extractPickupFromText(manualText);
+      }
+    });
+  } else {
+    const manualText = prompt("Paste the full dispatch text here (clipboard not supported in this browser):");
+    if (manualText && manualText.trim()) {
+      extractPickupFromText(manualText);
+    }
+  }
+}
+
+function extractPickupFromText(text) {
+  if (!text || !text.trim()) return;
+
+  // Match 7-25 digit numbers, optionally with PU or P/U prefix
+  const regex = /\b(?:PU\s*|P\/U\s*)?(\d{7,25})\b/gi;
+  const matches = [];
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (!matches.includes(match[1])) {
+      matches.push(match[1]);
+    }
+  }
+
+  if (matches.length === 0) {
+    alert("No valid pickup number (7-25 digits) found in the text.\nPlease enter it manually.");
+    return;
+  }
+
+  // Prefer numbers starting with 301 (most common for you)
+  let bestMatch = matches.find(m => m.startsWith('301')) || matches[0];
+
+  if (matches.length === 1) {
+    document.getElementById("pki").value = bestMatch;
+    upPk();
+    saveFormState();
+    alert("✅ Pickup #" + bestMatch + " extracted automatically!");
+    return;
+  }
+
+  // Multiple matches - let user choose
+  let choiceMsg = "Multiple numbers found in the text:\n\n";
+  matches.forEach((num, i) => {
+    const isBest = num === bestMatch ? " ★ RECOMMENDED" : "";
+    choiceMsg += (i + 1) + ". " + num + isBest + "\n";
+  });
+  choiceMsg += "\nEnter the number of the one you want to use (or 0 to cancel):";
+
+  const choice = prompt(choiceMsg);
+  if (!choice) return;
+
+  const idx = parseInt(choice, 10) - 1;
+  if (idx >= 0 && idx < matches.length) {
+    bestMatch = matches[idx];
+    document.getElementById("pki").value = bestMatch;
+    upPk();
+    saveFormState();
+    alert("✅ Pickup #" + bestMatch + " set from dispatch text!");
+  } else if (choice === "0") {
+    return;
+  } else {
+    // Invalid choice, use recommended
+    document.getElementById("pki").value = bestMatch;
+    upPk();
+    saveFormState();
+    alert("✅ Pickup #" + bestMatch + " set (recommended)!");
+  }
+}
+
 function setTdy(){document.getElementById("td").value=new Date().toISOString().split("T")[0]}
 function setDateTimeNow(d,t){const n=new Date();document.getElementById(d).value=n.toISOString().split("T")[0];document.getElementById(t).value=String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0")}
 function upPk(){const v=document.getElementById('pki').value;const d=document.getElementById('pkd');if(!v){d.innerHTML='PICKUP #';return}if(v.length<=4)d.innerHTML='<span class="pr">'+v+'</span>';else d.innerHTML='<span class="pb">'+v.slice(0,v.length-4)+'</span><span class="pr">'+v.slice(-4)+'</span>'}
@@ -604,146 +686,4 @@ function updatePayAnalyzer() {
   }
 
   const centsPerMile = (basePay / miles) * 100;
-  resultEl.textContent = centsPerMile.toFixed(1) + " ¢";
-}
-
-// Render customer list with address editing
-function renderCustomerList() {
-  const container = document.getElementById("customerList");
-  container.innerHTML = "";
-  customers.forEach((c, index) => {
-    const div = document.createElement("div");
-    div.style.cssText = "background:#252525;border:1px solid #444;border-radius:8px;padding:12px;margin-bottom:10px;";
-    div.innerHTML = `
-      <div style="font-weight:700;color:#ffd700;">${c.name}</div>
-      <div style="margin:8px 0;">
-        <label style="font-size:12px;color:#aaa;">Base Pay</label>
-        <input type="number" step="0.01" value="${c.pay}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;" onchange="updateCustomerField(${index}, 'pay', this.value)">
-      </div>
-      <div style="margin:8px 0;">
-        <label style="font-size:12px;color:#aaa;">High Limit (gallons)</label>
-        <input type="number" value="${c.limit}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;" onchange="updateCustomerField(${index}, 'limit', this.value)">
-      </div>
-      <div>
-        <label style="font-size:12px;color:#aaa;">Address (for reference)</label>
-        <input type="text" value="${c.address || ''}" placeholder="123 Main St, City, State" style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;" onchange="updateCustomerField(${index}, 'address', this.value)">
-      </div>
-    `;
-    container.appendChild(div);
-  });
-}
-
-function updateCustomerField(index, field, value) {
-  if (field === "pay" || field === "limit") {
-    customers[index][field] = parseFloat(value) || 0;
-  } else {
-    customers[index][field] = value;
-  }
-  localStorage.setItem("nickeyCustomers", JSON.stringify(customers));
-  populateCustomerDropdown();
-}
-
-function loadSavedCustomers() {
-  const saved = localStorage.getItem("nickeyCustomers");
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        customers = parsed;
-      }
-    } catch(e) {}
-  }
-}
-
-// === IMPROVED EMAIL FUNCTION (includes detention) ===
-function sendEmail() {
-  toggleMenu();
-
-  let state = {};
-  try {
-    const saved = localStorage.getItem('nickeyDispatchFormState');
-    if (saved) state = JSON.parse(saved);
-  } catch(e){}
-
-  let insp = {};
-  try {
-    const latest = localStorage.getItem('nickeyLatestInspection');
-    if (latest) insp = JSON.parse(latest);
-  } catch(e){}
-
-  const driver = localStorage.getItem('currentDriver') || 'Unknown Driver';
-  const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-  let body = `NICKEY DISPATCH REPORT\n`;
-  body += `──────────────────────\n\n`;
-
-  body += `DRIVER:           ${driver}\n`;
-  body += `DATE:             ${date}\n`;
-  body += `PICKUP #:         ${state.pki || '—'}\n`;
-  body += `TRAILER:          ${state.tki || insp.trailer || '—'}\n`;
-  body += `CUSTOMER:         ${state.customerSelect || insp.customer || '—'}\n\n`;
-
-  // Detention
-  const arrDate = document.getElementById("arrivalDate").value;
-  const arrTime = document.getElementById("arrivalTime").value;
-  const depDate = document.getElementById("departureDate").value;
-  const depTime = document.getElementById("departureTime").value;
-
-  if (arrDate && arrTime && depDate && depTime) {
-    const arrival = new Date(`${arrDate}T${arrTime}`);
-    const departure = new Date(`${depDate}T${depTime}`);
-    if (departure >= arrival) {
-      const diffMs = departure - arrival;
-      const totalHours = diffMs / (1000 * 60 * 60);
-      if (totalHours > 2) {
-        const billable = totalHours - 2;
-        const charge = billable * 75;
-        body += `DETENTION TIME\n`;
-        body += `─────────────────────────────\n`;
-        body += `Time on site: ${Math.floor(diffMs / (1000*60*60))}h ${Math.floor((diffMs % (1000*60*60)) / (1000*60))}m\n`;
-        body += `Billable: ${billable.toFixed(2)} hrs × $75 = $${charge.toFixed(2)}\n\n`;
-      }
-    }
-  }
-
-  if (insp && (Object.keys(insp.items || {}).length > 0 || insp.remarks || insp.gasLevel)) {
-    body += `TRAILER INSPECTION - ${(insp.type || 'pre').toUpperCase()}-TRIP\n`;
-    body += `─────────────────────────────\n`;
-
-    if (insp.items) {
-      Object.keys(insp.items).forEach(key => {
-        const status = insp.items[key] === 'safe' ? '✅' : '⚠️';
-        const label = key.replace('item-', '');
-        const statusText = insp.items[key] === 'safe' ? 'SAFE' : 'CONCERN';
-        body += `${status} ${label.padEnd(25)} ${statusText}\n`;
-      });
-    }
-
-    if (insp.gasLevel) body += `\nREEFER TANK:          ${insp.gasLevel}\n`;
-    if (insp.liveGauge) body += `LIVE GAUGE:           ${insp.liveGauge} gallons\n`;
-
-    if (insp.remarks) {
-      body += `\nREMARKS:\n${insp.remarks}\n`;
-    }
-  }
-
-  body += `\n\nSent from Nickey Dispatch V 6.5`;
-
-  const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
-
-  window.location.href = `mailto:DKlein@nickeywarehouse.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
-// Final setup
-setupDriverName();
-loadSavedCustomers();
-populateCustomerDropdown();
-populateTrailerDropdown();
-loadSavedRecords();
-setTdy();
-addReimbRow();
-addFuelEntry();
-setupFormPersistence();
-</script>
-</body>
-</html>
+  resultEl.textContent = centsPerMile
