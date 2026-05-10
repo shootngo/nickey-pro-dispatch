@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Dispatch V 6.5</title>
+<title>Nickey Dispatch V 6.7</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
@@ -46,7 +46,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 </head>
 <body>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:15px;color:#ffd700">V 6.5</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:15px;color:#ffd700">V 6.7</span></div>
   <div style="display:flex;align-items:center;gap:12px">
     <div class="driver-badge" id="driverBadge" onclick="changeDriverName()">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -847,7 +847,7 @@ function sendEmail() {
     body += `NOTES:\n${document.getElementById('notes').value}\n\n`;
   }
 
-  body += `Sent from Nickey Dispatch V 6.5`;
+  body += `Sent from Nickey Dispatch V 6.7`;
 
   const subject = `Dispatch - ${pickup} - ${customer} - ${date}`;
   window.location.href = `mailto:DKlein@nickeywarehouse.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -1119,7 +1119,7 @@ function init() {
   // Welcome toast once
   if (!localStorage.getItem('nickeyV65Welcomed')) {
     setTimeout(() => {
-      showToast('Welcome to Nickey Dispatch V 6.5! Green button extracts pickup numbers automatically.');
+      showToast('Welcome to Nickey Dispatch V 6.7! Green button extracts pickup numbers automatically.');
       localStorage.setItem('nickeyV65Welcomed', '1');
     }, 1500);
   }
