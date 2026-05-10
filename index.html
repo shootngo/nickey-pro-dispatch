@@ -543,7 +543,8 @@ function deleteSavedRecord(idx){if(confirm("Delete this record?")){savedRecords.
 function printForm(){toggleMenu();window.print()}
 function toggleMenu(){const o=document.getElementById("menuOverlay");o.style.display=(o.style.display==="flex")?"none":"flex"}
 const roadsideData={superD:{title:"Super D Tankers",items:[{name:"Unit #52",vin:"1XPBDP9X1ND795521",plate:"M530742 (TN)"},{name:"Unit #94",vin:"1XPWDP9XXKD494094",plate:"M491844 (TN)"},{name:"Unit #45",vin:"1XPBD49X9MD691045",plate:"M530744 (TN)"},{name:"Unit #37",vin:"1XPBDP9X4ND795537",plate:"M530743 (TN)"},{name:"Unit #5520 (Volvo)",vin:"4V4NC9EJ8MN276520",plate:"M530745 (TN)"}]},shops:[{name:"Dobbs Peterbilt - Memphis",phone:"901-345-7811",addr:"4314 Old Lamar Ave, Memphis TN"},{name:"Dobbs Peterbilt - Nashville",phone:"615-256-3491",addr:"825 Visco Dr, Nashville TN"},{name:"Dobbs Peterbilt - Knoxville",phone:"865-637-3030",addr:"4001 N Cherry St, Knoxville TN"},{name:"Dobbs Peterbilt - Jackson",phone:"731-422-2191",addr:"110 Stonebrook Pl, Jackson TN"},{name:"Element Fleet Roadside",phone:"800-243-2476",addr:"24/7 Roadside Assistance"}]};
-function openRoadsideEmergencies(){toggleMenu();let h='<div style="margin-bottom:18px;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid #ffd700;padding-bottom:8px;">🚙 SUPER D TANKERS</div>';roadsideData.superD.items.forEach(u=>{h+='<div style="background:#252525;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-weight:700;color:#ffd700;">'+u.name+'</div><div style="font-size:12px;color:#aaa;font-family:monospace;">VIN: '+u.vin+'</div><div style="font-size:12px;color:#aaa;">Plate: '+u.plate+'</div></div>'});h+='</div>';h+='<div><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid #cc0000;padding-bottom:6px;margin-bottom:8px;">🔧 REPAIR SHOPS</div>';roadsideData.shops.forEach(s=>{h+='<div style="background:#252525;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-weight:700;color:#fff;">'+s.name+'</div><div style="font-size:13px;color:#aaa;">'+s.addr+'</div><a href="tel:'+s.phone.replace(/-/g,'')+'" style="display:inline-block;margin-top:8px;background:#b71c1c;color:#fff;padding:8px 14px;border-radius:6px;font-weight:700;text-decoration:none;font-size:14px;">'+s.phone+'</a></div>'});h+='</div>';document.getElementById("emergBody").innerHTML=h;document.getElementById("emergencyOverlay").style.display="flex"}
+function openRoadsideEmergencies(){toggleMenu();let h='<div style="margin-bottom:18px;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid #ffd700;padding-bottom:8px;margin-bottom:10px;">🚙 SUPER D TANKERS</div>';roadsideData.superD.items.forEach((u,i)=>{h+='<div onclick="toggleTrailerCard(this)" style="background:#252525;border:1px solid #444;border-radius:8px;padding:14px;margin-bottom:8px;cursor:pointer;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:700;color:#ffd700;font-size:18px;">'+u.name+'</div><div class="expand-arrow" style="color:#ffd700;font-size:18px;">▼</div></div><div class="trailer-details" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #444;"><div style="font-size:15px;color:#fff;font-family:monospace;margin-bottom:6px;word-break:break-all;"><span style="color:#aaa;">VIN:</span> '+u.vin+'</div><div style="font-size:15px;color:#fff;"><span style="color:#aaa;">Plate:</span> '+u.plate+'</div></div></div>'});h+='</div>';h+='<div><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;letter-spacing:2px;text-transform:uppercase;border-bottom:2px solid #cc0000;padding-bottom:6px;margin-bottom:10px;">🔧 REPAIR SHOPS</div>';roadsideData.shops.forEach(s=>{h+='<div style="background:#252525;border:1px solid #444;border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-weight:700;color:#fff;">'+s.name+'</div><div style="font-size:13px;color:#aaa;">'+s.addr+'</div><a href="tel:'+s.phone.replace(/-/g,'')+'" style="display:inline-block;margin-top:8px;background:#b71c1c;color:#fff;padding:8px 14px;border-radius:6px;font-weight:700;text-decoration:none;font-size:14px;">'+s.phone+'</a></div>'});h+='</div>';document.getElementById("emergBody").innerHTML=h;document.getElementById("emergencyOverlay").style.display="flex"}
+function toggleTrailerCard(card){const d=card.querySelector('.trailer-details');const a=card.querySelector('.expand-arrow');if(d.style.display==='none'){d.style.display='block';a.textContent='▲';}else{d.style.display='none';a.textContent='▼';}}
 function closeEmergency(){document.getElementById("emergencyOverlay").style.display="none"}
 function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex";renderCustomerList()}
 function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
@@ -597,11 +598,26 @@ function updatePayAnalyzer() {
   const basePay = parseFloat(document.getElementById("paBasePay").textContent.replace("$","")) || 0;
   const miles = parseFloat(document.getElementById("paMiles").value) || 0;
   const resultEl = document.getElementById("paCentsPerMile");
-
+  const resultBox = document.querySelector("#payAnalyzerOverlay .pay-result-box");
   if (miles <= 0) {
     resultEl.textContent = "—";
+    resultEl.style.color = "#4caf50";
+    if (resultBox) { resultBox.style.background = "#0f2a0f"; resultBox.style.borderColor = "#4caf50"; }
     return;
   }
+  const dollarsPerMile = basePay / miles;
+  resultEl.textContent = "$" + dollarsPerMile.toFixed(2);
+  if (dollarsPerMile >= 2.00) {
+    resultEl.style.color = "#4caf50";
+    if (resultBox) { resultBox.style.background = "#0f2a0f"; resultBox.style.borderColor = "#4caf50"; }
+  } else if (dollarsPerMile >= 1.25) {
+    resultEl.style.color = "#ffd700";
+    if (resultBox) { resultBox.style.background = "#2a2500"; resultBox.style.borderColor = "#ffd700"; }
+  } else {
+    resultEl.style.color = "#cc0000";
+    if (resultBox) { resultBox.style.background = "#2a0a0a"; resultBox.style.borderColor = "#cc0000"; }
+  }
+}
 
   const centsPerMile = (basePay / miles) * 100;
   resultEl.textContent = centsPerMile.toFixed(1) + " ¢";
