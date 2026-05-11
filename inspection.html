@@ -121,7 +121,6 @@ const INSPECTION_ITEMS = [
 ];
 const GAS_LEVELS = ["Empty","1/8","1/4","3/8","1/2","5/8","3/4","7/8","Full"];
 let tripType = 'pre';
-let inspectionData = {
   type:'pre', items:{}, gasLevel:'', liveGauge:'', remarks:'',
   driver:'', date:'', pickup:'', trailer:'', customer:''
 };
@@ -235,7 +234,6 @@ function setTripType(type){
 
 let autoSaveTimer = null;
 function autoSave(){
-  inspectionData.liveGauge = document.getElementById('liveGauge').value;
   inspectionData.remarks = document.getElementById('remarks').value;
   localStorage.setItem('nickeyTrailerInspectionDraft', JSON.stringify(inspectionData));
 
@@ -259,13 +257,11 @@ function loadDraft(){
       Object.keys(d.items).forEach(id => setItemStatus(id, d.items[id]));
     }
     if (d.gasLevel) setGasLevel(d.gasLevel);
-    if (d.liveGauge) document.getElementById('liveGauge').value = d.liveGauge;
     if (d.remarks) document.getElementById('remarks').value = d.remarks;
   } catch(e){ console.error('Draft load failed:', e); }
 }
 
 function saveInspection(){
-  inspectionData.liveGauge = document.getElementById('liveGauge').value;
   inspectionData.remarks = document.getElementById('remarks').value;
   inspectionData.savedAt = new Date().toISOString();
   inspectionData.id = 'INSP-' + Date.now();
@@ -299,7 +295,6 @@ window.onload = function(){
   loadDraft();
 
   // Make sure every change saves
-  document.getElementById('liveGauge').addEventListener('input', autoSave);
   document.getElementById('remarks').addEventListener('input', autoSave);
 
   // Extra safety: save draft when leaving the page
