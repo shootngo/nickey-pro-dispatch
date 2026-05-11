@@ -137,22 +137,17 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <button class="exit-edit-btn" onclick="exitEditMode()">Exit Edit Mode</button>
   </div>
   <div class="sec">
-    <div class="sh"><div class="st">Trip Information</div></div>
-    <div class="sb">
-      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end">
-        <div class="fld"><label>Pickup Date</label><input type="date" id="td"></div>
-        <button onclick="setTdy()" style="padding:12px 20px;background:#333;color:#ffd700;border:none;border-radius:6px;font-size:15px">Today</button>
-      </div>
-      <div class="fld">
-        <label>Pickup Number</label>
-        <div class="pkwrap">
-          <input type="text" id="pki" maxlength="12" inputmode="numeric" pattern="[0-9]*" oninput="upPk()" style="font-size:30px;text-align:center">
-          <div class="pkdisp" id="pkd">PICKUP #</div>
-        </div>
-        <button type="button" onclick="pasteDispatchText()" style="background:#4caf50;color:#fff;border:none;padding:12px 20px;font-size:16px;border-radius:6px;width:100%;margin-top:10px;cursor:pointer">📋 Paste Dispatch</button>
-      </div>
+  <div class="sh"><div class="st">Load Information</div></div>
+  <div class="sb">
+    <div class="fld"><label>Tanker Weight (pounds)</label><input type="number" id="tw" placeholder="0" oninput="calcAndUpdate()" style="font-size:18px"></div>
+    <div class="fld"><label>Customer Tank Level - Arrival (gallons)</label><input type="number" id="atl" placeholder="0" oninput="calcAndUpdate()" style="font-size:18px"></div>
+    <div class="tankwarn-box" id="tankWarnBox">
+      <div id="tankStatusTxt" style="text-align:center;font-weight:700;margin-bottom:10px">ENTER WEIGHT ABOVE</div>
+      <div id="ttval" style="font-family:'Rajdhani',sans-serif;font-size:42px;font-weight:700;text-align:center;color:#ffd700">— GAL TOTAL</div>
     </div>
+    <div class="fld" style="margin-top:18px;"><label>Customer Tank Level - Departure (gallons)</label><input type="number" id="departureLoad" placeholder="Final gauge reading on departure" style="font-size:18px"></div>
   </div>
+</div>
   <div class="sec">
     <div class="sh"><div class="st">Customer & Equipment</div></div>
     <div class="sb">
