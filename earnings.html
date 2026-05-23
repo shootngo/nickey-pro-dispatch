@@ -820,9 +820,8 @@ function buildFriday(){
   const c = document.getElementById('eeFridayContent'); c.innerHTML = '';
   c.insertAdjacentHTML('beforeend','<div class="sett-btn-row"><button class="sett-btn" id="settlementReadBtn" onclick="openSettlementPicker()" title="Upload Settlement PDF or Photo">📄 Upload Settlement PDF or Photo <span style="font-size:0.6rem;background:#4a90e2;color:#fff;padding:2px 6px;border-radius:6px;margin-left:4px">AI</span></button><button class="sett-key-btn" onclick="promptChangeGeminiKey()" title="Change Gemini API key">🔑 Key</button></div>');
   if (weekLoads.length === 0){
-    c.insertAdjacentHTML('beforeend','<div style="text-align:center;padding:2rem;color:#9ba1a8;font-style:italic;">No loads logged this week yet.</div>');
-    return;
-  }
+    c.insertAdjacentHTML('beforeend','<div style="text-align:center;padding:2rem;color:#9ba1a8;font-style:italic;">No loads logged this week yet — deductions can still be entered below.</div>');
+  } else {
   c.insertAdjacentHTML('beforeend',
     '<div class="ee-friday-intro"><strong>📋 Weekly Pay Sheet Entry</strong><br>Enter your <strong>actual pay</strong> for each load below, mark each as complete or red if owed money. Then enter the <strong>week\'s total deductions</strong> below — they\'ll be split across all ' + weekLoads.length + ' loads.</div>'
   );
@@ -860,6 +859,7 @@ function buildFriday(){
       saveData(); buildFriday();
     });
   });
+  } // end else (weekLoads.length > 0)
   const ds = document.createElement('div'); ds.className = 'ee-friday-deductions-section';
   let dh = '<div class="title">Week\'s Deductions</div><div class="desc">Enter the totals from your weekly pay sheet — they\'ll be divided across all ' + weekLoads.length + ' loads automatically.</div>';
   STANDARD_DEDUCTIONS.forEach(d => {
@@ -1277,16 +1277,20 @@ function renderSettlementReview(matchResults, deductions){
   var content = document.getElementById('eeFridayContent');
   content.parentElement.insertBefore(panel, content);
   panel.scrollIntoView({behavior:'smooth', block:'start'});
-  document.getElementById('settlementApplyBtn').addEventListener('click', function(){ applySettlement(matchResults, deductions); });
+  var capturedAnchor = new Date(eeAnchor.getTime());
+  document.getElementById('settlementApplyBtn').addEventListener('click', function(){ applySettlement(matchResults, deductions, capturedAnchor); });
   document.getElementById('settlementCancelBtn').addEventListener('click', function(){ panel.remove(); });
 }
 
-function applySettlement(matchResults, deductions){
+function applySettlement(matchResults, deductions, settlementAnchor){
   matchResults.forEach(function(item){
     if (!item.record || item.status === 'unmatched') return;
     item.record.actualPay = item.total;
   });
-  var wk = eeWeekKey(eeAnchor);
+  var targetAnchor = (settlementAnchor && !isNaN(settlementAnchor.getTime())) ? settlementAnchor : eeAnchor;
+  eeAnchor = targetAnchor;
+  var wk = eeWeekKey(targetAnchor);
+  console.log('[Settlement] applySettlement: writing deductions to week', wk);
   if (!weeklyDeductions[wk]) weeklyDeductions[wk] = {customDeductions:[]};
   var wd = weeklyDeductions[wk];
   ['ifta','insurance','mileage','lease','eld','prepass','trailer'].forEach(function(k){
