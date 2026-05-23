@@ -485,18 +485,20 @@ const EE_DOW_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday'
 function eeRecordDates(r){ const s = new Set(); if(r.date)s.add(r.date); if(r.arrivalDate)s.add(r.arrivalDate); if(r.departureDate)s.add(r.departureDate); return Array.from(s); }
 function eeIsMultiDay(r){ return eeRecordDates(r).length > 1; }
 function eeRecordsForDate(d){ const i = eeIsoDate(d); return savedRecords.filter(r => eeRecordDates(r).indexOf(i) >= 0); }
-function eeRecordsForDatePrimary(d){ const i = eeIsoDate(d); return savedRecords.filter(r => r.date === i); }
+function eeRevenueDateISO(r){ return r.departureDate||r.arrivalDate||r.date||''; }
+function eeRecordsForDatePrimary(d){ const i = eeIsoDate(d); return savedRecords.filter(r => eeRevenueDateISO(r) === i); }
 function eeFuelTotal(r){ if(!r.fuelEntries) return 0; return r.fuelEntries.reduce((s,f) => s + (parseFloat(f.amount)||0), 0); }
 function eeReimbTotal(r){ let s = 0; if(r.reimbursements) r.reimbursements.forEach(x => s += parseFloat(x.amount)||0); return s; }
 function eeGrossPay(r){ return (r.actualPay != null && r.actualPay > 0) ? r.actualPay : (parseFloat(r.basePay)||0); }
 function eeAllocatedWeeklyDed(r){
-  if (!r.date) return 0;
-  const wk = eeWeekKey(new Date(r.date));
+  const rd = eeRevenueDateISO(r);
+  if (!rd) return 0;
+  const wk = eeWeekKey(new Date(rd));
   const wd = weeklyDeductions[wk]; if (!wd) return 0;
   let weekTotal = 0;
   STANDARD_DEDUCTIONS.forEach(d => weekTotal += parseFloat(wd[d.key])||0);
   if (wd.customDeductions) wd.customDeductions.forEach(c => weekTotal += parseFloat(c.amount)||0);
-  const start = eeStartOfWeek(new Date(r.date));
+  const start = eeStartOfWeek(new Date(rd));
   let lc = 0;
   for (let i = 0; i < 7; i++) lc += eeRecordsForDatePrimary(eeAddDays(start, i)).length;
   return lc === 0 ? 0 : weekTotal / lc;
@@ -933,7 +935,8 @@ document.getElementById('eeExportModal').addEventListener('click', e => { if (e.
 function buildYearTotals(year){
   const t = {loads:0, basePay:0, actualPay:0, reimb:0, fuel:0, ifta:0, insurance:0, mileage:0, lease:0, eld:0, prepass:0, trailer:0, custom:0, customItems:{}, totalDeductions:0, net:0};
   savedRecords.forEach(r => {
-    if (!r.date || !r.date.startsWith(String(year))) return;
+    const rd = eeRevenueDateISO(r);
+    if (!rd || !rd.startsWith(String(year))) return;
     t.loads++; t.basePay += parseFloat(r.basePay)||0; t.actualPay += eeGrossPay(r);
     t.reimb += eeReimbTotal(r); t.fuel += eeFuelTotal(r);
   });
