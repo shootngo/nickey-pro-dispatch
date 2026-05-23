@@ -259,6 +259,63 @@ body{background:#0f1419;color:#e8eaed;font-family:'Inter',sans-serif;min-height:
 .ee-year-totals-card .row .val{font-family:'Bebas Neue',sans-serif;color:#e8eaed}
 .ee-year-totals-card .row .val.green{color:#4caf50}
 .ee-year-totals-card .row .val.red{color:#ff4d5e}
+
+/* Settlement PDF Reader */
+.sett-btn-row{display:flex;align-items:center;gap:8px;margin-bottom:1rem}
+.sett-btn{flex:1;padding:0.75rem 1rem;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:1.5px solid #f4b942;border-radius:10px;color:#f4b942;font-size:0.8rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.sett-btn:active{transform:scale(0.97)}
+.sett-btn.loading{color:#9ba1a8;border-color:#2d3540;cursor:not-allowed;pointer-events:none}
+.sett-key-btn{padding:0.5rem 0.7rem;background:transparent;border:1px solid #2d3540;border-radius:8px;color:#9ba1a8;font-size:0.65rem;cursor:pointer;letter-spacing:1px;white-space:nowrap}
+.sett-key-btn:hover{border-color:#f4b942;color:#f4b942}
+.sett-review{background:#0f1419;border:1.5px solid #f4b942;border-radius:14px;margin:0.8rem 0.8rem 0;overflow:hidden}
+.sett-review-header{background:linear-gradient(135deg,#1a2028,#232b35);padding:0.9rem 1rem;border-bottom:1px solid #2d3540}
+.sett-review-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#f4b942;letter-spacing:2px;margin-bottom:0.5rem}
+.sett-review-stats{display:flex;gap:0.6rem;flex-wrap:wrap}
+.sett-stat-pill{padding:3px 10px;border-radius:12px;font-size:0.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.sett-stat-pill.matched{background:rgba(76,175,80,0.15);border:1px solid #4caf50;color:#4caf50}
+.sett-stat-pill.discrepancy{background:rgba(244,185,66,0.15);border:1px solid #f4b942;color:#f4b942}
+.sett-stat-pill.unmatched{background:rgba(155,161,168,0.1);border:1px solid #555;color:#9ba1a8}
+.sett-load-card{padding:0.75rem 1rem;border-bottom:1px solid #1a2028}
+.sett-load-card.matched{border-left:3px solid #4caf50}
+.sett-load-card.discrepancy{border-left:3px solid #f4b942}
+.sett-load-card.unmatched{border-left:3px solid #555;opacity:0.7}
+.sett-load-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem}
+.sett-load-ids .pickup{color:#f4b942;font-weight:700;font-size:0.8rem}
+.sett-load-ids .pro{color:#555;font-size:0.65rem;margin-left:8px}
+.sett-status-badge{padding:2px 8px;border-radius:6px;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+.sett-status-badge.matched{background:rgba(76,175,80,0.2);color:#4caf50}
+.sett-status-badge.discrepancy{background:rgba(244,185,66,0.2);color:#f4b942}
+.sett-status-badge.unmatched{background:rgba(155,161,168,0.1);color:#9ba1a8}
+.sett-customer{font-size:0.85rem;font-weight:700;color:#e8eaed;margin-bottom:0.5rem}
+.sett-breakdown{background:#1a2028;border-radius:8px;padding:0.5rem 0.7rem;margin-bottom:0.4rem}
+.sett-breakdown-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:0.75rem}
+.sett-breakdown-row .lbl{color:#9ba1a8}
+.sett-breakdown-row .val{font-family:'Bebas Neue',sans-serif;font-size:0.85rem;color:#e8eaed}
+.sett-breakdown-row .val.zero{color:#333}
+.sett-breakdown-row.total-row{border-top:1px solid #2d3540;margin-top:4px;padding-top:5px}
+.sett-breakdown-row.total-row .lbl{color:#e8eaed;font-weight:700;font-size:0.8rem}
+.sett-breakdown-row.total-row .val{color:#4caf50;font-size:1rem}
+.sett-compare{display:flex;gap:6px;margin-top:0.4rem}
+.sett-compare-cell{flex:1;background:#0f1419;border:1px solid #2d3540;border-radius:6px;padding:4px 8px}
+.sett-compare-cell .lbl{font-size:0.55rem;color:#9ba1a8;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px}
+.sett-compare-cell .val{font-family:'Bebas Neue',sans-serif;font-size:0.95rem;color:#4a90e2}
+.sett-compare-cell.pdf-val .val{color:#4caf50}
+.sett-compare-cell.diff-pos .val{color:#f4b942}
+.sett-compare-cell.diff-neg .val{color:#ff4d5e}
+.sett-review-deductions{padding:0.75rem 1rem;background:#1a2028;border-top:1.5px solid #2d3540}
+.sett-review-deductions .title{font-family:'Bebas Neue',sans-serif;font-size:0.85rem;color:#f4b942;letter-spacing:2px;margin-bottom:0.5rem;text-transform:uppercase}
+.sett-ded-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+.sett-ded-item{background:#0f1419;border:1px solid #2d3540;border-radius:6px;padding:5px 8px;display:flex;justify-content:space-between;align-items:center}
+.sett-ded-item .lbl{font-size:0.6rem;color:#9ba1a8;letter-spacing:1px;text-transform:uppercase}
+.sett-ded-item .val{font-family:'Bebas Neue',sans-serif;font-size:0.9rem;color:#f4b942}
+.sett-ded-item .val.zero{color:#2d3540}
+.sett-misc-item{background:rgba(230,57,70,0.06);border:1px solid rgba(230,57,70,0.3);border-radius:6px;padding:5px 8px;display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.sett-misc-item .lbl{font-size:0.7rem;color:#ff4d5e}
+.sett-misc-item .val{font-family:'Bebas Neue',sans-serif;font-size:0.9rem;color:#ff4d5e}
+.sett-review-actions{padding:0.75rem 1rem;border-top:1px solid #2d3540;display:flex;gap:8px}
+.sett-apply-btn{flex:1;padding:0.85rem;background:#4caf50;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.8rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer}
+.sett-apply-btn:active{transform:scale(0.97)}
+.sett-cancel-btn{padding:0.85rem 1.2rem;background:transparent;color:#9ba1a8;border:1px solid #2d3540;border-radius:10px;font-weight:700;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
 </style>
 <script src="ndsync.js" defer></script>
 </head>
@@ -338,6 +395,7 @@ body{background:#0f1419;color:#e8eaed;font-family:'Inter',sans-serif;min-height:
       <h2 id="eeFridayTitle">Friday Summary</h2>
     </div>
     <div class="ee-friday-content" id="eeFridayContent"></div>
+    <input type="file" id="settlementFileInput" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="handleSettlementFile(this.files[0])">
   </div>
 </div>
 
@@ -744,10 +802,11 @@ document.getElementById('eeNextBtn').addEventListener('click', () => {
 });
 
 function openFridaySummary(){ buildFriday(); document.getElementById('eeFridayModal').classList.add('visible'); }
-function closeFridaySummary(){ document.getElementById('eeFridayModal').classList.remove('visible'); eeRender(); }
+function closeFridaySummary(){ const _p=document.getElementById('settlementReviewPanel'); if(_p)_p.remove(); document.getElementById('eeFridayModal').classList.remove('visible'); eeRender(); }
 document.getElementById('eeFridayModal').addEventListener('click', e => { if (e.target.id === 'eeFridayModal') closeFridaySummary(); });
 
 function buildFriday(){
+  const _ep=document.getElementById('settlementReviewPanel'); if(_ep)_ep.remove();
   const start = eeStartOfWeek(eeAnchor);
   const wk = eeWeekKey(eeAnchor);
   if (!weeklyDeductions[wk]) weeklyDeductions[wk] = {customDeductions: []};
@@ -759,8 +818,9 @@ function buildFriday(){
     eeRecordsForDatePrimary(d).forEach(r => weekLoads.push({record: r, date: new Date(d)}));
   }
   const c = document.getElementById('eeFridayContent'); c.innerHTML = '';
+  c.insertAdjacentHTML('beforeend','<div class="sett-btn-row"><button class="sett-btn" id="settlementReadBtn" onclick="openSettlementPicker()" title="Upload Settlement PDF or Photo">📄 Upload Settlement PDF or Photo <span style="font-size:0.6rem;background:#4a90e2;color:#fff;padding:2px 6px;border-radius:6px;margin-left:4px">AI</span></button><button class="sett-key-btn" onclick="promptChangeGeminiKey()" title="Change Gemini API key">🔑 Key</button></div>');
   if (weekLoads.length === 0){
-    c.innerHTML = '<div style="text-align:center;padding:2rem;color:#9ba1a8;font-style:italic;">No loads logged this week yet.</div>';
+    c.insertAdjacentHTML('beforeend','<div style="text-align:center;padding:2rem;color:#9ba1a8;font-style:italic;">No loads logged this week yet.</div>');
     return;
   }
   c.insertAdjacentHTML('beforeend',
@@ -972,6 +1032,280 @@ function emailReport(){
   closeEEExport();
 }
 function printEEReport(){ closeEEExport(); setTimeout(openYearSummary, 200); setTimeout(window.print, 600); }
+
+// === SETTLEMENT PDF READER ===
+const GEMINI_KEY_STORAGE = 'geminiApiKey';
+function getGeminiKey(){ return localStorage.getItem(GEMINI_KEY_STORAGE) || ''; }
+function setGeminiKey(k){ localStorage.setItem(GEMINI_KEY_STORAGE, (k||'').trim()); }
+
+function openSettlementPicker(){
+  let key = getGeminiKey();
+  if (!key){
+    key = prompt('Enter your Google Gemini API key.\nIt is stored only on this device and sent only to Google.');
+    if (!key || !key.trim()) return;
+    setGeminiKey(key);
+  }
+  document.getElementById('settlementFileInput').click();
+}
+
+function promptChangeGeminiKey(){
+  const key = prompt('Enter Gemini API key (blank to clear):', getGeminiKey());
+  if (key === null) return;
+  setGeminiKey(key);
+  if (!key.trim()) alert('Gemini API key cleared.');
+}
+
+function parseSettlementDate(raw){
+  if (!raw || typeof raw !== 'string') return null;
+  const s = raw.trim();
+  // ISO YYYY-MM-DD — correct format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)){
+    const d = new Date(s + 'T12:00:00'); return isNaN(d.getTime()) ? null : d;
+  }
+  // MM.DD.YY or MM.DD.YYYY (settlement format: 04.26.26)
+  const dot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+  if (dot){
+    let [,mm,dd,yy] = dot; if (yy.length===2) yy='20'+yy;
+    const d = new Date(yy+'-'+mm.padStart(2,'0')+'-'+dd.padStart(2,'0')+'T12:00:00');
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // MM/DD/YYYY or MM/DD/YY
+  const sl = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (sl){
+    let [,mm,dd,yy] = sl; if (yy.length===2) yy='20'+yy;
+    const d = new Date(yy+'-'+mm.padStart(2,'0')+'-'+dd.padStart(2,'0')+'T12:00:00');
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Last resort: native parse
+  const d = new Date(s); return isNaN(d.getTime()) ? null : d;
+}
+
+function getSettlementMimeType(file){
+  const n = (file.name || '').toLowerCase();
+  if (n.endsWith('.pdf'))  return 'application/pdf';
+  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
+  if (n.endsWith('.png'))  return 'image/png';
+  if (n.endsWith('.webp')) return 'image/webp';
+  return file.type || 'application/pdf';
+}
+
+async function handleSettlementFile(file){
+  if (!file) return;
+  const btn = document.getElementById('settlementReadBtn');
+  if (btn){ btn.classList.add('loading'); btn.innerHTML = '⏳ Analyzing file…'; }
+  try {
+    const mimeType = getSettlementMimeType(file);
+    const b64 = await fileToBase64(file);
+    const result = await callGeminiWithPDF(b64, mimeType);
+    const rawDate = result.settlement_week_date;
+    console.log('[Settlement] settlement_week_date from Gemini:', rawDate);
+    const parsedDate = parseSettlementDate(rawDate);
+    console.log('[Settlement] Parsed date object:', parsedDate);
+    if (parsedDate){
+      eeAnchor = parsedDate;
+      console.log('[Settlement] eeAnchor set to:', eeAnchor.toISOString(), '— calling eeRender()');
+      eeRender();
+    } else {
+      console.warn('[Settlement] Could not parse settlement_week_date "' + rawDate + '" — staying on current week');
+    }
+    const matchResults = matchLoadsToWeekRecords(result.loads || []);
+    renderSettlementReview(matchResults, result.deductions || {});
+  } catch(e){
+    alert('Settlement file error: ' + e.message);
+  } finally {
+    if (btn){ btn.classList.remove('loading'); btn.innerHTML = '📄 Upload Settlement PDF or Photo <span style="font-size:0.6rem;background:#4a90e2;color:#fff;padding:2px 6px;border-radius:6px;margin-left:4px">AI</span>'; }
+    const fi = document.getElementById('settlementFileInput');
+    if (fi) fi.value = '';
+  }
+}
+
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = () => reject(new Error('Could not read file'));
+    r.readAsDataURL(file);
+  });
+}
+
+async function callGeminiWithPDF(b64, mimeType){
+  if (!mimeType) mimeType = 'application/pdf';
+  const key = getGeminiKey();
+  if (!key) throw new Error('No Gemini API key set. Click the Key button to add one.');
+  const prompt = 'Parse this trucking settlement document (PDF or photo) and return ONLY valid JSON with no markdown, no code fences, no explanation.\n\nUse this exact structure:\n{\n  "settlement_week_date": "YYYY-MM-DD — the start date of the settlement pay period in strict ISO 8601 format. IMPORTANT: regardless of how the date appears in the document (e.g. 04.26.26 or 04/26/2026), always return it as YYYY-MM-DD. Example: a document showing 04.26.26 must return 2026-04-26. Return empty string only if no date is found.",\n  "loads": [\n    {\n      "pro": "PRO number string",\n      "pickup": "Bill of Lading or Pickup number — the long number (often 10+ digits) labeled BOL, Bill of Lading, Pickup #, Load #, or similar. This is NOT the PRO number.",\n      "customer": "customer or shipper name",\n      "flat_rate": 0.00,\n      "fuel_surcharge": 0.00,\n      "detention": 0.00,\n      "straps": 0.00,\n      "reimbursements": 0.00,\n      "other_items": [{"description": "item label", "amount": 0.00}],\n      "total": 0.00\n    }\n  ],\n  "deductions": {\n    "ifta": 0.00,\n    "insurance": 0.00,\n    "mileage": 0.00,\n    "lease": 0.00,\n    "eld": 0.00,\n    "prepass": 0.00,\n    "trailer": 0.00,\n    "misc": [{"description": "description", "amount": 0.00}]\n  }\n}\n\nRules:\n- Use 0.00 for any absent numeric field, never null or empty string\n- The pickup field is the Bill of Lading number, not the PRO\n- The total for each load is the gross pay for that specific load\n- Put any deduction not matching the standard categories (IFTA, insurance, mileage, lease, ELD, pre-pass, trailer) into the misc array with a description\n- Capture ALL deduction line items including miscellaneous charges like windshield replacement, advances, etc.';
+  const resp = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key,
+    {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{parts:[
+          {inline_data:{mime_type:mimeType,data:b64}},
+          {text:prompt}
+        ]}],
+        generationConfig:{temperature:0,responseMimeType:'application/json'}
+      })
+    }
+  );
+  if (!resp.ok){
+    let msg = 'Gemini API error (' + resp.status + ')';
+    try { const e = await resp.json(); msg = e.error?.message || msg; } catch(x){}
+    if (resp.status === 403) msg = 'API key denied — check that Gemini API is enabled for this key.';
+    if (resp.status === 429) msg = 'Rate limit exceeded — wait a moment and try again.';
+    throw new Error(msg);
+  }
+  const data = await resp.json();
+  const text = ((data.candidates||[])[0]?.content?.parts?.[0]?.text || '').trim();
+  if (!text) throw new Error('Gemini returned an empty response. Try again.');
+  let parsed;
+  try {
+    const clean = text.replace(/^```[a-z]*\n?/i,'').replace(/\n?```$/i,'').trim();
+    parsed = JSON.parse(clean);
+  } catch(e){
+    throw new Error('Gemini returned malformed JSON. Try again.');
+  }
+  return parsed;
+}
+
+function normalizePickupNum(s){
+  if (!s) return '';
+  return String(s).replace(/[\s\-_]/g,'').replace(/^0+/,'').toLowerCase();
+}
+
+function matchLoadsToWeekRecords(extractedLoads){
+  const start = eeStartOfWeek(eeAnchor);
+  const weekRecords = [];
+  for (let i = 0; i < 7; i++) eeRecordsForDatePrimary(eeAddDays(start,i)).forEach(r => weekRecords.push(r));
+  return extractedLoads.map(ex => {
+    const exN = normalizePickupNum(ex.pickup);
+    let record = null;
+    if (exN.length > 0){
+      record = weekRecords.find(r => normalizePickupNum(r.pickup) === exN);
+      if (!record && exN.length > 4){
+        record = weekRecords.find(r => {
+          const rn = normalizePickupNum(r.pickup);
+          return rn.length > 0 && (rn.includes(exN) || exN.includes(rn));
+        });
+      }
+    }
+    const total = parseFloat(ex.total) || 0;
+    const diff = record ? total - (parseFloat(record.basePay) || 0) : 0;
+    const status = !record ? 'unmatched' : (Math.abs(diff) > 5 ? 'discrepancy' : 'matched');
+    return {extracted:ex, record:record, status:status, diff:diff, total:total};
+  });
+}
+
+function renderSettlementReview(matchResults, deductions){
+  const existing = document.getElementById('settlementReviewPanel');
+  if (existing) existing.remove();
+  const nMatched  = matchResults.filter(r => r.status === 'matched').length;
+  const nDisc     = matchResults.filter(r => r.status === 'discrepancy').length;
+  const nUnm      = matchResults.filter(r => r.status === 'unmatched').length;
+  let html = '<div class="sett-review-header">'
+    + '<div class="sett-review-title">📋 AI SETTLEMENT REVIEW</div>'
+    + '<div class="sett-review-stats">'
+    + (nMatched > 0  ? '<span class="sett-stat-pill matched">✅ ' + nMatched + ' Matched</span>' : '')
+    + (nDisc > 0     ? '<span class="sett-stat-pill discrepancy">⚠️ ' + nDisc + ' Discrepancy</span>' : '')
+    + (nUnm > 0      ? '<span class="sett-stat-pill unmatched">❓ ' + nUnm + ' Unmatched</span>' : '')
+    + '</div></div>';
+  matchResults.forEach(function(item){
+    var ex = item.extracted, record = item.record, status = item.status, diff = item.diff, total = item.total;
+    var badge = status === 'matched' ? '✅ MATCHED' : status === 'discrepancy' ? '⚠️ DISCREPANCY' : '❓ NO RECORD';
+    var bItems = [
+      {lbl:'Flat Rate',      val: ex.flat_rate},
+      {lbl:'Fuel Surcharge', val: ex.fuel_surcharge},
+      {lbl:'Detention',      val: ex.detention},
+      {lbl:'Straps',         val: ex.straps},
+      {lbl:'Reimbursements', val: ex.reimbursements}
+    ].concat((ex.other_items || []).map(function(o){ return {lbl:o.description, val:o.amount}; }));
+    var rows = bItems.map(function(it){
+      var v = parseFloat(it.val) || 0;
+      return '<div class="sett-breakdown-row"><span class="lbl">' + it.lbl + '</span><span class="val' + (v === 0 ? ' zero' : '') + '">' + (v === 0 ? '—' : eeFmtMoney(v)) + '</span></div>';
+    }).join('');
+    var cmp = '';
+    if (record){
+      var base = parseFloat(record.basePay) || 0;
+      var dAbs = Math.abs(diff);
+      var diffCell = dAbs > 0.005
+        ? '<div class="sett-compare-cell ' + (diff > 0 ? 'diff-pos' : 'diff-neg') + '"><div class="lbl">Difference</div><div class="val">' + (diff > 0 ? '+' : '') + eeFmtMoney(diff) + '</div></div>'
+        : '';
+      cmp = '<div class="sett-compare">'
+          + '<div class="sett-compare-cell"><div class="lbl">Base Pay</div><div class="val">' + eeFmtMoney(base) + '</div></div>'
+          + '<div class="sett-compare-cell pdf-val"><div class="lbl">PDF Total</div><div class="val">' + eeFmtMoney(total) + '</div></div>'
+          + diffCell
+          + '</div>';
+    }
+    html += '<div class="sett-load-card ' + status + '">'
+      + '<div class="sett-load-top">'
+      +   '<div class="sett-load-ids"><span class="pickup">#' + (ex.pickup || '—') + '</span>'
+      +   (ex.pro ? '<span class="pro">PRO: ' + ex.pro + '</span>' : '') + '</div>'
+      +   '<span class="sett-status-badge ' + status + '">' + badge + '</span>'
+      + '</div>'
+      + '<div class="sett-customer">' + (ex.customer || (record ? record.customer : 'Unknown')) + '</div>'
+      + '<div class="sett-breakdown">' + rows
+      +   '<div class="sett-breakdown-row total-row"><span class="lbl">Total Paid</span><span class="val">' + eeFmtMoney(total) + '</span></div>'
+      + '</div>'
+      + cmp
+      + '</div>';
+  });
+  var dedMap = [
+    {key:'ifta',label:'IFTA'},{key:'insurance',label:'Insurance'},
+    {key:'mileage',label:'Mileage'},{key:'lease',label:'Lease'},
+    {key:'eld',label:'ELD'},{key:'prepass',label:'Pre-Pass'},
+    {key:'trailer',label:'Trailer/Van'}
+  ];
+  var dedGrid = dedMap.map(function(d){
+    var v = parseFloat(deductions[d.key]) || 0;
+    return '<div class="sett-ded-item"><span class="lbl">' + d.label + '</span><span class="val' + (v === 0 ? ' zero' : '') + '">' + (v === 0 ? '—' : eeFmtMoney(v)) + '</span></div>';
+  }).join('');
+  var miscHtml = (deductions.misc || []).filter(function(m){ return (parseFloat(m.amount)||0) > 0; }).map(function(m){
+    return '<div class="sett-misc-item"><span class="lbl">⚠️ ' + m.description + '</span><span class="val">' + eeFmtMoney(parseFloat(m.amount)||0) + '</span></div>';
+  }).join('');
+  html += '<div class="sett-review-deductions">'
+    + '<div class="title">Deductions from PDF</div>'
+    + '<div class="sett-ded-grid">' + dedGrid + '</div>'
+    + miscHtml
+    + '</div>'
+    + '<div class="sett-review-actions">'
+    + '<button class="sett-apply-btn" id="settlementApplyBtn">✓ Apply to This Week</button>'
+    + '<button class="sett-cancel-btn" id="settlementCancelBtn">Cancel</button>'
+    + '</div>';
+  var panel = document.createElement('div');
+  panel.className = 'sett-review';
+  panel.id = 'settlementReviewPanel';
+  panel.innerHTML = html;
+  var content = document.getElementById('eeFridayContent');
+  content.parentElement.insertBefore(panel, content);
+  panel.scrollIntoView({behavior:'smooth', block:'start'});
+  document.getElementById('settlementApplyBtn').addEventListener('click', function(){ applySettlement(matchResults, deductions); });
+  document.getElementById('settlementCancelBtn').addEventListener('click', function(){ panel.remove(); });
+}
+
+function applySettlement(matchResults, deductions){
+  matchResults.forEach(function(item){
+    if (!item.record || item.status === 'unmatched') return;
+    item.record.actualPay = item.total;
+  });
+  var wk = eeWeekKey(eeAnchor);
+  if (!weeklyDeductions[wk]) weeklyDeductions[wk] = {customDeductions:[]};
+  var wd = weeklyDeductions[wk];
+  ['ifta','insurance','mileage','lease','eld','prepass','trailer'].forEach(function(k){
+    var v = parseFloat(deductions[k]) || 0;
+    if (v > 0) wd[k] = v;
+  });
+  if (!wd.customDeductions) wd.customDeductions = [];
+  (deductions.misc || []).forEach(function(m){
+    var v = parseFloat(m.amount) || 0;
+    if (v <= 0) return;
+    var ex = wd.customDeductions.find(function(c){ return c.label === m.description; });
+    if (ex) ex.amount = v;
+    else wd.customDeductions.push({label: m.description, amount: v});
+  });
+  saveData();
+  var panel = document.getElementById('settlementReviewPanel');
+  if (panel) panel.remove();
+  buildFriday();
+}
 
 // Init
 window.onload = function(){
