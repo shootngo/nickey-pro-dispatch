@@ -833,6 +833,41 @@ function sendEmail() {
   window.location.href = `mailto:DKlein@nickeywarehouse.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
+// ── Install Prompt ────────────────────────────────────────────────────────────
+var _ndInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  _ndInstallPrompt = e;
+  ndShowInstallBtn();
+});
+window.addEventListener('appinstalled', function() {
+  _ndInstallPrompt = null;
+  var btn = document.getElementById('ndInstallBtn');
+  if (btn) btn.remove();
+});
+function ndShowInstallBtn() {
+  if (document.getElementById('ndInstallBtn') || !_ndInstallPrompt) return;
+  var menu = document.querySelector('#menuOverlay .menu');
+  if (!menu) return;
+  var btn = document.createElement('div');
+  btn.id = 'ndInstallBtn';
+  btn.className = 'menu-item';
+  btn.style.cssText = 'background:linear-gradient(135deg,#0a2a0a,#0f3a0f);color:#4caf50;border:1px solid #4caf50;cursor:pointer;';
+  btn.innerHTML = '📲 Install App<span style="font-size:11px;color:#69b578;display:block;margin-top:3px;font-weight:400;">Use offline, loads instantly</span>';
+  btn.addEventListener('click', function() {
+    if (!_ndInstallPrompt) return;
+    _ndInstallPrompt.prompt();
+    _ndInstallPrompt.userChoice.then(function(result) {
+      if (result.outcome === 'accepted') {
+        _ndInstallPrompt = null;
+        btn.remove();
+      }
+      toggleMenu();
+    });
+  });
+  menu.appendChild(btn);
+}
+
 // Final setup
 setupDriverName();
 populateCustomerDropdown();
