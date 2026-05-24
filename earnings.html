@@ -862,6 +862,7 @@ function buildFriday(){
       const v = parseFloat(i.value); r.actualPay = isNaN(v) ? null : v;
       saveData();
     });
+    ndAttachVoiceInput(i, {numericOnly:true});
   });
   c.querySelectorAll('.complete-toggle').forEach(b => {
     b.addEventListener('click', () => {
@@ -907,6 +908,8 @@ function buildFriday(){
     cw.querySelectorAll('.remove-btn').forEach(b => {
       b.addEventListener('click', () => { wd.customDeductions.splice(parseInt(b.dataset.idx), 1); renderCustom(); updateTotal(); saveData(); });
     });
+    cw.querySelectorAll('.label-input').forEach(i => ndAttachVoiceInput(i));
+    cw.querySelectorAll('.ee-friday-custom-row input[type="number"]').forEach(i => ndAttachVoiceInput(i, {numericOnly:true}));
   }
   renderCustom();
   const ab = document.createElement('button'); ab.className = 'ee-friday-add-custom'; ab.textContent = '+ Add Custom Deduction';
@@ -931,6 +934,7 @@ function buildFriday(){
       const w = i.parentElement; if (v && v > 0) w.classList.add('has-value'); else w.classList.remove('has-value');
       updateTotal(); saveData();
     });
+    ndAttachVoiceInput(i, {numericOnly:true});
   });
   const sb = document.createElement('button'); sb.className = 'ee-friday-save-btn'; sb.textContent = '✓ Done — Save & Close';
   sb.addEventListener('click', () => { saveData(); closeFridaySummary(); });
