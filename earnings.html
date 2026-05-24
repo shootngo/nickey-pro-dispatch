@@ -497,6 +497,16 @@ function eeRecordsForDate(d){ const i = eeIsoDate(d); return savedRecords.filter
 function eeRevenueDateISO(r){ return r.departureDate||r.arrivalDate||r.date||''; }
 function eeRecordsForDatePrimary(d){ const i = eeIsoDate(d); return savedRecords.filter(r => eeRevenueDateISO(r) === i); }
 function eeFuelTotal(r){ if(!r.fuelEntries) return 0; return r.fuelEntries.reduce((s,f) => s + (parseFloat(f.amount)||0), 0); }
+function eeHasInspection(r){
+  if(r.inspection && r.inspection.type==='pre') return true;
+  if(r.pickup){
+    try{
+      const hist=JSON.parse(localStorage.getItem('nickeyInspectionHistory')||'[]');
+      return hist.some(i=>i.type==='pre'&&i.pickup&&String(i.pickup)===String(r.pickup));
+    }catch(e){}
+  }
+  return false;
+}
 function eeReimbTotal(r){ let s = 0; if(r.reimbursements) r.reimbursements.forEach(x => s += parseFloat(x.amount)||0); return s; }
 function eeGrossPay(r){ return (r.actualPay != null && r.actualPay > 0) ? r.actualPay : (parseFloat(r.basePay)||0); }
 function eeAllocatedWeeklyDed(r){
@@ -698,8 +708,11 @@ function eeRenderDay(){
       const isB = (r.actualPay == null || r.actualPay === 0);
       const ft = eeFuelTotal(r);
       const md = eeIsMultiDay(r) ? '<div style="font-size:0.65rem;color:#4a90e2;letter-spacing:1.5px;font-weight:700;margin-top:4px;">MULTI-DAY TRIP</div>' : '';
+      const inspBadge = eeHasInspection(r)
+        ? '<span style="font-size:0.6rem;background:rgba(76,175,80,0.15);color:#4caf50;border:1px solid rgba(76,175,80,0.3);padding:2px 7px;border-radius:6px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;">&#10003; Inspected</span>'
+        : '';
       card.innerHTML =
-        '<div class="customer-line"><div class="customer-name">' + (r.bookkeepingComplete ? '\u2713 ' : '') + (r.customer || 'No customer') + '</div><div class="pay-amount">' + eeFmtMoney(net) + '</div></div>' +
+        '<div class="customer-line"><div class="customer-name">' + (r.bookkeepingComplete ? '\u2713 ' : '') + (r.customer || 'No customer') + '</div>' + inspBadge + '<div class="pay-amount">' + eeFmtMoney(net) + '</div></div>' +
         '<div class="pickup-line">Pickup <span>#' + (r.pickup || '—') + '</span> \u2022 Gross ' + eeFmtMoney(gross) + (isB ? ' (base)' : '') + '</div>' +
         md +
         (eeReimbTotal(r) > 0 ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #2d3540;font-size:0.8rem;color:#ff4d5e;font-weight:600;">Reimbursement: ' + eeFmtMoney(eeReimbTotal(r)) + '</div>' : '') +
