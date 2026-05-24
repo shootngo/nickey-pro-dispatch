@@ -255,7 +255,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
   <div class="menu">
     <div class="menu-item" onclick="printForm()">🖨️ Print / Save as PDF</div>
     <div class="menu-item" onclick="saveRecord()">💾 Save Record</div>
-    <div class="menu-item" onclick="sendEmail()">✉️ Email to Daniel</div>
+    <div class="menu-item" onclick="sendEmail()">✉️ Email Dispatch Report</div>
     <div class="menu-item" onclick="viewSavedRecords()">📋 View Saved Records</div>
     <div class="menu-item" onclick="openPayAnalyzer()" style="background:linear-gradient(135deg,#1e3a8a 0%,#2d4fbd 100%);color:#ffd700;border:2px solid #ffd700;">📊 Pay Analyzer</div>
     <a href="earnings.html" class="menu-item" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">💰 Earnings & Expenses</a>
@@ -329,11 +329,17 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
   <div class="emerg-modal" style="border-color:#ffd700;max-width:520px;">
     <div class="emerg-header" style="background:#1e3a8a;"><div class="emerg-title">⚙️ SETTINGS</div><div class="emerg-close" onclick="closeSettings()">✕</div></div>
     <div style="display:flex;margin:14px 14px 0;border-bottom:1px solid #444;">
-      <button onclick="switchSettingsTab(0)" id="tab0" style="flex:1;padding:12px;background:#1e3a8a;color:#ffd700;border:none;border-radius:8px 8px 0 0;font-weight:700;">Customers</button>
-      <button onclick="switchSettingsTab(1)" id="tab1" style="flex:1;padding:12px;background:#333;color:#ddd;border:none;border-radius:8px 8px 0 0;">Trailers</button>
+      <button onclick="switchSettingsTab(0)" id="tab0" style="flex:1;padding:10px 4px;font-size:13px;background:#1e3a8a;color:#ffd700;border:none;border-radius:8px 8px 0 0;font-weight:700;">Customers</button>
+      <button onclick="switchSettingsTab(1)" id="tab1" style="flex:1;padding:10px 4px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:8px 8px 0 0;font-weight:700;">Trailers</button>
+      <button onclick="switchSettingsTab(2)" id="tab2" style="flex:1;padding:10px 4px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:8px 8px 0 0;font-weight:700;">Contacts</button>
     </div>
     <div id="settingsCustomers" style="padding:14px 14px 0;"><div id="customerList" style="max-height:340px;overflow-y:auto;"></div><button onclick="addNewCustomer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Customer</button></div>
     <div id="settingsTrailers" style="display:none;padding:14px 14px 0;"><div id="trailerList" style="max-height:340px;overflow-y:auto;"></div><button onclick="addNewTrailer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Trailer</button></div>
+    <div id="settingsContacts" style="display:none;padding:14px 14px 0;">
+      <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.4;">Email addresses used by the app. Edit any entry to update where reports are sent.</div>
+      <div id="contactList" style="max-height:300px;overflow-y:auto;"></div>
+      <button onclick="addNewContact()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add Contact</button>
+    </div>
     <button class="back-btn" onclick="closeSettings()">← Back</button>
   </div>
 </div>
@@ -563,7 +569,62 @@ function toggleTrailerCard(card){const d=card.querySelector('.trailer-details');
 function closeEmergency(){document.getElementById("emergencyOverlay").style.display="none"}
 function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex";renderCustomerList()}
 function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
-function switchSettingsTab(tab){document.getElementById("tab0").style.background=tab===0?"#1e3a8a":"#333";document.getElementById("tab0").style.color=tab===0?"#ffd700":"#ddd";document.getElementById("tab1").style.background=tab===1?"#1e3a8a":"#333";document.getElementById("tab1").style.color=tab===1?"#ffd700":"#ddd";document.getElementById("settingsCustomers").style.display=tab===0?"block":"none";document.getElementById("settingsTrailers").style.display=tab===1?"block":"none"}
+function switchSettingsTab(tab){
+  [0,1,2].forEach(function(i){var b=document.getElementById("tab"+i);if(b){b.style.background=tab===i?"#1e3a8a":"#333";b.style.color=tab===i?"#ffd700":"#ddd";}});
+  document.getElementById("settingsCustomers").style.display=tab===0?"block":"none";
+  document.getElementById("settingsTrailers").style.display=tab===1?"block":"none";
+  document.getElementById("settingsContacts").style.display=tab===2?"block":"none";
+  if(tab===2) renderContactList();
+}
+
+// ── Contacts management ───────────────────────────────────────────────────────
+var DEFAULT_CONTACTS = [
+  {label:'Dispatcher', email:'DKlein@nickeywarehouse.com', purpose:'dispatch'},
+  {label:'Intermodal Dispatcher', email:'marcus.clayton@evonik.com', purpose:'intermodal'},
+  {label:'Bookkeeper', email:'Cummins0524@outlook.com', purpose:'bookkeeper'}
+];
+function getOrInitContacts(){
+  try{var s=localStorage.getItem('nickeyContacts');if(s)return JSON.parse(s);}catch(e){}
+  var d=JSON.parse(JSON.stringify(DEFAULT_CONTACTS));
+  localStorage.setItem('nickeyContacts',JSON.stringify(d));
+  return d;
+}
+function saveContactsStore(contacts){localStorage.setItem('nickeyContacts',JSON.stringify(contacts));}
+function renderContactList(){
+  var contacts=getOrInitContacts();
+  var list=document.getElementById('contactList');
+  if(!list)return;
+  list.innerHTML='';
+  contacts.forEach(function(c,idx){
+    var card=document.createElement('div');
+    card.style.cssText='background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:10px;';
+    card.innerHTML=
+      '<div style="display:flex;gap:8px;align-items:flex-start;">'+
+        '<div style="flex:1;min-width:0;">'+
+          '<input type="text" value="'+c.label.replace(/"/g,'&quot;')+'" placeholder="Label"'+
+            ' style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;margin-bottom:6px;font-size:14px;"'+
+            ' onchange="updateContact('+idx+',\'label\',this.value)">'+
+          '<input type="email" value="'+c.email.replace(/"/g,'&quot;')+'" placeholder="email@example.com"'+
+            ' style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:14px;"'+
+            ' onchange="updateContact('+idx+',\'email\',this.value)">'+
+          '<div style="font-size:11px;color:#555;margin-top:4px;">purpose: '+c.purpose+'</div>'+
+        '</div>'+
+        '<button onclick="deleteContact('+idx+')" style="background:#8a0000;color:#fff;border:none;border-radius:6px;padding:8px 10px;cursor:pointer;font-size:16px;flex-shrink:0;">🗑</button>'+
+      '</div>';
+    list.appendChild(card);
+  });
+}
+function updateContact(idx,field,value){var c=getOrInitContacts();if(c[idx])c[idx][field]=value;saveContactsStore(c);}
+function deleteContact(idx){var c=getOrInitContacts();c.splice(idx,1);saveContactsStore(c);renderContactList();}
+function addNewContact(){
+  var label=prompt('Contact label (e.g. "Night Dispatcher"):');if(!label||!label.trim())return;
+  var email=prompt('Email address:');if(!email||!email.trim())return;
+  var purpose=prompt('Purpose key — used to look up this contact in the app\n(e.g. "dispatch", "intermodal", "bookkeeper", or a custom key):');
+  if(!purpose||!purpose.trim())return;
+  var c=getOrInitContacts();
+  c.push({label:label.trim(),email:email.trim(),purpose:purpose.trim().toLowerCase()});
+  saveContactsStore(c);renderContactList();
+}
 function changeDriverName(){const name=prompt("Enter driver name:",currentDriver);if(name&&name.trim()){currentDriver=name.trim();localStorage.setItem("currentDriver",currentDriver);document.getElementById("driverBadge").textContent="👤 "+currentDriver;toggleMenu()}}
 function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();ndSaveCustomers(customers);alert("Customer added!")}}
 function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());ndSaveTrailers(allTrailers);populateTrailerDropdown();alert("Trailer added!")}}
@@ -830,7 +891,8 @@ function sendEmail() {
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 
-  window.location.href = `mailto:DKlein@nickeywarehouse.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const dispatchEmail = ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
+  window.location.href = `mailto:${dispatchEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 // ── Install Prompt ────────────────────────────────────────────────────────────

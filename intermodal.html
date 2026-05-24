@@ -160,8 +160,8 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#eee;min-he
 <!-- Save & Email Buttons -->
 <button class="save-btn" onclick="saveInspection()">💾 Save Inspection</button>
 <button class="email-btn" onclick="emailInspection()">
-  🖨️ Open Email to Marcus Clayton
-  <span class="sub">marcus.clayton@evonik.com</span>
+  🖨️ Open Email — Intermodal Dispatcher
+  <span class="sub">Address set in Settings → Contacts</span>
 </button>
 
 <script>
@@ -321,7 +321,8 @@ function emailInspection(){
   if (intermodalData.reviewingDriver) body += 'Reviewing Driver: ' + intermodalData.reviewingDriver + '\n';
 
   // Build mailto URL
-  let mailto = 'mailto:marcus.clayton@evonik.com';
+  const intermodalEmail = ndGetContactEmail('intermodal', 'marcus.clayton@evonik.com');
+  let mailto = 'mailto:' + intermodalEmail;
   if (intermodalData.ccEmail && intermodalData.ccEmail.trim()){
     mailto += '?cc=' + encodeURIComponent(intermodalData.ccEmail.trim()) + '&subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   } else {

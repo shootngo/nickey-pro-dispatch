@@ -417,7 +417,7 @@ body{background:#0f1419;color:#e8eaed;font-family:'Inter',sans-serif;min-height:
       </div>
       <div class="ee-export-option" onclick="emailReport()">
         <div class="icon">✉️</div>
-        <div class="text"><div class="title">Email Report to Sherry</div><div class="desc">Cummins0524@outlook.com</div></div>
+        <div class="text"><div class="title">Email Report to Bookkeeper</div><div class="desc">Address set in Settings → Contacts</div></div>
       </div>
       <div class="ee-export-option" onclick="printEEReport()">
         <div class="icon">🖨️</div>
@@ -1044,7 +1044,8 @@ function emailReport(){
     'DEDUCTIONS\n  Fuel: ' + eeFmtMoney(t.fuel) + '\n  IFTA: ' + eeFmtMoney(t.ifta) + '\n  Insurance: ' + eeFmtMoney(t.insurance) + '\n  Mileage: ' + eeFmtMoney(t.mileage) + '\n  Lease: ' + eeFmtMoney(t.lease) + '\n  ELD: ' + eeFmtMoney(t.eld) + '\n  Pre-Pass: ' + eeFmtMoney(t.prepass) + '\n  Trailer/Van: ' + eeFmtMoney(t.trailer) + '\n  Custom: ' + eeFmtMoney(t.custom) + '\n  TOTAL: ' + eeFmtMoney(t.totalDeductions) + '\n\n' +
     'NET INCOME: ' + eeFmtMoney(t.net) + '\n\nThanks,\nFrank'
   );
-  window.location.href = 'mailto:Cummins0524@outlook.com?subject=' + sub + '&body=' + bd;
+  const bookkeeperEmail = ndGetContactEmail('bookkeeper', 'Cummins0524@outlook.com');
+  window.location.href = 'mailto:' + bookkeeperEmail + '?subject=' + sub + '&body=' + bd;
   closeEEExport();
 }
 function printEEReport(){ closeEEExport(); setTimeout(openYearSummary, 200); setTimeout(window.print, 600); }

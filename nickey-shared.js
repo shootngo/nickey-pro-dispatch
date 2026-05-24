@@ -216,4 +216,15 @@
     });
   };
 
+
+  // ── Contacts helper ──────────────────────────────────────────────────────────
+  w.ndGetContactEmail = function(purpose, fallback) {
+    try {
+      var contacts = JSON.parse(localStorage.getItem('nickeyContacts') || '[]');
+      var match = contacts.find(function(c){ return c.purpose === purpose; });
+      if (match && match.email && match.email.trim()) return match.email.trim();
+    } catch(e){}
+    return fallback;
+  };
+
 }(window));
