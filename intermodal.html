@@ -5,25 +5,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>Intermodal Inspection - Nickey Dispatch V 6.0</title>
 <meta name="theme-color" content="#000000">
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nickey-shared.css">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+/* fonts, reset, .hdr, .back-btn, .form-link-row, .form-link,
+   .item-row/.item-btn, .autosave-pill — from nickey-shared.css */
 body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#eee;min-height:100vh;font-size:16px;line-height:1.5;padding-bottom:40px}
-
-.hdr{background:#000;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #ffd700;position:sticky;top:0;z-index:100}
-.hdr-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#ffd700;letter-spacing:1.5px;line-height:1.1}
-.back-btn{background:#1a1a1a;color:#ffd700;padding:8px 14px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;border:1px solid #ffd700;cursor:pointer}
-
-.form-link-row{display:flex;gap:8px;padding:10px 16px;background:#000;border-bottom:1px solid #333}
-.form-link{flex:1;padding:10px;background:#1a1a1a;color:#aaa;border:1px solid #444;border-radius:8px;text-align:center;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;font-family:'Rajdhani',sans-serif}
-.form-link.active{background:#000;color:#ffd700;border-color:#ffd700}
-
-.section-hdr{background:#000;padding:10px 16px;color:#ffd700;font-family:'Rajdhani',sans-serif;letter-spacing:2px;text-transform:uppercase;font-size:14px;font-weight:700;text-align:center;border-bottom:1px solid #ffd700}
-
-.sec{background:#151515;border-radius:12px;border:1px solid #2a2a2a;margin:14px 16px}
-.sh{background:#000;padding:12px 16px;border-radius:12px 12px 0 0;border-bottom:1px solid #ffd700}
-.st{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#ffd700}
+/* override shared .hdr / .sec / .sh / .st for dark theme */
+.hdr{background:#000}
+.sec{background:#151515;border-color:#2a2a2a;margin:14px 16px;margin-bottom:14px}
+.sh{background:#000;padding:12px 16px;border-bottom:1px solid #ffd700}
+.st{color:#ffd700;font-size:14px}
 .sb{padding:14px}
+.section-hdr{background:#000;padding:10px 16px;color:#ffd700;font-family:'Rajdhani',sans-serif;letter-spacing:2px;text-transform:uppercase;font-size:14px;font-weight:700;text-align:center;border-bottom:1px solid #ffd700}
 
 .fld{margin-bottom:12px}
 .fld:last-child{margin-bottom:0}
@@ -34,13 +27,10 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#eee;min-he
 
 .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-.item-row{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* .item-row .item-label .item-buttons .item-btn — from nickey-shared.css */
+/* intermodal overrides: different btn shape and num label */
 .item-num{font-family:'Rajdhani',sans-serif;color:#ffd700;font-size:14px;font-weight:700;min-width:24px}
-.item-label{font-size:14.5px;color:#eee;flex:1;font-weight:600;line-height:1.3}
-.item-buttons{display:flex;gap:6px;flex-shrink:0}
-.item-btn{padding:8px 16px;background:#0f0f0f;color:#888;border:1.5px solid #444;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;min-width:48px;font-family:'Rajdhani',sans-serif;letter-spacing:1px}
-.item-btn.yes.active{background:#28a745;color:#fff;border-color:#1e7e34}
-.item-btn.no.active{background:#cc0000;color:#fff;border-color:#8a0000}
+.item-btn{border-radius:6px;min-width:48px;padding:8px 16px;font-size:14px;font-family:'Rajdhani',sans-serif;letter-spacing:1px}
 
 .status-box{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer}
 .status-box.checked{background:#0a2a0a;border-color:#28a745}
@@ -55,9 +45,10 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#eee;min-he
 
 .save-btn{display:block;width:calc(100% - 32px);margin:14px 16px;padding:16px;background:#28a745;color:#fff;border:none;border-radius:10px;font-size:18px;font-weight:700;cursor:pointer;text-align:center;letter-spacing:1px;font-family:'Source Sans 3',sans-serif}
 
-.autosave-pill{position:fixed;top:115px;right:14px;background:rgba(30,60,30,0.95);border:1px solid #4caf50;color:#a5d6a7;font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px;z-index:150;opacity:0;transition:opacity 0.3s;pointer-events:none}
-.autosave-pill.show{opacity:1}
+/* override shared .autosave-pill position for intermodal's taller header */
+.autosave-pill{top:115px;font-size:11px;padding:4px 10px;border-radius:12px}
 </style>
+<script src="nickey-shared.js"></script>
 <script src="ndsync.js" defer></script>
 </head>
 <body>

@@ -1,0 +1,103 @@
+/* =============================================================================
+ * Nickey Dispatch — Shared Styles
+ * Loaded by all pages. Page-specific <style> blocks override as needed.
+ * ============================================================================= */
+
+/* ── Fonts ─────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap');
+
+/* ── Custom Properties ─────────────────────────────────────────────────────── */
+:root {
+  --gold:        #ffd700;
+  --gold-alt:    #f4b942;
+  --blue:        #1e3a8a;
+  --blue-mid:    #2d4fbd;
+  --green:       #4caf50;
+  --green-dark:  #28a745;
+  --red:         #cc0000;
+  --red-bright:  #ff4d5e;
+
+  --bg-page:     #1a1a1a;
+  --bg-card:     #252525;
+  --bg-input:    #2a2a2a;
+  --bg-dark:     #0a0a0a;
+
+  --border:      #333;
+  --border-mid:  #444;
+
+  --text:        #eee;
+  --text-dim:    #aaa;
+
+  --rad:         8px;
+  --rad-lg:      12px;
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Section Card ──────────────────────────────────────────────────────────── */
+.sec { background: var(--bg-card); border-radius: var(--rad-lg); border: 1px solid var(--border); margin-bottom: 18px; }
+.sh  { padding: 13px 16px; border-radius: var(--rad-lg) var(--rad-lg) 0 0; background: var(--blue); }
+.st  { font-family: 'Rajdhani', sans-serif; font-size: 14.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; }
+.sb  { padding: 18px; }
+
+/* ── Navigation Header ─────────────────────────────────────────────────────── */
+.hdr {
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 3px solid var(--gold);
+  position: sticky; top: 0; z-index: 100;
+  background: #111;
+}
+.hdr-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 20px; font-weight: 700;
+  color: var(--gold); letter-spacing: 1.5px; line-height: 1.1;
+}
+
+/* ── Back / Navigation Button ──────────────────────────────────────────────── */
+/* This is the small header back-link style used by inspection & intermodal.
+   index.html overrides this to its full-width modal close style. */
+.back-btn {
+  background: #1a1a1a; color: var(--gold);
+  padding: 8px 14px; border-radius: var(--rad);
+  font-weight: 700; text-decoration: none; font-size: 14px;
+  border: 1px solid var(--gold); cursor: pointer;
+  display: inline-block;
+}
+
+/* ── Inspection / Intermodal Tabs ──────────────────────────────────────────── */
+.form-link-row { display: flex; gap: 8px; padding: 10px 16px; background: #000; border-bottom: 1px solid var(--border); }
+.form-link {
+  flex: 1; padding: 10px;
+  background: #1a1a1a; color: var(--text-dim);
+  border: 1px solid var(--border-mid); border-radius: var(--rad);
+  text-align: center; text-decoration: none;
+  font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  font-family: 'Rajdhani', sans-serif;
+}
+.form-link.active { background: #000; color: var(--gold); border-color: var(--gold); }
+
+/* ── Inspection Item Rows ──────────────────────────────────────────────────── */
+.item-row     { background: #1a1a1a; border: 1px solid var(--border); border-radius: var(--rad); padding: 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.item-label   { font-size: 15px; color: var(--text); flex: 1; font-weight: 600; line-height: 1.3; }
+.item-buttons { display: flex; gap: 6px; flex-shrink: 0; }
+.item-btn     { padding: 8px 14px; background: #0f0f0f; color: #888; border: 1.5px solid var(--border-mid); border-radius: 18px; font-size: 13px; font-weight: 700; cursor: pointer; min-width: 78px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.item-btn.safe.active,    .item-btn.yes.active     { background: var(--green-dark); color: #fff; border-color: #1e7e34; }
+.item-btn.concern.active, .item-btn.no.active      { background: var(--red);        color: #fff; border-color: #8a0000; }
+
+/* ── Utility Button Variants ───────────────────────────────────────────────── */
+.btn-gold  { background: linear-gradient(135deg,#2a2500,#3a3000); color: var(--gold); border: 1px solid var(--gold); border-radius: var(--rad); padding: 12px 20px; font-weight: 700; cursor: pointer; }
+.btn-blue  { background: var(--blue);  color: #fff; border: none; border-radius: var(--rad); padding: 12px 20px; font-weight: 700; cursor: pointer; }
+.btn-green { background: var(--green); color: #fff; border: none; border-radius: var(--rad); padding: 12px 20px; font-weight: 700; cursor: pointer; }
+.btn-red   { background: var(--red);   color: #fff; border: none; border-radius: var(--rad); padding: 12px 20px; font-weight: 700; cursor: pointer; }
+
+/* ── Autosave Pill ─────────────────────────────────────────────────────────── */
+.autosave-pill {
+  position: fixed; top: 72px; right: 14px;
+  background: rgba(30,60,30,0.95); border: 1px solid var(--green); color: #a5d6a7;
+  font-size: 12px; font-weight: 600; padding: 6px 12px;
+  border-radius: 14px; z-index: 150;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.autosave-pill.show { opacity: 1; }

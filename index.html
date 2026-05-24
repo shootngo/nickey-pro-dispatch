@@ -11,10 +11,8 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nickey Dispatch">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nickey-shared.css">
 <style>
-:root{--blue:#1e3a8a;--red:#cc0000;--gold:#ffd700;--rad:8px}
-*{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-height:100vh;font-size:17.5px}
 .splash-overlay{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.7s ease;overflow:hidden}
 .splash-overlay.hidden{opacity:0;pointer-events:none}
@@ -35,10 +33,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 .hdr-logo{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:#fff}
 .driver-badge{font-size:14.5px;color:#4caf50;font-weight:600}
 .hamburger{font-size:28px;cursor:pointer;padding:5px 10px;color:#ffd700}
-.sec{background:#252525;border-radius:12px;border:1px solid #333;margin-bottom:18px}
-.sh{background:var(--blue);padding:13px 16px;border-radius:12px 12px 0 0}
-.st{font-family:'Rajdhani',sans-serif;font-size:14.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff}
-.sb{padding:18px}
+/* .sec .sh .st .sb — from nickey-shared.css */
 .fld{margin-bottom:18px}
 .fld label{font-size:14px;font-weight:600;color:#ccc;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:7px}
 .fld input,.fld select,.fld textarea{border:1.8px solid #555;border-radius:var(--rad);padding:14px;font-size:18px;background:#2a2a2a;color:#eee;width:100%;outline:none}
@@ -91,9 +86,9 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 .emerg-header{background:#cc0000;padding:16px 18px;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between}
 .emerg-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:1.5px;line-height:1.2}
 .emerg-close{background:#8a0000;color:#fff;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;border:none;font-size:15px}
+/* override shared .back-btn for index modal close buttons */
 .back-btn{display:block;width:calc(100% - 36px);margin:16px 18px 0;padding:14px;background:#333;border:none;border-radius:8px;color:#ffd700;font-size:16px;font-weight:600;cursor:pointer;text-align:center}
-.autosave-pill{position:fixed;top:72px;right:14px;background:rgba(30,60,30,0.95);border:1px solid #4caf50;color:#a5d6a7;font-size:12px;font-weight:600;padding:6px 12px;border-radius:14px;z-index:150;opacity:0;transition:opacity 0.3s}
-.autosave-pill.show{opacity:1}
+/* .autosave-pill — from nickey-shared.css */
 .action-btn{width:100%;padding:14px;background:#4caf50;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-bottom:12px}
 .action-btn.blue{background:#1e3a8a}
 .action-btn.gold{background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700}
@@ -349,14 +344,15 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <button class="back-btn" onclick="closeEmergency()">✕</button>
   </div>
 </div>
+<script src="nickey-shared.js"></script>
 <script src="ndsync.js" defer></script>
 <script>
 const TRUCK_IMG='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGRj/wAARCAC0ALQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlbaWmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/2Q==';
 document.getElementById('splashTruckImg').src=TRUCK_IMG;
 setTimeout(()=>{document.getElementById('splashOverlay').classList.add('hidden');setTimeout(()=>{document.getElementById('splashOverlay').style.display='none'},700)},2500);
 let currentDriver="",savedRecords=[],editingRecordIdx=-1;
-let customers=[{name:"Cytec Mount Joy Tennessee",limit:0,pay:800,address:""},{name:"Foster Farms Farmerville Louisiana",limit:5100,pay:1220,address:""},{name:"Harrison Produce Bethlehem Georgia",limit:5400,pay:1807.20,address:""},{name:"Hydrox Elgin Illinois",limit:0,pay:2256,address:""},{name:"Lincoln Premium Produce Fremont Nebraska",limit:7400,pay:3068,address:""},{name:"Maxson",limit:0,pay:388.80,address:""},{name:"Moore Jack Jasper Alabama",limit:5400,pay:848.80,address:""},{name:"Mountaire Lumber Bridge",limit:5600,pay:3116.80,address:""},{name:"Mountaire Siler City",limit:5400,pay:4000,address:""},{name:"Pecola",limit:0,pay:1264.80,address:""},{name:"Pilgrim's Pride De Queen Arkansas",limit:5100,pay:1175.20,address:""},{name:"P.L. Developments Piedmont South Carolina",limit:9500,pay:2256,address:""},{name:"Purdue Pocahontas Arkansas",limit:5300,pay:552,address:""},{name:"V.I.J.O.N. Smyrna Tennessee",limit:5000,pay:948,address:""},{name:"Washburn Tunnel Wastewater Facility Pasadena Texas",limit:5500,pay:2403.20,address:""},{name:"Wolf River",limit:0,pay:352,address:""},{name:"WSC",limit:0,pay:200,address:""}];
-const allTrailers=["SD 94","SD 55-20","SD 45","SD 37","ISO 144930","ISO 144926","ISO 144927","ISO 144925","ISO 144924","ISO 144923","ISO 144922","ISO 134915","ISO 134914","ISO 134908","ISO 134906","ISO 134912","DV 18118"];
+let customers = ndLoadCustomers();
+let allTrailers = ndLoadTrailers();
 
 const FORM_STORAGE_KEY = "nickeyDispatchFormState";
 
@@ -569,8 +565,8 @@ function openSettings(){toggleMenu();document.getElementById("settingsOverlay").
 function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
 function switchSettingsTab(tab){document.getElementById("tab0").style.background=tab===0?"#1e3a8a":"#333";document.getElementById("tab0").style.color=tab===0?"#ffd700":"#ddd";document.getElementById("tab1").style.background=tab===1?"#1e3a8a":"#333";document.getElementById("tab1").style.color=tab===1?"#ffd700":"#ddd";document.getElementById("settingsCustomers").style.display=tab===0?"block":"none";document.getElementById("settingsTrailers").style.display=tab===1?"block":"none"}
 function changeDriverName(){const name=prompt("Enter driver name:",currentDriver);if(name&&name.trim()){currentDriver=name.trim();localStorage.setItem("currentDriver",currentDriver);document.getElementById("driverBadge").textContent="👤 "+currentDriver;toggleMenu()}}
-function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();localStorage.setItem("nickeyCustomers",JSON.stringify(customers));alert("Customer added!")}}
-function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());populateTrailerDropdown();alert("Trailer added!")}}
+function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();ndSaveCustomers(customers);alert("Customer added!")}}
+function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());ndSaveTrailers(allTrailers);populateTrailerDropdown();alert("Trailer added!")}}
 function exitEditMode(){if(confirm("Exit edit mode and return to new record?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}}
 function pasteDispatchText(){
   document.getElementById('pasteDispatchOverlay').style.display='flex';
@@ -756,17 +752,7 @@ function updateCustomerField(index, field, value) {
   populateCustomerDropdown();
 }
 
-function loadSavedCustomers() {
-  const saved = localStorage.getItem("nickeyCustomers");
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        customers = parsed;
-      }
-    } catch(e) {}
-  }
-}
+/* loadSavedCustomers() replaced by ndLoadCustomers() in nickey-shared.js */
 
 // === IMPROVED EMAIL FUNCTION (includes detention) ===
 function sendEmail() {
@@ -849,7 +835,6 @@ function sendEmail() {
 
 // Final setup
 setupDriverName();
-loadSavedCustomers();
 populateCustomerDropdown();
 populateTrailerDropdown();
 loadSavedRecords();
