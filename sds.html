@@ -110,6 +110,14 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 const urlParams = new URLSearchParams(window.location.search);
 const chem = urlParams.get('chem') || 'placards';
 
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// Merge custom SDS entries from localStorage into sdsData
+try {
+  const customArr = JSON.parse(localStorage.getItem('nickeyCustomSDS') || '[]');
+  customArr.forEach(c => { if (c.id) sdsData[c.id] = Object.assign({_custom:true}, c); });
+} catch(e){}
+
 // ── SDS DATA ──────────────────────────────────────────────────────────────────
 const sdsData = {
   spectrum: {
@@ -1282,12 +1290,35 @@ const sdsData = {
 };
 
 // ── RENDERING ─────────────────────────────────────────────────────────────────
+function renderCustomCard(data){
+  document.getElementById('hdrTitle').innerHTML = 'CHEMICAL REFERENCE<span class="sub">' + escHtml(data.name) + '</span>';
+  document.title = data.name + ' — Nickey Dispatch';
+  let html = '';
+  html += '<div class="product-hdr">';
+  html += '<h1>' + escHtml(data.name) + '</h1>';
+  if (data.unNumber || data.hazardClass){
+    html += '<div class="subtitle">' + (data.unNumber ? escHtml(data.unNumber) : '') + (data.hazardClass ? ' &middot; ' + escHtml(data.hazardClass) : '') + '</div>';
+  }
+  html += '</div>';
+  html += '<div class="sds-section"><h2>Personal Protective Equipment</h2>';
+  html += data.ppeNotes ? '<p>' + escHtml(data.ppeNotes) + '</p>' : '<p style="color:#555;">Not specified</p>';
+  html += '</div>';
+  html += '<div class="sds-section"><h2>Emergency Response</h2>';
+  html += data.emergencyNotes ? '<p>' + escHtml(data.emergencyNotes) + '</p>' : '<p style="color:#555;">Not specified</p>';
+  html += '</div>';
+  html += '<div class="sds-section"><div class="sds-caution"><strong>Note:</strong> This is a custom reference card, not an official SDS. Always consult the full official SDS for complete hazard and regulatory information.</div></div>';
+  html += '<a class="to-top" href="javascript:scrollTo({top:0,behavior:\'smooth\'})">↑ Back to Top</a>';
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('content').className = '';
+}
+
 function renderSDS(){
   const data = sdsData[chem];
   if (!data){
     document.getElementById('content').innerHTML = '<div style="padding:40px;text-align:center;color:#ff8888;">Unknown chemical: ' + chem + '</div>';
     return;
   }
+  if (data._custom){ renderCustomCard(data); return; }
 
   document.getElementById('hdrTitle').innerHTML = 'SAFETY DATA SHEET<span class="sub">' + data.title + '</span>';
   document.title = data.title + ' SDS - Nickey Dispatch';

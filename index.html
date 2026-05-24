@@ -214,7 +214,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <div class="sh"><div class="st">⚠️ Chemical Safety Quick Reference (SDS)</div></div>
     <div class="sb">
       <p style="font-size:14px;color:#aaa;margin-bottom:12px;">Tap any card for full details • For emergency use only</p>
-      <div class="sds-grid">
+      <div class="sds-grid" id="sdsGrid">
         <div class="sds-card" onclick="window.open('sds.html?chem=superd','_blank')">
           <h4>🔴 SUPER D 500 / PERSYNT 500</h4>
           <p><strong>50% Hydrogen Peroxide (H₂O₂)</strong></p>
@@ -328,17 +328,23 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 <div class="emerg-overlay" id="settingsOverlay">
   <div class="emerg-modal" style="border-color:#ffd700;max-width:520px;">
     <div class="emerg-header" style="background:#1e3a8a;"><div class="emerg-title">⚙️ SETTINGS</div><div class="emerg-close" onclick="closeSettings()">✕</div></div>
-    <div style="display:flex;margin:14px 14px 0;border-bottom:1px solid #444;">
-      <button onclick="switchSettingsTab(0)" id="tab0" style="flex:1;padding:10px 4px;font-size:13px;background:#1e3a8a;color:#ffd700;border:none;border-radius:8px 8px 0 0;font-weight:700;">Customers</button>
-      <button onclick="switchSettingsTab(1)" id="tab1" style="flex:1;padding:10px 4px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:8px 8px 0 0;font-weight:700;">Trailers</button>
-      <button onclick="switchSettingsTab(2)" id="tab2" style="flex:1;padding:10px 4px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:8px 8px 0 0;font-weight:700;">Contacts</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;margin:14px 14px 0;gap:4px;padding-bottom:4px;border-bottom:1px solid #444;">
+      <button onclick="switchSettingsTab(0)" id="tab0" style="padding:10px;font-size:13px;background:#1e3a8a;color:#ffd700;border:none;border-radius:6px;font-weight:700;">Customers</button>
+      <button onclick="switchSettingsTab(1)" id="tab1" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Trailers</button>
+      <button onclick="switchSettingsTab(2)" id="tab2" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Contacts</button>
+      <button onclick="switchSettingsTab(3)" id="tab3" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Chemicals</button>
     </div>
-    <div id="settingsCustomers" style="padding:14px 14px 0;"><div id="customerList" style="max-height:340px;overflow-y:auto;"></div><button onclick="addNewCustomer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Customer</button></div>
-    <div id="settingsTrailers" style="display:none;padding:14px 14px 0;"><div id="trailerList" style="max-height:340px;overflow-y:auto;"></div><button onclick="addNewTrailer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Trailer</button></div>
+    <div id="settingsCustomers" style="padding:14px 14px 0;"><div id="customerList" style="max-height:300px;overflow-y:auto;"></div><button onclick="addNewCustomer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Customer</button></div>
+    <div id="settingsTrailers" style="display:none;padding:14px 14px 0;"><div id="trailerList" style="max-height:300px;overflow-y:auto;"></div><button onclick="addNewTrailer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Trailer</button></div>
     <div id="settingsContacts" style="display:none;padding:14px 14px 0;">
       <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.4;">Email addresses used by the app. Edit any entry to update where reports are sent.</div>
-      <div id="contactList" style="max-height:300px;overflow-y:auto;"></div>
+      <div id="contactList" style="max-height:270px;overflow-y:auto;"></div>
       <button onclick="addNewContact()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add Contact</button>
+    </div>
+    <div id="settingsChemicals" style="display:none;padding:14px 14px 0;">
+      <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.4;">Custom SDS reference cards. Added chemicals appear on the main screen alongside built-in sheets.</div>
+      <div id="chemicalList" style="max-height:270px;overflow-y:auto;"></div>
+      <button onclick="addNewChemical()" style="width:100%;margin-top:14px;padding:14px;background:#2a0000;color:#ff8888;border:1px solid #cc0000;border-radius:8px;font-weight:700;">+ Add Chemical</button>
     </div>
     <button class="back-btn" onclick="closeSettings()">← Back</button>
   </div>
@@ -570,11 +576,13 @@ function closeEmergency(){document.getElementById("emergencyOverlay").style.disp
 function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex";renderCustomerList()}
 function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
 function switchSettingsTab(tab){
-  [0,1,2].forEach(function(i){var b=document.getElementById("tab"+i);if(b){b.style.background=tab===i?"#1e3a8a":"#333";b.style.color=tab===i?"#ffd700":"#ddd";}});
+  [0,1,2,3].forEach(function(i){var b=document.getElementById("tab"+i);if(b){b.style.background=tab===i?"#1e3a8a":"#333";b.style.color=tab===i?"#ffd700":"#ddd";}});
   document.getElementById("settingsCustomers").style.display=tab===0?"block":"none";
   document.getElementById("settingsTrailers").style.display=tab===1?"block":"none";
   document.getElementById("settingsContacts").style.display=tab===2?"block":"none";
+  document.getElementById("settingsChemicals").style.display=tab===3?"block":"none";
   if(tab===2) renderContactList();
+  if(tab===3) renderChemicalList();
 }
 
 // ── Contacts management ───────────────────────────────────────────────────────
@@ -624,6 +632,72 @@ function addNewContact(){
   var c=getOrInitContacts();
   c.push({label:label.trim(),email:email.trim(),purpose:purpose.trim().toLowerCase()});
   saveContactsStore(c);renderContactList();
+}
+
+// ── HTML escape helper ────────────────────────────────────────────────────────
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── Custom SDS management ─────────────────────────────────────────────────────
+function getCustomSDS(){try{return JSON.parse(localStorage.getItem('nickeyCustomSDS')||'[]');}catch(e){return[];}}
+function saveCustomSDSStore(arr){localStorage.setItem('nickeyCustomSDS',JSON.stringify(arr));}
+
+function renderChemicalList(){
+  var arr=getCustomSDS();
+  var list=document.getElementById('chemicalList');
+  if(!list)return;
+  if(arr.length===0){list.innerHTML='<div style="color:#666;text-align:center;padding:20px;font-size:14px;">No custom chemicals added yet.</div>';return;}
+  list.innerHTML='';
+  arr.forEach(function(c,idx){
+    var card=document.createElement('div');
+    card.style.cssText='background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:10px;';
+    card.innerHTML=
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'+
+        '<div style="font-family:Rajdhani,sans-serif;font-size:16px;color:#ffd700;font-weight:700;">'+escHtml(c.name)+'</div>'+
+        '<button onclick="deleteCustomChem('+idx+')" style="background:#8a0000;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px;">🗑</button>'+
+      '</div>'+
+      '<div style="font-size:12px;color:#aaa;">'+(c.unNumber?escHtml(c.unNumber):'')+
+        (c.hazardClass?' · '+escHtml(c.hazardClass):'')+
+      '</div>'+
+      (c.ppeNotes?'<div style="font-size:12px;color:#4caf50;margin-top:4px;">PPE: '+escHtml(c.ppeNotes)+'</div>':'');
+    list.appendChild(card);
+  });
+}
+
+function deleteCustomChem(idx){
+  if(!confirm('Delete this chemical?'))return;
+  var arr=getCustomSDS();arr.splice(idx,1);saveCustomSDSStore(arr);
+  renderChemicalList();renderCustomSDSCards();
+}
+
+function addNewChemical(){
+  var name=prompt('Chemical name (e.g. "Sodium Hydroxide"):');
+  if(!name||!name.trim())return;
+  var unNumber=prompt('UN Number (e.g. "UN 1823"):','') || '';
+  var hazardClass=prompt('Hazard class (e.g. "8 — Corrosive"):','') || '';
+  var ppeNotes=prompt('Key PPE (e.g. "Face shield, chemical gloves, apron"):','') || '';
+  var emergencyNotes=prompt('Emergency response notes:','') || '';
+  var arr=getCustomSDS();
+  arr.push({id:'custom-'+Date.now(),name:name.trim(),unNumber:unNumber.trim(),hazardClass:hazardClass.trim(),ppeNotes:ppeNotes.trim(),emergencyNotes:emergencyNotes.trim()});
+  saveCustomSDSStore(arr);renderChemicalList();renderCustomSDSCards();
+  alert('Chemical added! It now appears on the main SDS screen.');
+}
+
+function renderCustomSDSCards(){
+  var grid=document.getElementById('sdsGrid');
+  if(!grid)return;
+  grid.querySelectorAll('.sds-card-custom').forEach(function(el){el.remove();});
+  getCustomSDS().forEach(function(c){
+    var card=document.createElement('div');
+    card.className='sds-card sds-card-custom';
+    card.onclick=function(){window.open('sds.html?chem='+encodeURIComponent(c.id),'_blank');};
+    card.innerHTML=
+      '<h4>⚗️ '+escHtml(c.name)+'</h4>'+
+      (c.unNumber||c.hazardClass?'<p><strong>'+(c.unNumber?escHtml(c.unNumber):'')+(c.hazardClass?' &middot; '+escHtml(c.hazardClass):'')+'</strong></p>':'')+
+      (c.ppeNotes?'<p class="ppe">PPE: '+escHtml(c.ppeNotes)+'</p>':'')+
+      (c.emergencyNotes?'<ul><li>'+escHtml(c.emergencyNotes)+'</li></ul>':'')+
+      '<button class="btn">View Reference Card</button>';
+    grid.appendChild(card);
+  });
 }
 function changeDriverName(){const name=prompt("Enter driver name:",currentDriver);if(name&&name.trim()){currentDriver=name.trim();localStorage.setItem("currentDriver",currentDriver);document.getElementById("driverBadge").textContent="👤 "+currentDriver;toggleMenu()}}
 function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();ndSaveCustomers(customers);alert("Customer added!")}}
@@ -943,6 +1017,8 @@ setupFormPersistence();
 // Voice inputs — static fields
 ['pki','bpay','thl','tw','atl','liveGauge','departureLoad'].forEach(function(id){ ndAttachVoiceInput(id, {numericOnly:true}); });
 ndAttachVoiceInput('nts');
+
+renderCustomSDSCards();
 </script>
 <script>
 if ('serviceWorker' in navigator) {
