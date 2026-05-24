@@ -315,6 +315,21 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <button class="back-btn" onclick="closeSavedRecords()">✕ Close</button>
   </div>
 </div>
+
+<div class="emerg-overlay" id="pasteDispatchOverlay">
+  <div class="emerg-modal" style="border-color:#4caf50;max-width:540px;">
+    <div class="emerg-header" style="background:#1a3a1a;border-color:#4caf50;">
+      <div class="emerg-title">📋 PASTE DISPATCH</div>
+      <div class="emerg-close" onclick="closePasteDispatch()">✕</div>
+    </div>
+    <div style="padding:16px 18px;">
+      <div style="font-size:13px;color:#9ba1a8;margin-bottom:10px;">Paste your dispatch text — AI extracts pickup #, date, customer, and pay automatically.</div>
+      <textarea id="pasteDispatchTextarea" style="width:100%;min-height:160px;background:#0d1117;border:1px solid #2d3540;border-radius:8px;color:#e8eaed;padding:12px;font-size:14px;resize:vertical;box-sizing:border-box;font-family:monospace;" placeholder="Paste dispatch text here..."></textarea>
+      <button id="parseDispatchBtn" onclick="parseDispatchWithAI()" style="width:100%;padding:14px;background:#4caf50;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px;letter-spacing:1px;">🤖 PARSE WITH AI</button>
+      <div id="pasteDispatchResult" style="margin-top:14px;"></div>
+    </div>
+  </div>
+</div>
 <div class="emerg-overlay" id="settingsOverlay">
   <div class="emerg-modal" style="border-color:#ffd700;max-width:520px;">
     <div class="emerg-header" style="background:#1e3a8a;"><div class="emerg-title">⚙️ SETTINGS</div><div class="emerg-close" onclick="closeSettings()">✕</div></div>
@@ -560,7 +575,88 @@ function changeDriverName(){const name=prompt("Enter driver name:",currentDriver
 function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();localStorage.setItem("nickeyCustomers",JSON.stringify(customers));alert("Customer added!")}}
 function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());populateTrailerDropdown();alert("Trailer added!")}}
 function exitEditMode(){if(confirm("Exit edit mode and return to new record?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}}
-function pasteDispatchText(){alert("Paste dispatch functionality - manual entry for now")}
+function pasteDispatchText(){
+  document.getElementById('pasteDispatchOverlay').style.display='flex';
+  document.getElementById('pasteDispatchTextarea').value='';
+  document.getElementById('pasteDispatchResult').innerHTML='';
+}
+function closePasteDispatch(){ document.getElementById('pasteDispatchOverlay').style.display='none'; }
+
+var lastParsedDispatch = null;
+
+async function parseDispatchWithAI(){
+  const text = document.getElementById('pasteDispatchTextarea').value.trim();
+  if (!text){ alert('Paste dispatch text first.'); return; }
+  let apiKey = localStorage.getItem('geminiApiKey');
+  if (!apiKey){ apiKey = prompt('Enter your Gemini API key:'); if (!apiKey) return; localStorage.setItem('geminiApiKey', apiKey); }
+  const btn = document.getElementById('parseDispatchBtn');
+  btn.textContent = '⏳ Parsing...'; btn.disabled = true;
+  document.getElementById('pasteDispatchResult').innerHTML = '';
+  try {
+    const prompt = `You are extracting dispatch data for a chemical tanker truck driver. Extract fields from this dispatch text and return JSON only.\n\nDispatch text:\n${text}\n\nReturn this exact JSON:\n{\n  "pickupDate": "YYYY-MM-DD or empty string",\n  "pickupNumber": "BOL or load/pickup number (usually 10 digits)",\n  "customer": "delivery destination name only — NOT the shipper or origin facility",\n  "basePay": number or null,\n  "trailerNumber": "tanker or trailer number if present",\n  "highLimit": number or null,\n  "notes": "special instructions or empty string"\n}\nReturn only valid JSON.`;
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({contents:[{parts:[{text:prompt}]}], generationConfig:{responseMimeType:'application/json'}})
+    });
+    if (!res.ok){ const e = await res.json(); throw new Error(e.error?.message || 'API error ' + res.status); }
+    const data = await res.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!raw) throw new Error('No response from AI.');
+    lastParsedDispatch = JSON.parse(raw);
+    renderParsedDispatch(lastParsedDispatch);
+  } catch(err){
+    document.getElementById('pasteDispatchResult').innerHTML = '<div style="color:#ff4d5e;padding:12px;background:#2a0a0a;border-radius:8px;font-size:13px;">⚠ ' + err.message + '</div>';
+  }
+  btn.textContent = '🤖 PARSE WITH AI'; btn.disabled = false;
+}
+
+function renderParsedDispatch(f){
+  const matchCustomer = customers.find(c => {
+    const cn = (f.customer||'').toLowerCase();
+    const words = cn.split(/\s+/).filter(w => w.length > 3);
+    return words.some(w => c.name.toLowerCase().includes(w));
+  });
+  const row = (lbl, val, ok) =>
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #1e2530;">' +
+    '<div style="font-size:12px;color:#9ba1a8;text-transform:uppercase;letter-spacing:1px;">' + lbl + '</div>' +
+    '<div style="font-size:14px;color:' + (ok?'#4caf50':'#e8eaed') + ';font-weight:600;">' + (val||'<span style="color:#555">—</span>') + '</div></div>';
+  let html = '<div style="background:#0d1117;border:1px solid #2d3540;border-radius:10px;padding:14px;">';
+  html += '<div style="font-family:Rajdhani,sans-serif;font-size:15px;font-weight:700;color:#ffd700;letter-spacing:1px;margin-bottom:10px;">EXTRACTED FIELDS</div>';
+  html += row('Pickup Date', f.pickupDate, !!f.pickupDate);
+  html += row('Pickup #', f.pickupNumber, !!f.pickupNumber);
+  html += row('Customer', f.customer, !!matchCustomer);
+  if (matchCustomer) html += '<div style="font-size:11px;color:#4a90e2;padding:2px 0 6px;text-align:right;">✓ Matched: ' + matchCustomer.name + '</div>';
+  html += row('Base Pay', f.basePay ? '$' + parseFloat(f.basePay).toFixed(2) : null, !!f.basePay);
+  html += row('Trailer #', f.trailerNumber, !!f.trailerNumber);
+  html += row('High Limit', f.highLimit ? f.highLimit + ' gal' : null, !!f.highLimit);
+  if (f.notes) html += row('Notes', f.notes, false);
+  html += '</div>';
+  html += '<button onclick="applyParsedDispatch()" style="width:100%;padding:14px;background:#1e3a8a;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;margin-top:12px;letter-spacing:1px;">✓ FILL FORM</button>';
+  document.getElementById('pasteDispatchResult').innerHTML = html;
+}
+
+function applyParsedDispatch(){
+  const f = lastParsedDispatch; if (!f) return;
+  if (f.pickupDate) document.getElementById('td').value = f.pickupDate;
+  if (f.pickupNumber){ document.getElementById('pki').value = f.pickupNumber; upPk(); }
+  const matchCustomer = customers.find(c => {
+    const cn = (f.customer||'').toLowerCase();
+    const words = cn.split(/\s+/).filter(w => w.length > 3);
+    return words.some(w => c.name.toLowerCase().includes(w));
+  });
+  if (matchCustomer){ document.getElementById('customerSelect').value = matchCustomer.name; loadCustomerData(); }
+  if (f.basePay && parseFloat(f.basePay) > 0) document.getElementById('bpay').value = parseFloat(f.basePay).toFixed(2);
+  if (f.highLimit && parseFloat(f.highLimit) > 0){ document.getElementById('thl').value = f.highLimit; updateWarning(); }
+  if (f.trailerNumber){
+    const sel = document.getElementById('tki');
+    for (let i = 0; i < sel.options.length; i++){
+      if (sel.options[i].value && (sel.options[i].value.includes(f.trailerNumber) || f.trailerNumber.includes(sel.options[i].value))){ sel.selectedIndex = i; break; }
+    }
+  }
+  if (f.notes){ const n = document.getElementById('nts'); if (n) n.value = f.notes; }
+  closePasteDispatch();
+  window.scrollTo(0,0);
+}
 function setTdy(){document.getElementById("td").value=new Date().toISOString().split("T")[0]}
 function setDateTimeNow(d,t){const n=new Date();document.getElementById(d).value=n.toISOString().split("T")[0];document.getElementById(t).value=String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0")}
 function upPk(){const v=document.getElementById('pki').value;const d=document.getElementById('pkd');if(!v){d.innerHTML='PICKUP #';return}if(v.length<=4)d.innerHTML='<span class="pr">'+v+'</span>';else d.innerHTML='<span class="pb">'+v.slice(0,v.length-4)+'</span><span class="pr">'+v.slice(-4)+'</span>'}
