@@ -137,4 +137,83 @@
     setTimeout(function() { pill.classList.remove('show'); }, 1500);
   };
 
+  // ── Voice Input ────────────────────────────────────────────────────────────
+  function ndWordsToNumber(text) {
+    var W = {
+      zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,
+      ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,
+      seventeen:17,eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,
+      fifty:50,sixty:60,seventy:70,eighty:80,ninety:90
+    };
+    var parts = text.toLowerCase().replace(/-/g, ' ').split(/\s+/);
+    var total = 0, cur = 0, i, p, n;
+    for (i = 0; i < parts.length; i++) {
+      p = parts[i];
+      if (p === 'hundred') { cur = (cur || 1) * 100; }
+      else if (p === 'thousand') { total += (cur || 1) * 1000; cur = 0; }
+      else { n = W[p]; if (n !== undefined) cur += n; }
+    }
+    total += cur;
+    return total > 0 ? String(total) : null;
+  }
+
+  w.ndParseNumeric = function(text) {
+    var stripped = text.replace(/\b(dollars?|gallons?|pounds?|lbs?|cents?|bucks?)\b/gi, '').trim();
+    var m = stripped.match(/[\d,]+\.?\d*/);
+    if (m) return m[0].replace(/,/g, '');
+    return ndWordsToNumber(stripped) || stripped.replace(/[^0-9.]/g, '');
+  };
+
+  w.ndAttachVoiceInput = function(fieldOrId, opts) {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    opts = opts || {};
+    var numericOnly = !!opts.numericOnly;
+    var lang = opts.language || 'en-US';
+    var el = typeof fieldOrId === 'string' ? document.getElementById(fieldOrId) : fieldOrId;
+    if (!el || el.dataset.ndVoice) return;
+    el.dataset.ndVoice = '1';
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'nd-mic-btn';
+    btn.setAttribute('aria-label', 'Voice input');
+    btn.textContent = '🎤';
+
+    var wrap = document.createElement('div');
+    wrap.className = 'nd-voice-wrap';
+    el.parentNode.insertBefore(wrap, el);
+    wrap.appendChild(el);
+    wrap.appendChild(btn);
+
+    if (el.tagName === 'TEXTAREA') btn.classList.add('nd-mic-textarea');
+
+    var recognition = null;
+    var listening = false;
+
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (listening) { if (recognition) recognition.stop(); return; }
+      recognition = new SR();
+      recognition.lang = lang;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onstart = function() { listening = true; btn.classList.add('active'); };
+      recognition.onresult = function(event) {
+        var raw = event.results[0][0].transcript.trim();
+        el.value = numericOnly ? w.ndParseNumeric(raw) : raw;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      recognition.onerror = function(ev) {
+        if (ev.error === 'not-allowed') {
+          alert('Microphone permission denied. Allow microphone access in your browser settings and try again.');
+        }
+      };
+      recognition.onend = function() { listening = false; btn.classList.remove('active'); };
+      try { recognition.start(); } catch(err) { console.warn('ndVoice start error:', err); }
+    });
+  };
+
 }(window));

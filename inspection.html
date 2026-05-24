@@ -289,6 +289,7 @@ window.onload = function(){
 
   // Make sure every change saves
   document.getElementById('remarks').addEventListener('input', autoSave);
+  ndAttachVoiceInput('remarks');
 
   // Extra safety: save draft when leaving the page
   window.addEventListener('beforeunload', () => {
