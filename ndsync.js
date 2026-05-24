@@ -128,30 +128,16 @@
     const item = document.createElement('div');
     item.className = 'menu-item';
     item.id = 'ndsyncMenuItem';
-    item.style.background = 'linear-gradient(135deg,#0a2a0a 0%,#1a3a1a 100%)';
-    item.style.color = '#a5d6a7';
-    item.style.border = '1px solid #28a745';
-    item.innerHTML = '☁️ Cloud Sync <span id="ndsyncMenuStatus" style="font-size:12px;color:#888;display:block;margin-top:2px;font-weight:400;">Not signed in</span>';
-    item.onclick = function(){
-      const overlay = document.getElementById('menuOverlay');
-      if (overlay) overlay.style.display = 'none';
-      window.NDSync.openModal();
-    };
+    item.style.background = '#1a1a1a';
+    item.style.color = '#888';
+    item.style.border = '1px solid #444';
+    item.style.cursor = 'default';
+    item.style.opacity = '0.75';
+    item.innerHTML = '☁️ Cloud Sync — Not Configured<span style="font-size:11px;color:#666;display:block;margin-top:3px;font-weight:400;font-style:italic;">Use Export → Backup to Google Drive</span>';
     menu.insertBefore(item, menu.firstChild);
-    updateMenuLabel();
   }
 
-  function updateMenuLabel(){
-    const label = document.getElementById('ndsyncMenuStatus');
-    if (!label) return;
-    if (isSignedIn){
-      label.textContent = userEmail ? '✓ ' + userEmail : '✓ Signed in';
-      label.style.color = '#a5d6a7';
-    } else {
-      label.textContent = 'Not signed in';
-      label.style.color = '#888';
-    }
-  }
+  function updateMenuLabel(){ /* menu item is static — no dynamic label needed */ }
 
   function showPill(state, text, durationMs){
     const pill = document.getElementById('ndsyncPill');

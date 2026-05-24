@@ -1005,7 +1005,7 @@ function csvEsc(s){ return '"' + String(s == null ? '' : s).replace(/"/g, '""') 
 function exportCSV(){
   const y = eeAnchor.getFullYear();
   const headers = ['Date','Pickup #','Customer','Trailer','Base Pay','Gross Pay','Reimbursement','Fuel Total','Allocated Weekly Ded.','Total Deductions','Net','Status'];
-  const yr = savedRecords.filter(r => r.date && r.date.startsWith(String(y))).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const yr = savedRecords.filter(r => { const rd = eeRevenueDateISO(r); return rd && rd.startsWith(String(y)); }).sort((a,b) => eeRevenueDateISO(a).localeCompare(eeRevenueDateISO(b)));
   let blocks = [[y + ' Pay Audit & Deductions Report'], headers];
   yr.forEach(r => {
     const bp = parseFloat(r.basePay)||0, gp = eeGrossPay(r), ft = eeFuelTotal(r);
