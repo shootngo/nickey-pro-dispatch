@@ -12,7 +12,7 @@
   const FOLDER_NAME   = 'Nickey Dispatch Data';
   const DATA_FILE     = 'nickey-dispatch-data.json';
   const PUSH_DEBOUNCE = 30000;   // ms between auto-pushes
-  const TOKEN_BUFFER  = 120000;  // refresh token 2 min before expiry
+  const TOKEN_BUFFER  = 600000;  // refresh token 10 min before expiry
 
   const SYNC_KEYS = [
     'nickeySavedRecords', 'weeklyDeductions', 'fuelStations', 'currentDriver',
@@ -34,6 +34,7 @@
   let pushTimer      = null;
   let lastError      = null;
   let isSyncing      = false;
+  let silentRefreshPending = false;
 
   // Restore persisted session values (used in init, not yet validated)
   const _persisted = {
@@ -84,7 +85,10 @@
   }
 
   function silentRefresh(){
-    if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+    if (!tokenClient || silentRefreshPending) return;
+    silentRefreshPending = true;
+    const hint = userEmail || _persisted.email || localStorage.getItem('ndsync_loginHint') || '';
+    tokenClient.requestAccessToken({ prompt: '', ...(hint ? { login_hint: hint } : {}) });
   }
 
   // ── localStorage INTERCEPT ──────────────────────────────────────────────────
@@ -180,10 +184,15 @@
   function refreshMenuLabel(){
     const item = document.getElementById('ndsyncMenuItem');
     if (!item) return;
+    const knownEmail = userEmail || _persisted.email || localStorage.getItem('ndsync_loginHint');
     if (isSignedIn){
       item.style.cssText = 'cursor:pointer;background:#0a1f0a;border:1px solid #28a745;color:#a5d6a7;';
-      item.innerHTML = '☁️ Cloud Sync — ' + (userEmail || 'Signed In') +
+      item.innerHTML = '☁️ Cloud Sync — ' + (knownEmail || 'Signed In') +
         '<span style="font-size:11px;color:#69b578;display:block;margin-top:3px;font-weight:400;">Auto-syncing to Google Drive</span>';
+    } else if (silentRefreshPending && knownEmail){
+      item.style.cssText = 'cursor:pointer;background:#0a1a2a;border:1px solid #4a90e2;color:#a5c8f0;';
+      item.innerHTML = '☁️ Cloud Sync — ' + knownEmail +
+        '<span style="font-size:11px;color:#4a90e2;display:block;margin-top:3px;font-weight:400;">🔄 Reconnecting...</span>';
     } else {
       item.style.cssText = 'cursor:pointer;';
       item.innerHTML = '☁️ Cloud Sync — Sign in<span style="font-size:11px;color:#888;display:block;margin-top:3px;font-weight:400;font-style:italic;">Tap to sync across devices</span>';
@@ -274,13 +283,19 @@
   }
 
   function handleTokenResponse(resp){
+    silentRefreshPending = false;
     if (resp.error){
       if (resp.error === 'interaction_required' || resp.error === 'access_denied'){
-        log('Silent re-auth needs user interaction');
+        log('Silent re-auth needs user interaction — showing sign-in');
+        isSignedIn = false;
+        refreshMenuLabel();
+        showPill(null, 'Sign in to sync ↗', 6000);
         return;
       }
       logError('Token error', resp);
-      showPill('error', 'Sign-in failed', 4000);
+      showPill('error', 'Sign-in failed — will retry', 5000);
+      // Retry silent refresh after 30s for transient errors
+      setTimeout(silentRefresh, 30000);
       return;
     }
 
@@ -313,6 +328,7 @@
       if (d.email){
         userEmail = d.email;
         _rawSet('ndsync_userEmail', userEmail);
+        _rawSet('ndsync_loginHint', userEmail);  // persists across sign-out for seamless re-auth
         log('Email:', userEmail);
       }
     }).catch(() => {});
@@ -624,15 +640,21 @@
         silentRefresh();
       });
 
-    } else if (_persisted.email){
-      // Token expired but we know who they are; try silent re-auth
-      userEmail = _persisted.email;
+    } else if (_persisted.email || localStorage.getItem('ndsync_loginHint')){
+      // Token expired but we know who they are — silently reconnect, no prompt shown
+      userEmail = _persisted.email || localStorage.getItem('ndsync_loginHint');
       isSignedIn = false;
+      silentRefreshPending = true;  // pre-flag so menu shows "Reconnecting..."
       refreshMenuLabel();
+      showPill('syncing', '🔄 Reconnecting...', 0);
       loadGIS().then(() => {
         ensureTokenClient();
         silentRefresh();
-      }).catch(() => { showPill(null, 'Not signed in', 3000); });
+      }).catch(() => {
+        silentRefreshPending = false;
+        refreshMenuLabel();
+        showPill(null, 'Sign in to sync ↗', 5000);
+      });
 
     } else {
       showPill(null, 'Not signed in', 3000);
