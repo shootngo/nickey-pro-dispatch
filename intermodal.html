@@ -349,6 +349,10 @@ window.onload = function(){
   ['inspDate','inspTime','chassisNo','containerNo','sealNo','defectNotes','reportingDriver','reviewingDriver','ccEmail'].forEach(id => {
     document.getElementById(id).addEventListener('input', autoSave);
   });
+
+  // Voice input on text fields (skip date and email)
+  ['inspTime','chassisNo','containerNo','sealNo','reportingDriver','reviewingDriver'].forEach(id => ndAttachVoiceInput(id));
+  ndAttachVoiceInput('defectNotes');
 };
 </script>
 </body>
