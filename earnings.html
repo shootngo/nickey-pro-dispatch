@@ -250,6 +250,8 @@ body{background:#0f1419;color:#e8eaed;font-family:'Inter',sans-serif;min-height:
 .ee-export-option .text{flex:1}
 .ee-export-option .text .title{font-weight:700;font-size:0.95rem;color:#e8eaed}
 .ee-export-option .text .desc{font-size:0.75rem;color:#9ba1a8;margin-top:2px}
+.ee-export-divider{border:none;border-top:1px solid #2d3540;margin:0.6rem 0 0.4rem}
+.ee-export-section-label{font-size:0.68rem;font-weight:700;letter-spacing:2px;color:#4a90e2;text-transform:uppercase;padding:0 0 0.3rem}
 
 .ee-year-totals-card{background:linear-gradient(135deg,#1a2028 0%,#232b35 100%);border:1px solid #f4b942;border-radius:14px;padding:1rem 1.2rem;margin-bottom:1rem}
 .ee-year-totals-card .title{font-family:'Bebas Neue',sans-serif;color:#f4b942;letter-spacing:2px;font-size:1.05rem;text-transform:uppercase;margin-bottom:0.7rem;text-align:center}
@@ -419,6 +421,17 @@ body{background:#0f1419;color:#e8eaed;font-family:'Inter',sans-serif;min-height:
         <div class="icon">🖨️</div>
         <div class="text"><div class="title">Print Report</div><div class="desc">Open print dialog</div></div>
       </div>
+      <hr class="ee-export-divider">
+      <div class="ee-export-section-label">Cloud Backup</div>
+      <div class="ee-export-option" onclick="backupToGoogleDrive()">
+        <div class="icon">☁️</div>
+        <div class="text"><div class="title">Backup to Google Drive</div><div class="desc">Download backup file &amp; open Google Drive to upload</div></div>
+      </div>
+      <div class="ee-export-option" onclick="document.getElementById('restoreFileInput').click()">
+        <div class="icon">🔄</div>
+        <div class="text"><div class="title">Restore from Backup</div><div class="desc">Load a saved backup file to restore all records &amp; deductions</div></div>
+      </div>
+      <input type="file" id="restoreFileInput" accept=".json" style="display:none" onchange="restoreFromBackup(this.files[0])">
     </div>
   </div>
 </div>
@@ -1035,6 +1048,42 @@ function emailReport(){
   closeEEExport();
 }
 function printEEReport(){ closeEEExport(); setTimeout(openYearSummary, 200); setTimeout(window.print, 600); }
+
+// === CLOUD BACKUP ===
+function backupToGoogleDrive(){
+  const data = {version:2, exportedAt:new Date().toISOString(), nickeySavedRecords:savedRecords, weeklyDeductions:weeklyDeductions};
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'nickey-dispatch-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  closeEEExport();
+  setTimeout(function(){ window.open('https://drive.google.com/drive/my-drive', '_blank'); }, 500);
+}
+
+function restoreFromBackup(file){
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.nickeySavedRecords || !Array.isArray(data.nickeySavedRecords)){
+        alert('Invalid backup file — please select a Nickey dispatch backup JSON.'); return;
+      }
+      const recCount = data.nickeySavedRecords.length;
+      const wkCount = Object.keys(data.weeklyDeductions||{}).length;
+      const exportedAt = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'unknown date';
+      if (!confirm('Restore backup from ' + exportedAt + '?\n\n' + recCount + ' load records\n' + wkCount + ' weeks of deductions\n\nThis will REPLACE all current data. Continue?')) return;
+      localStorage.setItem('nickeySavedRecords', JSON.stringify(data.nickeySavedRecords));
+      localStorage.setItem('weeklyDeductions', JSON.stringify(data.weeklyDeductions||{}));
+      loadData(); eeRender(); closeEEExport();
+      alert('Restored successfully — ' + recCount + ' records loaded.');
+    } catch(err){ alert('Could not read backup file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  document.getElementById('restoreFileInput').value = '';
+}
 
 // === SETTLEMENT PDF READER ===
 const GEMINI_KEY_STORAGE = 'geminiApiKey';
