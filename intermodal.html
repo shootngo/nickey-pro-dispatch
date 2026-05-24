@@ -355,5 +355,35 @@ window.onload = function(){
   ndAttachVoiceInput('defectNotes');
 };
 </script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js', {scope: './'})
+      .then(function(reg) {
+        console.log('[SW] Registered, scope:', reg.scope);
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) showNDUpdateBanner();
+          });
+        });
+      }).catch(function(err) { console.warn('[SW] Registration failed:', err); });
+  });
+}
+function showNDUpdateBanner() {
+  if (document.getElementById('ndUpdateBanner')) return;
+  var b = document.createElement('div');
+  b.id = 'ndUpdateBanner';
+  b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1e3a8a;color:#fff;padding:14px 16px;text-align:center;font-size:14px;font-weight:700;z-index:99999;cursor:pointer;letter-spacing:0.5px;';
+  b.textContent = '🔄 New version available — tap to update';
+  b.addEventListener('click', function() {
+    b.textContent = 'Updating...';
+    navigator.serviceWorker.addEventListener('controllerchange', function() { window.location.reload(); });
+    if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage({type:'SKIP_WAITING'});
+    else window.location.reload();
+  });
+  document.body.appendChild(b);
+}
+</script>
 </body>
 </html>
