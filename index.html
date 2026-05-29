@@ -202,7 +202,12 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <div class="sb">
       <p style="font-size:13px;color:#aaa;margin-bottom:12px;">Log every diesel stop on this trip — flows to Earnings & Expenses</p>
       <div id="fuelContainer"></div>
-      <button onclick="addFuelEntry()" style="width:100%;padding:14px;background:#333;color:#ffd700;border:none;border-radius:8px;font-size:16px;font-weight:600;">+ Add Fuel Entry</button>
+      <div style="display:flex;gap:8px;margin-bottom:0;">
+        <button onclick="addFuelEntry()" style="flex:1;padding:14px;background:#333;color:#ffd700;border:none;border-radius:8px;font-size:16px;font-weight:600;">+ Add Fuel Entry</button>
+        <button onclick="scanFuelReceipt()" style="padding:14px 18px;background:#1a2a1a;color:#4caf50;border:1px solid #4caf50;border-radius:8px;font-size:22px;" title="Scan receipt photo">📷</button>
+      </div>
+      <input type="file" id="fuelReceiptInput" accept="image/*" capture="environment" style="display:none" onchange="processFuelReceiptImage(this)">
+      <div id="fuelScanStatus" style="display:none;margin-top:8px;padding:10px;background:#1a1a1a;border:1px solid #444;border-radius:8px;font-size:13px;color:#aaa;text-align:center;"></div>
       <div class="fuel-grand-total" id="fuelGrandTotal">Total Fuel: $0.00</div>
     </div>
   </div>
@@ -559,6 +564,32 @@ function addFuelEntry(prefill){fuelCounter++;const id=fuelCounter;const c=docume
 function removeFuelEntry(id){const e=document.getElementById('fuel-entry-'+id);if(e)e.remove();updateFuelGrandTotal()}
 function updateFuelGrandTotal(){let t=0;document.querySelectorAll('.fuel-amount-input').forEach(i=>t+=parseFloat(i.value)||0);document.getElementById('fuelGrandTotal').textContent='Total Fuel: $'+t.toFixed(2)}
 function setupStationAutocomplete(input,sugg){if(!input)return;input.addEventListener('input',function(){const v=input.value.toLowerCase().trim();const s=getFuelStations();const m=Object.keys(s).filter(x=>v===''||x.toLowerCase().includes(v)).sort((a,b)=>s[b]-s[a]).slice(0,6);if(m.length===0){sugg.classList.remove('show');return}sugg.innerHTML=m.map(x=>'<div class="fuel-station-suggestion" data-station="'+x.replace(/"/g,'&quot;')+'">'+x+'<span class="uses">x'+s[x]+'</span></div>').join('');sugg.classList.add('show');sugg.querySelectorAll('.fuel-station-suggestion').forEach(el=>{el.addEventListener('click',function(){input.value=el.dataset.station;sugg.classList.remove('show');updateFuelGrandTotal()})})});input.addEventListener('focus',function(){if(input.value==='')input.dispatchEvent(new Event('input'))});input.addEventListener('blur',function(){setTimeout(()=>sugg.classList.remove('show'),200)})}
+function scanFuelReceipt(){document.getElementById('fuelReceiptInput').value='';document.getElementById('fuelReceiptInput').click()}
+function processFuelReceiptImage(input){
+  const file=input.files[0];if(!file)return;
+  const statusEl=document.getElementById('fuelScanStatus');
+  statusEl.style.display='block';statusEl.textContent='⏳ Reading receipt...';
+  const apiKey=localStorage.getItem('geminiApiKey');
+  if(!apiKey){statusEl.textContent='⚠️ Gemini API key not set — add it in Settings → Gemini Key';return}
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const b64=ev.target.result.split(',')[1];
+    const mimeType=file.type||'image/jpeg';
+    const prompt='This is a fuel receipt photo. Extract: station name (brand/chain name like Pilot, Love\'s, Shell, etc.), total dollar amount paid, and gallons pumped. Return ONLY valid JSON: {"station":"...","amount":0.00,"gallons":0.00}. Use 0 for any field you cannot read clearly.';
+    fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+apiKey,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt},{inlineData:{mimeType:mimeType,data:b64}}]}],generationConfig:{responseMimeType:'application/json'}})
+    }).then(r=>r.json()).then(data=>{
+      const text=data?.candidates?.[0]?.content?.parts?.[0]?.text||'{}';
+      let parsed;try{parsed=JSON.parse(text)}catch(e){parsed={}}
+      if(!parsed.station&&!parsed.amount){statusEl.textContent='⚠️ Could not read receipt — try a clearer photo';return}
+      addFuelEntry({station:parsed.station||'',amount:parsed.amount||0,gallons:parsed.gallons||0});
+      statusEl.textContent='✓ Receipt scanned: '+(parsed.station||'Unknown')+' $'+(parsed.amount||0).toFixed(2)+(parsed.gallons?' / '+(parsed.gallons).toFixed(3)+' gal':'');
+      setTimeout(()=>{statusEl.style.display='none'},4000);
+    }).catch(err=>{statusEl.textContent='⚠️ Scan failed — check connection and try again';console.error('Receipt scan error',err)});
+  };
+  reader.readAsDataURL(file);
+}
 function collectFuelEntries(){const e=[];document.querySelectorAll('.fuel-entry').forEach(en=>{const s=en.querySelector('.fuel-station-input').value.trim();const a=parseFloat(en.querySelector('.fuel-amount-input').value)||0;const g=parseFloat(en.querySelector('.fuel-gallons-input').value)||0;if(s||a>0||g>0)e.push({station:s,amount:a,gallons:g})});return e}
 function saveRecord(){toggleMenu();const f=collectFuelEntries();f.forEach(x=>{if(x.station)saveFuelStation(x.station)});const r={id:editingRecordIdx!==-1?savedRecords[editingRecordIdx].id:'REC-'+Date.now(),driverName:currentDriver,date:document.getElementById("td").value,pickup:document.getElementById("pki").value,customer:document.getElementById("customerSelect").value,basePay:parseFloat(document.getElementById("bpay").value)||0,highLimit:document.getElementById("thl").value,trailer:document.getElementById("tki").value,arrivalDate:document.getElementById("arrivalDate").value,arrivalTime:document.getElementById("arrivalTime").value,departureDate:document.getElementById("departureDate").value,departureTime:document.getElementById("departureTime").value,tankerWeight:document.getElementById("tw").value,arrivalGallons:document.getElementById("atl").value,departureLoad:document.getElementById("departureLoad").value,totalGallons:document.getElementById("ttval").textContent,notes:document.getElementById("nts").value,reimbursements:[],fuelEntries:f,actualPay:null,bookkeepingComplete:false,timestamp:new Date().toISOString()};const ai=document.querySelectorAll('#reimbContainer input[type="number"]');const di=document.querySelectorAll('#reimbContainer input[type="text"]');for(let i=0;i<ai.length;i++){if(ai[i].value){r.reimbursements.push({desc:di[i]?di[i].value:"",amount:parseFloat(ai[i].value)||0})}}if(editingRecordIdx!==-1&&editingRecordIdx<savedRecords.length){const o=savedRecords[editingRecordIdx];r.actualPay=o.actualPay;r.bookkeepingComplete=o.bookkeepingComplete||false;r.timestamp=o.timestamp||r.timestamp;r.updatedAt=new Date().toISOString();savedRecords[editingRecordIdx]=r;localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record updated!");editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy();return}savedRecords.push(r);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record saved!")}
 function viewSavedRecords(){toggleMenu();try{const s=localStorage.getItem("nickeySavedRecords");if(s)savedRecords=JSON.parse(s)||[]}catch(e){}const b=document.getElementById("savedRecordsBody");if(savedRecords.length===0){b.innerHTML='<div style="padding:30px 10px;text-align:center;color:#aaa;">No saved records yet.</div>';document.getElementById("savedRecordsOverlay").style.display="flex";return}let h='';savedRecords.slice().reverse().forEach((r,idx)=>{const realIdx=savedRecords.length-1-idx;const ft=(r.fuelEntries||[]).reduce((s,f)=>s+(parseFloat(f.amount)||0),0);h+=`<div style="background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;position:relative;"><div onclick="loadRecordIntoForm(${realIdx}); closeSavedRecords();" style="cursor:pointer;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;">Pickup #${r.pickup}</div><div style="font-size:13px;color:#aaa;">${r.date} • ${r.customer}</div><div style="font-size:13px;color:#4caf50;margin-top:4px;">Base Pay: $${(r.basePay||0).toFixed(2)}${ft>0?' • Fuel: $'+ft.toFixed(2):''}</div></div><button onclick="deleteSavedRecord(${realIdx}); event.stopImmediatePropagation();" style="position:absolute;top:12px;right:12px;background:#3a2a2a;color:#ff8888;border:none;border-radius:6px;padding:6px 10px;font-size:13px;">🗑️</button></div>`});b.innerHTML=h;document.getElementById("savedRecordsOverlay").style.display="flex"}

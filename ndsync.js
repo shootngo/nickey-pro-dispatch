@@ -12,7 +12,7 @@
   const FOLDER_NAME   = 'Nickey Dispatch Data';
   const DATA_FILE     = 'nickey-dispatch-data.json';
   const PUSH_DEBOUNCE = 30000;   // ms between auto-pushes
-  const TOKEN_BUFFER  = 600000;  // refresh token 10 min before expiry
+  const TOKEN_BUFFER  = 120000;  // refresh token 2 min before expiry
 
   const SYNC_KEYS = [
     'nickeySavedRecords', 'weeklyDeductions', 'fuelStations', 'currentDriver',
@@ -83,6 +83,7 @@
   function scheduleRefresh(){
     const delay = tokenExpiry - Date.now() - TOKEN_BUFFER;
     if (delay > 0) setTimeout(silentRefresh, delay);
+    else if (tokenExpiry > Date.now()) setTimeout(silentRefresh, 2000); // Already in buffer zone, refresh now
   }
 
   function silentRefresh(){
@@ -290,7 +291,7 @@
         log('Silent re-auth needs user interaction — showing sign-in');
         isSignedIn = false;
         refreshMenuLabel();
-        showPill(null, 'Sign in to sync ↗', 6000);
+        showPill(null, '🔑 Tap here to reconnect Drive', 0); // stays visible until user taps
         return;
       }
       logError('Token error', resp);
