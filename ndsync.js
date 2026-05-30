@@ -115,7 +115,7 @@
       #ndsyncPill{position:fixed;bottom:14px;right:14px;z-index:9998;
         background:rgba(0,0,0,0.92);border:1px solid #444;color:#aaa;
         font-size:11px;padding:6px 12px;border-radius:14px;cursor:pointer;
-        display:flex;align-items:center;gap:6px;opacity:0;transition:opacity 0.3s;}
+        display:flex;align-items:center;gap:6px;opacity:1;transition:opacity 0.3s;}
       #ndsyncPill.show{opacity:1;}
       #ndsyncPill.signed-in{border-color:#28a745;color:#a5d6a7;}
       #ndsyncPill.signed-in .ndot{background:#28a745;}
@@ -201,13 +201,12 @@
     }
   }
 
-  function showPill(state, text, durMs){
+  function showPill(state, text){
     const pill = document.getElementById('ndsyncPill');
     const textEl = document.getElementById('ndsyncPillText');
     if (!pill || !textEl) return;
     pill.className = 'show' + (state ? ' ' + state : '');
     textEl.textContent = text;
-    if (durMs) setTimeout(() => pill.classList.remove('show'), durMs);
   }
 
   // ── MODAL CONTENT ────────────────────────────────────────────────────────────
