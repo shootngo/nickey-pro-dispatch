@@ -117,6 +117,7 @@ let inspectionData = {
   type:'pre', items:{}, gasLevel:'', remarks:'',
   driver:'', date:'', pickup:'', trailer:'', customer:''
 };
+let savedSuccessfully = false;
 
 function pullDispatchData(){
   const driver = localStorage.getItem('currentDriver') || 'Unknown Driver';
@@ -245,6 +246,11 @@ function loadDraft(){
     const d = JSON.parse(draft);
     if (!d) return;
 
+    // Only load draft if it belongs to the current trip
+    const draftKey = (d.pickup || '') + '|' + (d.trailer || '');
+    const currentKey = (inspectionData.pickup || '') + '|' + (inspectionData.trailer || '');
+    if (draftKey !== currentKey) return;
+
     if (d.type) setTripType(d.type);
     if (d.items) {
       Object.keys(d.items).forEach(id => setItemStatus(id, d.items[id]));
@@ -266,18 +272,21 @@ function saveInspection(){
   localStorage.setItem('nickeyInspectionHistory', JSON.stringify(history));
   localStorage.setItem('nickeyLatestInspection', JSON.stringify(inspectionData));
 
-  // Also attach to current main form state so it travels with the trip
+  // Attach to current main form state, keeping pre and post separate
   try {
     const main = localStorage.getItem('nickeyDispatchFormState');
     if (main) {
       const s = JSON.parse(main);
-      s.inspection = inspectionData;
+      const key = inspectionData.type === 'pre' ? 'preInspection' : 'postInspection';
+      s[key] = inspectionData;
       localStorage.setItem('nickeyDispatchFormState', JSON.stringify(s));
     }
   } catch(e){}
 
+  savedSuccessfully = true;
   localStorage.removeItem('nickeyTrailerInspectionDraft');
-  alert('✓ Inspection saved!\n\nIt is now linked to your current dispatch.');
+  const label = inspectionData.type === 'pre' ? 'Pre-Trip' : 'Post-Trip';
+  alert('✓ ' + label + ' Inspection saved!\n\nLinked to your current dispatch.');
   setTimeout(() => { window.location.href = 'index.html'; }, 400);
 }
 
@@ -291,9 +300,9 @@ window.onload = function(){
   document.getElementById('remarks').addEventListener('input', autoSave);
   ndAttachVoiceInput('remarks');
 
-  // Extra safety: save draft when leaving the page
+  // Save draft when leaving, but not after a successful save (prevents re-saving cleared draft)
   window.addEventListener('beforeunload', () => {
-    autoSave();
+    if (!savedSuccessfully) autoSave();
   });
 };
 </script>

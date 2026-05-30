@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Professional Dispatch V 8.1</title>
+<title>Nickey Professional Dispatch V 8.2</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-512.png">
@@ -110,7 +110,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 </head>
 <body>
 <div class="splash-overlay" id="splashOverlay">
-  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 8.1</div></div>
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 8.2</div></div>
   <div class="splash-truck-wrap">
     <img class="splash-truck-img" id="splashTruckImg" alt="">
     <div class="splash-flames"></div>
@@ -119,7 +119,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
   <div class="splash-loading"><span></span><span></span><span></span></div>
 </div>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 8.1</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 8.2</span></div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="driver-badge" id="driverBadge">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -920,7 +920,7 @@ function updateCustomerField(index, field, value) {
 
 /* loadSavedCustomers() replaced by ndLoadCustomers() in nickey-shared.js */
 
-// === IMPROVED EMAIL FUNCTION (includes detention) ===
+// === EMAIL FUNCTION ===
 function sendEmail() {
   toggleMenu();
 
@@ -930,29 +930,27 @@ function sendEmail() {
     if (saved) state = JSON.parse(saved);
   } catch(e){}
 
-  let insp = {};
-  try {
-    const latest = localStorage.getItem('nickeyLatestInspection');
-    if (latest) insp = JSON.parse(latest);
-  } catch(e){}
-
   const driver = localStorage.getItem('currentDriver') || 'Unknown Driver';
   const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   let body = `NICKEY DISPATCH REPORT\n`;
   body += `──────────────────────\n\n`;
 
-  body += `DRIVER:           ${driver}\n`;
-  body += `DATE:             ${date}\n`;
-  body += `PICKUP #:         ${state.pki || '—'}\n`;
-  body += `TRAILER:          ${state.tki || insp.trailer || '—'}\n`;
-  body += `CUSTOMER:         ${state.customerSelect || insp.customer || '—'}\n\n`;
+  body += `DRIVER:     ${driver}\n`;
+  body += `DATE:       ${date}\n`;
+  body += `PICKUP #:   ${state.pki || '—'}\n`;
+  body += `TRAILER:    ${state.tki || '—'}\n`;
+  body += `CUSTOMER:   ${state.customerSelect || '—'}\n`;
 
-  // Detention
-  const arrDate = document.getElementById("arrivalDate").value;
-  const arrTime = document.getElementById("arrivalTime").value;
-  const depDate = document.getElementById("departureDate").value;
-  const depTime = document.getElementById("departureTime").value;
+  // === AMOUNTS OWED ===
+  let owedLines = [];
+  let totalOwed = 0;
+
+  // Detention (read from saved state, not DOM, so it works even if page scrolled)
+  const arrDate = state.arrivalDate;
+  const arrTime = state.arrivalTime;
+  const depDate = state.departureDate;
+  const depTime = state.departureTime;
 
   if (arrDate && arrTime && depDate && depTime) {
     const arrival = new Date(`${arrDate}T${arrTime}`);
@@ -963,36 +961,76 @@ function sendEmail() {
       if (totalHours > 2) {
         const billable = totalHours - 2;
         const charge = billable * 75;
-        body += `DETENTION TIME\n`;
-        body += `─────────────────────────────\n`;
-        body += `Time on site: ${Math.floor(diffMs / (1000*60*60))}h ${Math.floor((diffMs % (1000*60*60)) / (1000*60))}m\n`;
-        body += `Billable: ${billable.toFixed(2)} hrs × $75 = $${charge.toFixed(2)}\n\n`;
+        const hrs = Math.floor(diffMs / (1000*60*60));
+        const mins = Math.floor((diffMs % (1000*60*60)) / (1000*60));
+        owedLines.push(`  DETENTION: ${hrs}h ${mins}m on site`);
+        owedLines.push(`  Billable hours: ${billable.toFixed(2)} hrs × $75 = $${charge.toFixed(2)}`);
+        totalOwed += charge;
       }
     }
   }
 
-  if (insp && (Object.keys(insp.items || {}).length > 0 || insp.remarks || insp.gasLevel)) {
-    body += `TRAILER INSPECTION - ${(insp.type || 'pre').toUpperCase()}-TRIP\n`;
-    body += `─────────────────────────────\n`;
-
-    if (insp.items) {
-      Object.keys(insp.items).forEach(key => {
-        const status = insp.items[key] === 'safe' ? '✅' : '⚠️';
-        const label = key.replace('item-', '');
-        const statusText = insp.items[key] === 'safe' ? 'SAFE' : 'CONCERN';
-        body += `${status} ${label.padEnd(25)} ${statusText}\n`;
-      });
-    }
-
-    if (insp.gasLevel) body += `\nREEFER TANK:          ${insp.gasLevel}\n`;
-    if (insp.liveGauge) body += `LIVE GAUGE:           ${insp.liveGauge} gallons\n`;
-
-    if (insp.remarks) {
-      body += `\nREMARKS:\n${insp.remarks}\n`;
-    }
+  // Reimbursements
+  const validReimbs = (state.reimbursements || []).filter(r => r.desc || parseFloat(r.amt) > 0);
+  if (validReimbs.length > 0) {
+    if (owedLines.length > 0) owedLines.push('');
+    owedLines.push('  REIMBURSEMENTS:');
+    validReimbs.forEach(r => {
+      const amt = parseFloat(r.amt) || 0;
+      totalOwed += amt;
+      owedLines.push(`    ${(r.desc || 'Item').padEnd(28)} $${amt.toFixed(2)}`);
+    });
   }
 
-  body += `\n\nSent from Nickey Dispatch V 8.1`;
+  if (owedLines.length > 0) {
+    body += `\n`;
+    body += `!!! ─── AMOUNTS OWED ─── !!!\n`;
+    body += owedLines.join('\n') + '\n';
+    body += `  ─────────────────────────────────\n`;
+    body += `  *** TOTAL OWED: $${totalOwed.toFixed(2)} ***\n`;
+    body += `!!! ─────────────────────────── !!!\n`;
+  }
+
+  // === INSPECTION(S) ===
+  // Prefer inspections attached to the current dispatch (pre + post separately)
+  const inspections = [];
+  if (state.preInspection) inspections.push(state.preInspection);
+  if (state.postInspection) inspections.push(state.postInspection);
+  // Fallback: latest saved inspection
+  if (inspections.length === 0) {
+    try {
+      const latest = localStorage.getItem('nickeyLatestInspection');
+      if (latest) { const p = JSON.parse(latest); if (p) inspections.push(p); }
+    } catch(e){}
+  }
+
+  const ITEM_LABELS = [
+    "Marker Lights","Placards","Load Securement","Bill of Lading / Paperwork",
+    "ABS","Landing Gear","Tires","Hatches & Cabinets Secure",
+    "Lug Nuts","License Plate","Fifth Wheel Coupler Bolts"
+  ];
+
+  inspections.forEach(insp => {
+    if (!insp) return;
+    const hasData = Object.keys(insp.items || {}).length > 0 || insp.remarks || insp.gasLevel;
+    if (!hasData) return;
+    body += `\n`;
+    body += `TRAILER INSPECTION — ${(insp.type || 'pre').toUpperCase()}-TRIP\n`;
+    body += `─────────────────────────────\n`;
+    if (insp.items) {
+      Object.keys(insp.items).forEach(key => {
+        const idx = parseInt(key.replace('item-', ''), 10);
+        const label = ITEM_LABELS[idx] || key;
+        const isSafe = insp.items[key] === 'safe';
+        body += `  ${isSafe ? '✅' : '⚠️'} ${label.padEnd(32)} ${isSafe ? 'SAFE' : '! CONCERN'}\n`;
+      });
+    }
+    if (insp.gasLevel) body += `\n  REEFER TANK: ${insp.gasLevel}\n`;
+    if (insp.liveGauge) body += `  LIVE GAUGE:  ${insp.liveGauge} gallons\n`;
+    if (insp.remarks) body += `\n  REMARKS:\n  ${insp.remarks}\n`;
+  });
+
+  body += `\n\nSent from Nickey Dispatch V 8.2`;
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 
