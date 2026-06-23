@@ -287,10 +287,13 @@
     silentRefreshPending = false;
     if (resp.error){
       if (resp.error === 'interaction_required' || resp.error === 'access_denied'){
-        log('Silent re-auth needs user interaction — showing sign-in');
+        log('Silent re-auth needs user interaction — auto-opening sign-in');
         isSignedIn = false;
+        silentRefreshPending = false;
         refreshMenuLabel();
-        showPill(null, '🔑 Tap here to reconnect Drive', 0); // stays visible until user taps
+        showPill(null, '🔑 Sign in to sync');
+        // Auto-open the modal so the user sees the sign-in button immediately
+        setTimeout(() => openModal(), 800);
         return;
       }
       logError('Token error', resp);
@@ -586,8 +589,7 @@
       clearToken();
       if (pushTimer){ clearTimeout(pushTimer); pushTimer = null; }
       refreshMenuLabel();
-      const pill = document.getElementById('ndsyncPill');
-      if (pill) pill.classList.remove('show');
+      showPill(null, 'Not signed in');
       closeModal();
       log('Signed out');
     },
