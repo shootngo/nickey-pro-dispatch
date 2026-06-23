@@ -88,7 +88,10 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#eee;min-he
   </div>
 </div>
 <div class="sec">
-  <div class="sh"><div class="st">Inspection Items</div></div>
+  <div class="sh" style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="st">Inspection Items</div>
+    <button onclick="markAllSafe()" style="background:#0a2a0a;color:#4caf50;border:1px solid #4caf50;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;">✓ ALL SAFE</button>
+  </div>
   <div class="sb" id="inspectionItems"></div>
 </div>
 <div class="sec">
@@ -104,6 +107,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#eee;min-he
   </div>
 </div>
 <button class="save-btn" onclick="saveInspection()">💾 Save Inspection</button>
+<a href="index.html" class="save-btn" style="background:#1e3a8a;text-decoration:none;display:block;text-align:center;margin-top:0;">← Back to Dashboard</a>
 <script>
 const INSPECTION_ITEMS = [
   "Marker Lights","Placards","Load Securement","Bill of Lading / Paperwork",
@@ -194,6 +198,10 @@ function setItemStatus(id, status){
   if (btn) btn.classList.add('active');
   inspectionData.items[id] = status;
   autoSave();
+}
+
+function markAllSafe(){
+  INSPECTION_ITEMS.forEach((_, idx) => setItemStatus('item-' + idx, 'safe'));
 }
 
 function buildGasGrid(){

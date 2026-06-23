@@ -374,6 +374,10 @@ let allTrailers = ndLoadTrailers();
 const FORM_STORAGE_KEY = "nickeyDispatchFormState";
 
 function saveFormState() {
+  // Read existing state so inspections saved from inspection.html are preserved
+  let _existing = {};
+  try { const _raw = localStorage.getItem(FORM_STORAGE_KEY); if (_raw) _existing = JSON.parse(_raw); } catch(e){}
+
   const state = {
     td: document.getElementById("td").value,
     pki: document.getElementById("pki").value,
@@ -391,7 +395,9 @@ function saveFormState() {
     departureLoad: document.getElementById("departureLoad").value,
     nts: document.getElementById("nts").value,
     reimbursements: [],
-    fuelEntries: []
+    fuelEntries: [],
+    preInspection:  _existing.preInspection  || null,
+    postInspection: _existing.postInspection || null
   };
   document.querySelectorAll('#reimbContainer .reimb-row').forEach(row => {
     const desc = row.querySelector('input[type="text"]')?.value || "";
