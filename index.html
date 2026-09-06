@@ -333,11 +333,12 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 <div class="emerg-overlay" id="settingsOverlay">
   <div class="emerg-modal" style="border-color:#ffd700;max-width:520px;">
     <div class="emerg-header" style="background:#1e3a8a;"><div class="emerg-title">⚙️ SETTINGS</div><div class="emerg-close" onclick="closeSettings()">✕</div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;margin:14px 14px 0;gap:4px;padding-bottom:4px;border-bottom:1px solid #444;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;margin:14px 14px 0;gap:4px;padding-bottom:4px;border-bottom:1px solid #444;">
       <button onclick="switchSettingsTab(0)" id="tab0" style="padding:10px;font-size:13px;background:#1e3a8a;color:#ffd700;border:none;border-radius:6px;font-weight:700;">Customers</button>
       <button onclick="switchSettingsTab(1)" id="tab1" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Trailers</button>
       <button onclick="switchSettingsTab(2)" id="tab2" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Contacts</button>
       <button onclick="switchSettingsTab(3)" id="tab3" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Chemicals</button>
+      <button onclick="switchSettingsTab(4)" id="tab4" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Bot</button>
     </div>
     <div id="settingsCustomers" style="padding:14px 14px 0;"><div id="customerList" style="max-height:300px;overflow-y:auto;"></div><button onclick="addNewCustomer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Customer</button></div>
     <div id="settingsTrailers" style="display:none;padding:14px 14px 0;"><div id="trailerList" style="max-height:300px;overflow-y:auto;"></div><button onclick="addNewTrailer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Trailer</button></div>
@@ -351,6 +352,20 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
       <div id="chemicalList" style="max-height:270px;overflow-y:auto;"></div>
       <button onclick="addNewChemical()" style="width:100%;margin-top:14px;padding:14px;background:#2a0000;color:#ff8888;border:1px solid #cc0000;border-radius:8px;font-weight:700;">+ Add Chemical</button>
     </div>
+    <div id="settingsBot" style="display:none;padding:14px 14px 0;">
+      <div style="background:#1a2a1a;border:1px solid #4caf50;border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:13px;color:#ffd700;font-weight:700;margin-bottom:6px;">Google Drive inbox (preferred)</div>
+        <div style="font-size:12px;color:#888;line-height:1.4;margin-bottom:10px;">Grok writes <strong style="color:#ccc;">nickey-bot-inbox.json</strong> in your Nickey Dispatch Data folder. Uses Cloud Sync — no extra sign-in, never overwrites the main sync file.</div>
+        <button type="button" onclick="window.NickeyBotDrive&&NickeyBotDrive.pullNow()" style="width:100%;padding:14px;background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50;border-radius:8px;font-weight:700;">⬇ Pull bot trips</button>
+        <div id="driveInboxStatus" style="font-size:12px;color:#888;margin-top:10px;line-height:1.4;"></div>
+      </div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.4;">Optional Cloudflare Worker inbox — Grok can also post trips to the Worker. URL and key stay on this device (not Drive-synced).</div>
+      <div class="fld"><label>Bot API URL</label><input type="url" id="botApiUrl" placeholder="https://nickey-bot-api.example.workers.dev" autocomplete="off"></div>
+      <div class="fld"><label>API Key</label><input type="password" id="botApiKey" placeholder="BOT_API_KEY" autocomplete="off"></div>
+      <button type="button" onclick="window.NickeyBot&&NickeyBot.saveSettingsFromForm()" style="width:100%;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">Save Bot Settings</button>
+      <button type="button" onclick="window.NickeyBot&&NickeyBot.pullNow()" style="width:100%;margin-top:10px;padding:14px;background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50;border-radius:8px;font-weight:700;">Pull Worker trips now</button>
+      <div id="botStatus" style="font-size:12px;color:#888;margin-top:12px;line-height:1.4;"></div>
+    </div>
     <button class="back-btn" onclick="closeSettings()">← Back</button>
   </div>
 </div>
@@ -363,6 +378,8 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 </div>
 <script src="nickey-shared.js"></script>
 <script src="ndsync.js" defer></script>
+<script src="nickey-bot-drive-inbox.js" defer></script>
+<script src="nickey-bot-client.js" defer></script>
 <script>
 const TRUCK_IMG='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGRj/wAARCAC0ALQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlbaWmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/2Q==';
 document.getElementById('splashTruckImg').src=TRUCK_IMG;
@@ -613,13 +630,18 @@ function closeEmergency(){document.getElementById("emergencyOverlay").style.disp
 function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex";renderCustomerList()}
 function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
 function switchSettingsTab(tab){
-  [0,1,2,3].forEach(function(i){var b=document.getElementById("tab"+i);if(b){b.style.background=tab===i?"#1e3a8a":"#333";b.style.color=tab===i?"#ffd700":"#ddd";}});
+  [0,1,2,3,4].forEach(function(i){var b=document.getElementById("tab"+i);if(b){b.style.background=tab===i?"#1e3a8a":"#333";b.style.color=tab===i?"#ffd700":"#ddd";}});
   document.getElementById("settingsCustomers").style.display=tab===0?"block":"none";
   document.getElementById("settingsTrailers").style.display=tab===1?"block":"none";
   document.getElementById("settingsContacts").style.display=tab===2?"block":"none";
   document.getElementById("settingsChemicals").style.display=tab===3?"block":"none";
+  var bot=document.getElementById("settingsBot");if(bot)bot.style.display=tab===4?"block":"none";
   if(tab===2) renderContactList();
   if(tab===3) renderChemicalList();
+  if(tab===4){
+    if(window.NickeyBot) NickeyBot.hydrateSettingsForm();
+    if(window.NickeyBotDrive) NickeyBotDrive.hydrateStatus();
+  }
 }
 
 // ── Contacts management ───────────────────────────────────────────────────────

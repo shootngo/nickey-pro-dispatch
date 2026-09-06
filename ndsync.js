@@ -8,7 +8,9 @@
   'use strict';
 
   const CLIENT_ID     = '1067375485374-cn97feb2m9bj4fr067uab62d0p1j4qkk.apps.googleusercontent.com';
-  const SCOPES        = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
+  // drive.file = files this app creates (main sync file). drive = read/write the
+  // Grok-created nickey-bot-inbox.json sibling. userinfo.email = account label.
+  const SCOPES        = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email';
   const FOLDER_NAME   = 'Nickey Dispatch Data';
   const DATA_FILE     = 'nickey-dispatch-data.json';
   const PUSH_DEBOUNCE = 30000;   // ms between auto-pushes
@@ -230,6 +232,7 @@
         </div>
         <div class="ndsync-btn-row">
           <button class="ndsync-action primary" onclick="window.NDSync.syncNow()">⟳ Sync Now</button>
+          <button class="ndsync-action cancel" onclick="window.NickeyBotDrive&&NickeyBotDrive.pullNow()">⬇ Pull bot trips</button>
           <button class="ndsync-action danger"  onclick="window.NDSync.signOut()">Sign Out</button>
           <button class="ndsync-action cancel"  onclick="document.getElementById('ndsyncModalBg').classList.remove('show')">Close</button>
         </div>`;
@@ -239,7 +242,8 @@
         <div class="ndsync-info">
           <strong>🔒 Your data stays private:</strong><br>
           Saved in YOUR Google Drive only.<br>
-          Auto-syncs every 30 seconds.
+          Auto-syncs every 30 seconds.<br>
+          Also reads <strong>nickey-bot-inbox.json</strong> that Grok writes — never overwrites the main sync file from the bot.
         </div>
         <div class="ndsync-btn-row">
           <button class="ndsync-action primary" onclick="window.NDSync.signIn()">🔐 Sign in with Google</button>
@@ -525,6 +529,7 @@
       .then(changed => {
         initialPullDone = true;
         if (changed > 0) notifyPageOfPull();
+        document.dispatchEvent(new Event('ndsync:ready'));
         showPill('signed-in', '✓ Synced', 3000);
         log('Initial sync complete, changed keys:', changed);
       });
@@ -606,8 +611,22 @@
 
     openModal, closeModal,
     isSignedIn: () => isSignedIn,
+    isReady:    () => !!(isSignedIn && initialPullDone && tokenValid()),
     getEmail:   () => userEmail,
-    getLastError: () => lastError
+    getLastError: () => lastError,
+    getAccessToken: () => accessToken,
+    tokenValid,
+    getFolderId: () => folderId,
+    ensureFolder,
+    adoptToken(token, expiresInSec, email){
+      if (!token) return;
+      saveToken(token, expiresInSec || 3600, email);
+      scheduleRefresh();
+      refreshMenuLabel();
+    },
+    CLIENT_ID,
+    FOLDER_NAME,
+    DATA_FILE
   };
 
   // ── INIT ──────────────────────────────────────────────────────────────────────

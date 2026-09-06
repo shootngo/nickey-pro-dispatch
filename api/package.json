@@ -1,0 +1,11 @@
+{
+  "name": "nickey-bot-api",
+  "private": true,
+  "type": "module",
+  "description": "Nickey Bot Cloudflare Worker — trip inbox for Grok and the phone PWA",
+  "scripts": {
+    "test": "node --test",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}
