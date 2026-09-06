@@ -353,11 +353,17 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
       <button onclick="addNewChemical()" style="width:100%;margin-top:14px;padding:14px;background:#2a0000;color:#ff8888;border:1px solid #cc0000;border-radius:8px;font-weight:700;">+ Add Chemical</button>
     </div>
     <div id="settingsBot" style="display:none;padding:14px 14px 0;">
-      <div style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.4;">Nickey Bot inbox — Grok posts trips to the Worker; this phone pulls them on open. URL and key stay on this device (not Drive-synced).</div>
+      <div style="background:#1a2a1a;border:1px solid #4caf50;border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:13px;color:#ffd700;font-weight:700;margin-bottom:6px;">Google Drive inbox (preferred)</div>
+        <div style="font-size:12px;color:#888;line-height:1.4;margin-bottom:10px;">Grok writes <strong style="color:#ccc;">nickey-bot-inbox.json</strong> in your Nickey Dispatch Data folder. Uses Cloud Sync — no extra sign-in, never overwrites the main sync file.</div>
+        <button type="button" onclick="window.NickeyBotDrive&&NickeyBotDrive.pullNow()" style="width:100%;padding:14px;background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50;border-radius:8px;font-weight:700;">⬇ Pull bot trips</button>
+        <div id="driveInboxStatus" style="font-size:12px;color:#888;margin-top:10px;line-height:1.4;"></div>
+      </div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.4;">Optional Cloudflare Worker inbox — Grok can also post trips to the Worker. URL and key stay on this device (not Drive-synced).</div>
       <div class="fld"><label>Bot API URL</label><input type="url" id="botApiUrl" placeholder="https://nickey-bot-api.example.workers.dev" autocomplete="off"></div>
       <div class="fld"><label>API Key</label><input type="password" id="botApiKey" placeholder="BOT_API_KEY" autocomplete="off"></div>
       <button type="button" onclick="window.NickeyBot&&NickeyBot.saveSettingsFromForm()" style="width:100%;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">Save Bot Settings</button>
-      <button type="button" onclick="window.NickeyBot&&NickeyBot.pullNow()" style="width:100%;margin-top:10px;padding:14px;background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50;border-radius:8px;font-weight:700;">Pull trips now</button>
+      <button type="button" onclick="window.NickeyBot&&NickeyBot.pullNow()" style="width:100%;margin-top:10px;padding:14px;background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50;border-radius:8px;font-weight:700;">Pull Worker trips now</button>
       <div id="botStatus" style="font-size:12px;color:#888;margin-top:12px;line-height:1.4;"></div>
     </div>
     <button class="back-btn" onclick="closeSettings()">← Back</button>
@@ -372,6 +378,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 </div>
 <script src="nickey-shared.js"></script>
 <script src="ndsync.js" defer></script>
+<script src="nickey-bot-drive-inbox.js" defer></script>
 <script src="nickey-bot-client.js" defer></script>
 <script>
 const TRUCK_IMG='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGRj/wAARCAC0ALQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlbaWmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/2Q==';
@@ -631,7 +638,10 @@ function switchSettingsTab(tab){
   var bot=document.getElementById("settingsBot");if(bot)bot.style.display=tab===4?"block":"none";
   if(tab===2) renderContactList();
   if(tab===3) renderChemicalList();
-  if(tab===4&&window.NickeyBot) NickeyBot.hydrateSettingsForm();
+  if(tab===4){
+    if(window.NickeyBot) NickeyBot.hydrateSettingsForm();
+    if(window.NickeyBotDrive) NickeyBotDrive.hydrateStatus();
+  }
 }
 
 // ── Contacts management ───────────────────────────────────────────────────────

@@ -2,6 +2,8 @@
 
 Grok (or any bot) creates and updates trips on a **Cloudflare Worker**. The phone PWA pulls a pending **inbox** when the app opens and merges them into `nickeySavedRecords`. After that, existing **ndsync** (user Google sign-in) can copy the local records to Drive.
 
+**Preferred for Frank:** write trips to Drive as `nickey-bot-inbox.json` — see [bot-drive-inbox.md](bot-drive-inbox.md). This Worker path remains supported.
+
 v1 is **API key + KV only**. Do not add a Drive service-account OAuth path.
 
 Paste Dispatch on the phone is unchanged. `POST /v1/trips/from-dispatch-text` uses the **same JSON field names** as the Gemini prompt in `index.html`.

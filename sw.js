@@ -5,14 +5,14 @@
  *   App shell (HTML/CSS/JS/icons) → Cache-first, stale-while-revalidate
  *   Google Fonts CSS              → Cache-first, 24-hour TTL
  *   Google Fonts files (.woff2)   → Cache-first, permanent
- *   Gemini / Drive / OAuth / Bot   → Network-only (never cached)
+ *   Gemini / Drive / OAuth / Bot / Drive inbox → Network-only (never cached)
  * After deploying the Nickey Bot Worker, add its hostname to
  * NETWORK_ONLY_ORIGINS (e.g. nickey-bot-api.your-account.workers.dev).
  * ============================================================================= */
 
 'use strict';
 
-const CACHE_VERSION = 'nickey-v8.2e';
+const CACHE_VERSION = 'nickey-v8.2f';
 const CACHE_NAME    = 'nickey-shell-' + CACHE_VERSION;
 const FONT_CACHE    = 'nickey-fonts-' + CACHE_VERSION;
 
@@ -27,6 +27,7 @@ const PRECACHE_URLS = [
   './nickey-shared.css',
   './nickey-shared.js',
   './ndsync.js',
+  './nickey-bot-drive-inbox.js',
   './nickey-bot-client.js',
   './manifest.json',
   './icon-192.png',
