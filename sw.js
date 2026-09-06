@@ -5,12 +5,14 @@
  *   App shell (HTML/CSS/JS/icons) → Cache-first, stale-while-revalidate
  *   Google Fonts CSS              → Cache-first, 24-hour TTL
  *   Google Fonts files (.woff2)   → Cache-first, permanent
- *   Gemini / Drive / OAuth APIs   → Network-only (never cached)
+ *   Gemini / Drive / OAuth / Bot   → Network-only (never cached)
+ * After deploying the Nickey Bot Worker, add its hostname to
+ * NETWORK_ONLY_ORIGINS (e.g. nickey-bot-api.your-account.workers.dev).
  * ============================================================================= */
 
 'use strict';
 
-const CACHE_VERSION = 'nickey-v8.2d';
+const CACHE_VERSION = 'nickey-v8.2e';
 const CACHE_NAME    = 'nickey-shell-' + CACHE_VERSION;
 const FONT_CACHE    = 'nickey-fonts-' + CACHE_VERSION;
 
@@ -25,6 +27,7 @@ const PRECACHE_URLS = [
   './nickey-shared.css',
   './nickey-shared.js',
   './ndsync.js',
+  './nickey-bot-client.js',
   './manifest.json',
   './icon-192.png',
   './icon-512-2.png'
@@ -36,6 +39,8 @@ const NETWORK_ONLY_ORIGINS = [
   'oauth2.googleapis.com',
   'accounts.google.com',
   'www.googleapis.com'
+  // After deploy, add the Nickey Bot Worker host, e.g.:
+  // 'nickey-bot-api.your-account.workers.dev'
 ];
 
 // ── INSTALL: precache app shell ───────────────────────────────────────────────
@@ -89,7 +94,18 @@ self.addEventListener('fetch', function(event) {
   if (!url.protocol.startsWith('http')) return;
 
   // Network-only: API calls that require a live connection
-  if (NETWORK_ONLY_ORIGINS.includes(url.hostname)) {
+  if (NETWORK_ONLY_ORIGINS.includes(url.hostname) ||
+      req.headers.has('Authorization') ||
+      req.headers.has('X-Api-Key') ||
+      url.pathname.indexOf('/v1/') === 0) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  // Cross-origin (except fonts below) — never cache Bot / unknown APIs
+  if (url.origin !== self.location.origin &&
+      url.hostname !== 'fonts.googleapis.com' &&
+      url.hostname !== 'fonts.gstatic.com') {
     event.respondWith(fetch(req));
     return;
   }
