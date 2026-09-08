@@ -28,22 +28,49 @@
     'Enter it to continue (stored only on this device, sent only to Google).';
 
   /**
-   * Extraction schema. Add/rename keys here when sample BOLs show new labels.
-   * formId: trip-form control to fill on Apply (null = notes-only).
-   * notesPrefix: prepended into Notes when there is no dedicated field.
+   * Golden example: Evonik Short Form ORIGINAL – NOT NEGOTIABLE
+   * (Frank, Sep 2026 — Delivery no. 3012865610 → VI-JON Smyrna).
+   *
+   * Pickup # = Delivery no. NEVER Shipment no. / Order no. / PO no.
+   * Tanker weight = Net LB, never Gross / Tare / 100%-basis adjusted wt.
+   * Cont. ID is not a trailer number.
    */
-  var BOL_FIELDS = [
-    { key: 'pickupNumber', label: 'Pickup #', formId: 'pki', notesPrefix: null },
-    { key: 'pickupDate', label: 'Pickup Date', formId: 'td', notesPrefix: null },
-    { key: 'product', label: 'Product / Chemical', formId: null, notesPrefix: 'Product' },
-    { key: 'tankerWeight', label: 'Tanker Weight (lb)', formId: 'tw', notesPrefix: null },
-    { key: 'shipper', label: 'Shipper', formId: null, notesPrefix: 'Shipper' },
-    { key: 'consignee', label: 'Consignee / Customer', formId: 'customerSelect', notesPrefix: null },
-    { key: 'trailerNumber', label: 'Trailer #', formId: 'tki', notesPrefix: null },
-    { key: 'originCity', label: 'Origin', formId: null, notesPrefix: 'Origin' },
-    { key: 'destCity', label: 'Destination', formId: null, notesPrefix: 'Dest' },
-    { key: 'notes', label: 'Notes / special instructions', formId: 'nts', notesPrefix: null }
+  var BOL_FIELD_GROUPS = [
+    { id: 'pickup', title: 'Pickup' },
+    { id: 'load', title: 'Product & weight' },
+    { id: 'parties', title: 'Shipper / Ship-to' },
+    { id: 'ids', title: 'BOL numbers' },
+    { id: 'extra', title: 'Other' }
   ];
+
+  var BOL_FIELDS = [
+    { key: 'pickupNumber', label: 'Pickup # (Delivery no.)', formId: 'pki', group: 'pickup', hint: 'Evonik Delivery no. — not Shipment no. (40…)' },
+    { key: 'pickupDate', label: 'Ship date', formId: 'td', group: 'pickup', hint: 'Ship date, not Printed on' },
+    { key: 'deliveryDate', label: 'Delivery date', formId: null, notesPrefix: 'Delivery date', group: 'pickup' },
+    { key: 'product', label: 'Product / Chemical', formId: null, notesPrefix: 'Product', group: 'load' },
+    { key: 'hazmat', label: 'Hazmat / UN line', formId: null, notesPrefix: 'Hazmat', group: 'load' },
+    { key: 'hmFlag', label: 'HM flag', formId: null, notesPrefix: 'HM', group: 'load' },
+    { key: 'tankerWeight', label: 'Net weight (lb)', formId: 'tw', group: 'load', hint: 'Net LB → tanker weight. Not Gross or Tare.' },
+    { key: 'grossWeight', label: 'Gross (lb)', formId: null, notesPrefix: 'Gross lb', group: 'load' },
+    { key: 'tareWeight', label: 'Tare (lb)', formId: null, notesPrefix: 'Tare lb', group: 'load' },
+    { key: 'shipper', label: 'Shipper', formId: null, notesPrefix: 'Shipper', group: 'parties' },
+    { key: 'consignee', label: 'Ship-to / Customer', formId: 'customerSelect', group: 'parties' },
+    { key: 'originCity', label: 'Origin', formId: null, notesPrefix: 'Origin', group: 'parties' },
+    { key: 'destCity', label: 'Destination', formId: null, notesPrefix: 'Dest', group: 'parties' },
+    { key: 'trailerNumber', label: 'Trailer #', formId: 'tki', group: 'ids', hint: 'Not Cont. ID' },
+    { key: 'shipmentNumber', label: 'Shipment no.', formId: null, notesPrefix: 'Shipment no.', group: 'ids' },
+    { key: 'orderNumber', label: 'Order no.', formId: null, notesPrefix: 'Order no.', group: 'ids' },
+    { key: 'poNumber', label: 'PO no.', formId: null, notesPrefix: 'PO no.', group: 'ids' },
+    { key: 'materialNo', label: 'Material no.', formId: null, notesPrefix: 'Material no.', group: 'ids' },
+    { key: 'batch', label: 'Batch', formId: null, notesPrefix: 'Batch', group: 'ids' },
+    { key: 'customerMaterialNo', label: 'Customer material no.', formId: null, notesPrefix: 'Customer material no.', group: 'ids' },
+    { key: 'containerId', label: 'Cont. ID', formId: null, notesPrefix: 'Cont. ID', group: 'ids' },
+    { key: 'seals', label: 'Seals', formId: null, notesPrefix: 'Seals', group: 'ids' },
+    { key: 'notes', label: 'Special instructions', formId: 'nts', group: 'extra' }
+  ];
+
+  var WEIGHT_KEYS = { tankerWeight: 1, grossWeight: 1, tareWeight: 1 };
+  var DATE_KEYS = { pickupDate: 1, deliveryDate: 1 };
 
   function emptyBolFields() {
     var out = {};
@@ -96,23 +123,42 @@
   }
 
   /**
-   * BOL dates vary: YYYY-MM-DD, MM/DD/YYYY, MM-DD-YY, MM.DD.YY.
+   * BOL dates vary: YYYY-MM-DD, MM/DD/YYYY, MM-DD-YY, "Sep 8, 2026".
    * Returns YYYY-MM-DD or '' if unparseable.
    */
+  var MONTHS = {
+    jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4,
+    may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8,
+    sep: 9, sept: 9, september: 9, oct: 10, october: 10, nov: 11, november: 11,
+    dec: 12, december: 12
+  };
+
+  function isoFromParts(year, month, day) {
+    var y = String(year);
+    if (y.length === 2) y = '20' + y;
+    var mm = parseInt(month, 10);
+    var dd = parseInt(day, 10);
+    if (!Number.isFinite(mm) || !Number.isFinite(dd)) return '';
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return '';
+    return y + '-' + pad2(mm) + '-' + pad2(dd);
+  }
+
   function normalizeDate(raw) {
     if (raw == null) return '';
     var s = String(raw).trim();
     if (!s) return '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
     var mdy = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
-    if (mdy) {
-      var mm = pad2(mdy[1]);
-      var dd = pad2(mdy[2]);
-      var yy = mdy[3];
-      if (yy.length === 2) yy = '20' + yy;
-      if (parseInt(mm, 10) < 1 || parseInt(mm, 10) > 12) return '';
-      if (parseInt(dd, 10) < 1 || parseInt(dd, 10) > 31) return '';
-      return yy + '-' + mm + '-' + dd;
+    if (mdy) return isoFromParts(mdy[3], mdy[1], mdy[2]);
+    var named = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{2,4})$/);
+    if (named) {
+      var m = MONTHS[named[1].toLowerCase()];
+      if (m) return isoFromParts(named[3], m, named[2]);
+    }
+    var dmon = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{2,4})$/);
+    if (dmon) {
+      var m2 = MONTHS[dmon[2].toLowerCase()];
+      if (m2) return isoFromParts(dmon[3], m2, dmon[1]);
     }
     return '';
   }
@@ -138,11 +184,38 @@
 
   function coerceFieldValue(key, value) {
     if (value == null) return '';
-    if (key === 'pickupDate') return normalizeDate(value);
-    if (key === 'tankerWeight') return normalizeWeight(value);
-    if (key === 'pickupNumber') return normalizePickup(value);
+    if (DATE_KEYS[key]) return normalizeDate(value) || String(value).trim();
+    if (WEIGHT_KEYS[key]) return normalizeWeight(value);
+    if (key === 'pickupNumber' || key === 'shipmentNumber' || key === 'orderNumber' || key === 'poNumber') {
+      return normalizePickup(value);
+    }
     if (typeof value === 'number' && Number.isFinite(value)) return String(value);
     return String(value).trim();
+  }
+
+  function firstPresent(obj, keys) {
+    if (!obj) return null;
+    for (var i = 0; i < keys.length; i++) {
+      var v = obj[keys[i]];
+      if (v != null && String(v).trim() !== '') return v;
+    }
+    return null;
+  }
+
+  /**
+   * Pickup # is Delivery no. Never Shipment / Order / PO.
+   */
+  function resolvePickupNumber(parsed) {
+    var delivery = normalizePickup(firstPresent(parsed, [
+      'deliveryNumber', 'deliveryNo', 'delivery_no', 'delivery'
+    ]));
+    var pickup = normalizePickup(firstPresent(parsed, ['pickupNumber', 'pickup']));
+    var shipment = normalizePickup(firstPresent(parsed, ['shipmentNumber', 'shipmentNo', 'shipment']));
+    var order = normalizePickup(firstPresent(parsed, ['orderNumber', 'orderNo', 'order']));
+    var po = normalizePickup(firstPresent(parsed, ['poNumber', 'poNo', 'po', 'purchaseOrder']));
+    if (delivery) return delivery;
+    if (pickup && pickup !== shipment && pickup !== order && pickup !== po) return pickup;
+    return '';
   }
 
   function parseBolJson(raw) {
@@ -153,41 +226,81 @@
     try { parsed = JSON.parse(text); }
     catch (e) { throw new Error('Gemini returned malformed JSON. Try a clearer photo.'); }
     if (!parsed || typeof parsed !== 'object') return out;
+
+    var aliases = {
+      consignee: ['consignee', 'shipTo', 'ship_to', 'customer'],
+      trailerNumber: ['trailerNumber', 'trailer'],
+      tankerWeight: ['tankerWeight', 'netWeightLb', 'netWeight', 'net_lb', 'net'],
+      grossWeight: ['grossWeight', 'grossWeightLb', 'gross'],
+      tareWeight: ['tareWeight', 'tareWeightLb', 'tare'],
+      hazmat: ['hazmat', 'unNumber', 'unLine', 'hazmatLine'],
+      hmFlag: ['hmFlag', 'hm', 'hazmatFlag'],
+      shipmentNumber: ['shipmentNumber', 'shipmentNo', 'shipment'],
+      orderNumber: ['orderNumber', 'orderNo', 'order'],
+      poNumber: ['poNumber', 'poNo', 'po', 'purchaseOrder'],
+      materialNo: ['materialNo', 'materialNumber', 'material'],
+      customerMaterialNo: ['customerMaterialNo', 'customerMaterial', 'custMaterial'],
+      containerId: ['containerId', 'contId', 'contID', 'container'],
+      pickupDate: ['pickupDate', 'shipDate', 'ship_date'],
+      deliveryDate: ['deliveryDate', 'delivDate']
+    };
+
     BOL_FIELDS.forEach(function (f) {
-      var v = parsed[f.key];
-      if (v == null && f.key === 'consignee' && parsed.customer != null) v = parsed.customer;
-      if (v == null && f.key === 'trailerNumber' && parsed.trailer != null) v = parsed.trailer;
-      if (v == null && f.key === 'tankerWeight' && parsed.weight != null) v = parsed.weight;
+      if (f.key === 'pickupNumber') return;
+      var keys = aliases[f.key] ? aliases[f.key] : [f.key];
+      var v = firstPresent(parsed, keys);
       out[f.key] = coerceFieldValue(f.key, v);
     });
+
+    out.pickupNumber = resolvePickupNumber(parsed);
+
+    // Generic "weight" only if net was missing and it is not the gross figure.
+    if (!out.tankerWeight && parsed.weight != null) {
+      var wgt = normalizeWeight(parsed.weight);
+      if (wgt && wgt !== out.grossWeight) out.tankerWeight = wgt;
+    }
     return out;
   }
 
   function bolGeminiPrompt() {
     var lines = [
-      'You are reading a Bill of Lading (BOL) photo for a chemical tanker truck driver (Nickey / Super D).',
-      'Extract every field you can clearly read. Return ONLY valid JSON (no markdown, no explanation).',
-      'Use empty string for any field you cannot read. Do not invent values.',
+      'You are reading a Bill of Lading photo for Nickey chemical tanker dispatch (Super D / Evonik).',
+      'Golden example: Evonik "Short Form - ORIGINAL - NOT NEGOTIABLE".',
+      'Extract every field you can clearly read. Return ONLY valid JSON. Empty string if unread. Do not invent values.',
       '',
       'JSON shape:',
       '{',
-      '  "pickupNumber": "BOL / pickup / load number (often 8–12 digits, labeled BOL, Bill of Lading, Pickup #, or Load #)",',
-      '  "pickupDate": "date on the BOL as YYYY-MM-DD if possible, else the printed date",',
-      '  "product": "chemical / product being hauled (e.g. Super D 500, Vigorox, Spectrum 22, hydrogen peroxide, PAA)",',
-      '  "tankerWeight": "net or cargo weight in pounds if shown (digits only preferred; include lbs if that is all you see)",',
-      '  "shipper": "shipper / origin facility name (NOT the consignee)",',
-      '  "consignee": "consignee / delivery customer name (NOT the shipper)",',
-      '  "trailerNumber": "trailer or tanker number if printed",',
-      '  "originCity": "origin city and state if shown (e.g. Dillon, SC)",',
-      '  "destCity": "destination city and state if shown",',
-      '  "notes": "hazmat UN numbers, special instructions, or other clear remarks; else empty string"',
+      '  "deliveryNumber": "Delivery no. — THIS is Nickey Pickup # (e.g. 3012865610)",',
+      '  "pickupNumber": "same as deliveryNumber (Delivery no.)",',
+      '  "shipmentNumber": "Shipment no. (e.g. 4007091890) — NOT the pickup number",',
+      '  "orderNumber": "Order no. (e.g. 2007702185)",',
+      '  "poNumber": "PO no. (e.g. 4500629294)",',
+      '  "pickupDate": "Ship date as YYYY-MM-DD (e.g. Sep 8, 2026 → 2026-09-08). NOT Printed on.",',
+      '  "deliveryDate": "Delivery date as YYYY-MM-DD if shown",',
+      '  "product": "commodity line (e.g. PERSYNT 500 Super D BULK)",',
+      '  "hazmat": "full UN / hazmat line (e.g. UN 2014, Hydrogen peroxide, aqueous solutions, 5.1 (8), II)",',
+      '  "hmFlag": "X if HM column is marked, else empty",',
+      '  "tankerWeight": "NET weight in pounds only (e.g. 43120). NEVER Gross, NEVER Tare, NEVER 100% basis adjusted wt.",',
+      '  "grossWeight": "Gross weight pounds",',
+      '  "tareWeight": "Tare weight pounds",',
+      '  "shipper": "Shipper name (e.g. Evonik Corporation) — NOT ship-to",',
+      '  "consignee": "Ship-to / consignee name (e.g. VI-JON, INC.) — NOT the shipper",',
+      '  "trailerNumber": "trailer or tanker number if printed. Cont. ID is NOT a trailer number.",',
+      '  "originCity": "shipper city and state (e.g. Memphis, TN)",',
+      '  "destCity": "ship-to city and state (e.g. Smyrna, TN)",',
+      '  "containerId": "Cont. ID (e.g. 77)",',
+      '  "seals": "seal numbers as printed",',
+      '  "materialNo": "Material no.",',
+      '  "batch": "Batch",',
+      '  "customerMaterialNo": "Customer material no.",',
+      '  "notes": "special instructions only (e.g. Protect from thermal radiation, COA MUST BE WITH SHIPMENT)"',
       '}',
       '',
       'Rules:',
-      '- pickupNumber is the BOL/pickup number, not a PRO, PO, or trailer number.',
-      '- product is the commodity / chemical, not the customer name.',
-      '- tankerWeight is cargo/net pounds when labeled weight, net wt, or similar — not gallons.',
-      '- If both gross and tare are shown, prefer net / cargo weight.'
+      '- pickupNumber / deliveryNumber = Delivery no. NEVER Shipment no., Order no., or PO no.',
+      '- tankerWeight = Net LB. On Evonik Short Form that is the Net Weight row (43,120 LB), not Gross 74,240 or Tare 31,120.',
+      '- product is the chemical (PERSYNT 500 Super D BULK), not the customer.',
+      '- Keep shipmentNumber, orderNumber, poNumber, materialNo, batch, customerMaterialNo, containerId, seals as their own fields.'
     ];
     return lines.join('\n');
   }
@@ -230,8 +343,8 @@
   }
 
   /**
-   * Merge shipper/product/origin/dest into the notes box without duplicating
-   * lines that are already there. Dedicated form fields are not copied here.
+   * Merge product / UN / IDs into Notes without duplicating lines.
+   * Pickup # and net tanker weight stay on the form, not here.
    */
   function composeNotes(existingNotes, fields) {
     var f = fields || {};
@@ -239,13 +352,15 @@
     var existing = String(existingNotes || '').trim();
     function alreadyHas(prefix, value) {
       if (!value) return true;
-      var re = new RegExp('\\b' + prefix + '\\s*[:#]\\s*' + escapeRegExp(value), 'i');
+      var re = new RegExp('\\b' + escapeRegExp(prefix) + '\\s*[:#]\\s*' + escapeRegExp(value), 'i');
       return re.test(existing) || parts.some(function (p) { return re.test(p); });
     }
-    [['Product', f.product], ['Shipper', f.shipper], ['Origin', f.originCity], ['Dest', f.destCity]].forEach(function (pair) {
-      var prefix = pair[0];
-      var value = String(pair[1] || '').trim();
-      if (value && !alreadyHas(prefix, value)) parts.push(prefix + ': ' + value);
+    BOL_FIELDS.forEach(function (meta) {
+      if (!meta.notesPrefix) return;
+      var value = String(f[meta.key] || '').trim();
+      if (value && !alreadyHas(meta.notesPrefix, value)) {
+        parts.push(meta.notesPrefix + ': ' + value);
+      }
     });
     var extra = String(f.notes || '').trim();
     if (extra && existing.indexOf(extra) === -1 && parts.indexOf(extra) === -1) {
@@ -260,18 +375,56 @@
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  function matchCustomer(name, customers) {
-    var cn = String(name || '').toLowerCase().trim();
-    if (!cn || !customers || !customers.length) return null;
-    var exact = customers.find(function (c) {
-      return c && String(c.name || '').toLowerCase() === cn;
+  function foldName(s) {
+    return String(s || '')
+      .toLowerCase()
+      .replace(/&/g, 'and')
+      .replace(/\b(incorporated|inc|llc|corp|corporation|company|co|ltd)\b\.?/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  /**
+   * Match Ship-to onto nickeyCustomers.
+   * Folds punctuation so "VI-JON, INC." hits "V.I.J.O.N. Smyrna Tennessee".
+   * destCity (e.g. Smyrna, TN) is a fallback when the name is thin.
+   */
+  function matchCustomer(name, customers, destCity) {
+    var list = customers || [];
+    if (!list.length) return null;
+    var folded = foldName(name);
+    if (folded.length >= 4) {
+      var hit = list.find(function (c) {
+        var n = foldName(c && c.name);
+        return n === folded || n.indexOf(folded) !== -1 || folded.indexOf(n) !== -1;
+      });
+      if (hit) return hit;
+    }
+    var words = String(name || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (w) {
+      return w.length > 3 && w !== 'incorporated';
     });
-    if (exact) return exact;
-    var words = cn.split(/\s+/).filter(function (w) { return w.length > 3; });
-    return customers.find(function (c) {
-      var n = String(c.name || '').toLowerCase();
+    var wordHit = list.find(function (c) {
+      var n = String(c && c.name || '').toLowerCase();
       return words.some(function (w) { return n.indexOf(w) !== -1; });
-    }) || null;
+    });
+    if (wordHit) return wordHit;
+    var city = foldName(String(destCity || '').split(',')[0]);
+    if (city.length >= 5) {
+      return list.find(function (c) { return foldName(c && c.name).indexOf(city) !== -1; }) || null;
+    }
+    return null;
+  }
+
+  function formPatchFromBol(fields, customers, existingNotes) {
+    var f = Object.assign(emptyBolFields(), fields || {});
+    var match = matchCustomer(f.consignee, customers, f.destCity);
+    return {
+      pickupNumber: f.pickupNumber || '',
+      pickupDate: f.pickupDate || '',
+      tankerWeight: f.tankerWeight || '',
+      customer: match ? match.name : '',
+      trailerNumber: f.trailerNumber || '',
+      notes: composeNotes(existingNotes, f)
+    };
   }
 
   function matchTrailer(trailerNumber, options) {
@@ -388,8 +541,34 @@
       out[f.key] = el ? String(el.value || '').trim() : '';
     });
     if (out.pickupDate) out.pickupDate = normalizeDate(out.pickupDate) || out.pickupDate;
-    if (out.tankerWeight) out.tankerWeight = normalizeWeight(out.tankerWeight) || out.tankerWeight;
+    if (out.deliveryDate) out.deliveryDate = normalizeDate(out.deliveryDate) || out.deliveryDate;
+    ['tankerWeight', 'grossWeight', 'tareWeight'].forEach(function (k) {
+      if (out[k]) out[k] = normalizeWeight(out[k]) || out[k];
+    });
+    if (out.pickupNumber) out.pickupNumber = normalizePickup(out.pickupNumber);
     return out;
+  }
+
+  function renderFieldInput(meta, value, highlight) {
+    var hint = meta.hint
+      ? '<div style="font-size:11px;color:#888;margin:-4px 0 6px;line-height:1.3;">' + escHtml(meta.hint) + '</div>'
+      : '';
+    var border = highlight ? '#cc0000' : '#555';
+    var html = '<div class="fld">';
+    html += '<label>' + escHtml(meta.label) + '</label>';
+    html += hint;
+    if (meta.key === 'notes' || meta.key === 'hazmat') {
+      html += '<textarea data-bol-key="' + meta.key + '" rows="' + (meta.key === 'notes' ? '3' : '2') +
+        '" style="width:100%;padding:10px;font-size:15px;background:#2a2a2a;color:#eee;border:1.8px solid #555;border-radius:8px;">' +
+        escHtml(value) + '</textarea>';
+    } else {
+      html += '<input data-bol-key="' + meta.key + '" type="text" value="' + escHtml(value) +
+        '" style="width:100%;padding:12px;font-size:16px;background:#2a2a2a;color:#eee;border:1.8px solid ' +
+        border + ';border-radius:8px;' +
+        (highlight ? 'box-shadow:0 0 0 2px rgba(204,0,0,0.35);' : '') + '">';
+    }
+    html += '</div>';
+    return html;
   }
 
   function renderReviewHtml(fields, typedPickup) {
@@ -405,23 +584,16 @@
     } else {
       html += '<div class="bol-mismatch" id="bolMismatchBanner" style="display:none"></div>';
     }
-    html += '<div style="font-family:Rajdhani,sans-serif;font-size:15px;font-weight:700;color:#ffd700;letter-spacing:1px;margin:10px 0;">REVIEW BOL FIELDS</div>';
-    html += '<div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.4;">Edit anything that looks wrong, then Apply. This fills the trip form — it does not Save Record.</div>';
-    BOL_FIELDS.forEach(function (meta) {
-      var val = f[meta.key] || '';
-      var highlight = meta.key === 'pickupNumber' && mismatch;
-      html += '<div class="fld">';
-      html += '<label>' + escHtml(meta.label) + '</label>';
-      if (meta.key === 'notes') {
-        html += '<textarea data-bol-key="' + meta.key + '" rows="3" style="width:100%;padding:10px;font-size:15px;background:#2a2a2a;color:#eee;border:1.8px solid ' +
-          (highlight ? '#ffd700' : '#555') + ';border-radius:8px;">' + escHtml(val) + '</textarea>';
-      } else {
-        html += '<input data-bol-key="' + meta.key + '" type="text" value="' + escHtml(val) +
-          '" style="width:100%;padding:12px;font-size:16px;background:#2a2a2a;color:#eee;border:1.8px solid ' +
-          (highlight ? '#cc0000' : '#555') + ';border-radius:8px;' +
-          (highlight ? 'box-shadow:0 0 0 2px rgba(204,0,0,0.35);' : '') + '">';
-      }
-      html += '</div>';
+    html += '<div style="font-family:Rajdhani,sans-serif;font-size:15px;font-weight:700;color:#ffd700;letter-spacing:1px;margin:10px 0;">REVIEW BOL</div>';
+    html += '<div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.4;">Evonik Short Form: Pickup # is <strong style="color:#ccc;">Delivery no.</strong>, tanker weight is <strong style="color:#ccc;">Net LB</strong>. Apply fills the form — it does not Save Record.</div>';
+    BOL_FIELD_GROUPS.forEach(function (group) {
+      var inGroup = BOL_FIELDS.filter(function (meta) { return meta.group === group.id; });
+      if (!inGroup.length) return;
+      html += '<div style="font-size:12px;color:#ffd700;letter-spacing:1px;text-transform:uppercase;margin:14px 0 8px;border-bottom:1px solid #333;padding-bottom:4px;">' +
+        escHtml(group.title) + '</div>';
+      inGroup.forEach(function (meta) {
+        html += renderFieldInput(meta, f[meta.key] || '', meta.key === 'pickupNumber' && mismatch);
+      });
     });
     return html;
   }
@@ -461,6 +633,7 @@
     GEMINI_MODEL: GEMINI_MODEL,
     MISSING_KEY_MESSAGE: MISSING_KEY_MESSAGE,
     BOL_FIELDS: BOL_FIELDS,
+    BOL_FIELD_GROUPS: BOL_FIELD_GROUPS,
     emptyBolFields: emptyBolFields,
     fieldByKey: fieldByKey,
     getGeminiKey: getGeminiKey,
@@ -469,11 +642,14 @@
     pickupMismatch: pickupMismatch,
     normalizeDate: normalizeDate,
     normalizeWeight: normalizeWeight,
+    resolvePickupNumber: resolvePickupNumber,
     parseBolJson: parseBolJson,
     bolGeminiPrompt: bolGeminiPrompt,
     extractBolFromImage: extractBolFromImage,
     composeNotes: composeNotes,
+    foldName: foldName,
     matchCustomer: matchCustomer,
+    formPatchFromBol: formPatchFromBol,
     matchTrailer: matchTrailer,
     resolveZoomSupport: resolveZoomSupport,
     clampZoom: clampZoom,

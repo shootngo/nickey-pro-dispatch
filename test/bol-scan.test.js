@@ -5,15 +5,13 @@ const assert = require('node:assert/strict');
 const bol = require('../nickey-bol-scan.js');
 
 describe('BOL field schema', () => {
-  it('includes pickup #, product, weight, shipper, consignee, dates, trailer', () => {
+  it('includes pickup #, product, net weight, shipper, consignee, Evonik IDs', () => {
     const keys = bol.BOL_FIELDS.map((f) => f.key);
-    assert.ok(keys.includes('pickupNumber'));
-    assert.ok(keys.includes('product'));
-    assert.ok(keys.includes('tankerWeight'));
-    assert.ok(keys.includes('shipper'));
-    assert.ok(keys.includes('consignee'));
-    assert.ok(keys.includes('pickupDate'));
-    assert.ok(keys.includes('trailerNumber'));
+    ['pickupNumber', 'product', 'tankerWeight', 'shipper', 'consignee', 'pickupDate',
+      'hazmat', 'shipmentNumber', 'materialNo', 'batch', 'customerMaterialNo',
+      'containerId', 'seals', 'grossWeight', 'tareWeight'].forEach((k) => {
+      assert.ok(keys.includes(k), 'missing ' + k);
+    });
   });
 
   it('maps pickup, date, weight, customer, trailer, notes onto form ids', () => {
@@ -47,7 +45,8 @@ describe('normalizeDate / normalizeWeight', () => {
     assert.equal(bol.normalizeDate('2026-09-08'), '2026-09-08');
     assert.equal(bol.normalizeDate('09/08/2026'), '2026-09-08');
     assert.equal(bol.normalizeDate('9-8-26'), '2026-09-08');
-    assert.equal(bol.normalizeDate('09.08.26'), '2026-09-08');
+    assert.equal(bol.normalizeDate('Sep 8, 2026'), '2026-09-08');
+    assert.equal(bol.normalizeDate('Sep 4, 2026'), '2026-09-04');
     assert.equal(bol.normalizeDate('not a date'), '');
   });
   it('strips lbs and commas from tanker weight', () => {
@@ -92,6 +91,115 @@ describe('parseBolJson', () => {
   });
 });
 
+/** Golden example — Evonik Short Form ORIGINAL (Delivery no. 3012865610 → VI-JON). */
+const EVONIK_SHORT_FORM = {
+  deliveryNumber: '3012865610',
+  pickupNumber: '4007091890',
+  shipmentNumber: '4007091890',
+  orderNumber: '2007702185',
+  poNumber: '4500629294',
+  pickupDate: 'Sep 8, 2026',
+  deliveryDate: 'Sep 9, 2026',
+  product: 'PERSYNT® 500 Super D BULK',
+  hazmat: 'UN 2014, Hydrogen peroxide, aqueous solutions, 5.1 (8), II',
+  hmFlag: 'X',
+  tankerWeight: '43,120 LB',
+  grossWeight: '74,240 LB',
+  tareWeight: '31,120 LB',
+  shipper: 'Evonik Corporation',
+  consignee: 'VI-JON, INC.',
+  originCity: 'Memphis, TN',
+  destCity: 'Smyrna, TN',
+  containerId: '77',
+  seals: '1564889-1564888-1564887',
+  materialNo: '99147256',
+  batch: '1782681310',
+  customerMaterialNo: '40000000200',
+  notes: 'Protect from thermal radiation. COA MUST BE WITH SHIPMENT.'
+};
+
+describe('Evonik Short Form golden example', () => {
+  it('uses Delivery no. as pickup, never Shipment no.', () => {
+    const f = bol.parseBolJson(JSON.stringify(EVONIK_SHORT_FORM));
+    assert.equal(f.pickupNumber, '3012865610');
+    assert.equal(f.shipmentNumber, '4007091890');
+    assert.notEqual(f.pickupNumber, f.shipmentNumber);
+    assert.equal(f.orderNumber, '2007702185');
+    assert.equal(f.poNumber, '4500629294');
+  });
+
+  it('maps Net LB to tanker weight, not Gross or Tare', () => {
+    const f = bol.parseBolJson(JSON.stringify(EVONIK_SHORT_FORM));
+    assert.equal(f.tankerWeight, '43120');
+    assert.equal(f.grossWeight, '74240');
+    assert.equal(f.tareWeight, '31120');
+  });
+
+  it('does not treat a shipment-only pickup as the Nickey pickup #', () => {
+    const f = bol.parseBolJson(JSON.stringify({
+      pickupNumber: '4007091890',
+      shipmentNumber: '4007091890'
+    }));
+    assert.equal(f.pickupNumber, '');
+    assert.equal(f.shipmentNumber, '4007091890');
+  });
+
+  it('prefers netWeight over a generic weight that equals gross', () => {
+    const f = bol.parseBolJson(JSON.stringify({
+      deliveryNumber: '3012865610',
+      netWeight: '43120',
+      weight: '74240',
+      grossWeight: '74240'
+    }));
+    assert.equal(f.tankerWeight, '43120');
+  });
+
+  it('fills ship date, product, UN, IDs, shipper, ship-to, Cont. ID, seals', () => {
+    const f = bol.parseBolJson(JSON.stringify(EVONIK_SHORT_FORM));
+    assert.equal(f.pickupDate, '2026-09-08');
+    assert.equal(f.deliveryDate, '2026-09-09');
+    assert.match(f.product, /PERSYNT/);
+    assert.match(f.product, /Super D/);
+    assert.match(f.hazmat, /UN 2014/);
+    assert.equal(f.hmFlag, 'X');
+    assert.match(f.shipper, /Evonik/);
+    assert.match(f.consignee, /VI-JON/i);
+    assert.equal(f.originCity, 'Memphis, TN');
+    assert.equal(f.destCity, 'Smyrna, TN');
+    assert.equal(f.containerId, '77');
+    assert.equal(f.seals, '1564889-1564888-1564887');
+    assert.equal(f.materialNo, '99147256');
+    assert.equal(f.batch, '1782681310');
+    assert.equal(f.customerMaterialNo, '40000000200');
+    assert.match(f.notes, /COA MUST BE WITH SHIPMENT/);
+  });
+
+  it('Apply patch: pickup, net weight, VIJON customer, notes with product/UN/IDs', () => {
+    const customers = [
+      { name: 'Hydrox Elgin Illinois' },
+      { name: 'V.I.J.O.N. Smyrna Tennessee', limit: 5000, pay: 948 }
+    ];
+    const f = bol.parseBolJson(JSON.stringify(EVONIK_SHORT_FORM));
+    const patch = bol.formPatchFromBol(f, customers, '');
+    assert.equal(patch.pickupNumber, '3012865610');
+    assert.equal(patch.pickupDate, '2026-09-08');
+    assert.equal(patch.tankerWeight, '43120');
+    assert.equal(patch.customer, 'V.I.J.O.N. Smyrna Tennessee');
+    assert.match(patch.notes, /Product:.*PERSYNT/);
+    assert.match(patch.notes, /Hazmat:.*UN 2014/);
+    assert.match(patch.notes, /Material no\.: 99147256/);
+    assert.match(patch.notes, /Batch: 1782681310/);
+    assert.match(patch.notes, /Customer material no\.: 40000000200/);
+    assert.match(patch.notes, /Shipment no\.: 4007091890/);
+    assert.match(patch.notes, /Order no\.: 2007702185/);
+    assert.match(patch.notes, /PO no\.: 4500629294/);
+    assert.match(patch.notes, /Cont\. ID: 77/);
+    assert.match(patch.notes, /Seals:/);
+    assert.match(patch.notes, /COA MUST BE WITH SHIPMENT/);
+    assert.doesNotMatch(patch.notes, /Pickup/);
+  });
+});
+
 describe('composeNotes', () => {
   it('prepends Product / Shipper / Origin / Dest without duplicating', () => {
     const notes = bol.composeNotes('', {
@@ -123,11 +231,16 @@ describe('composeNotes', () => {
 describe('matchCustomer / matchTrailer', () => {
   const customers = [
     { name: 'Hydrox Elgin Illinois' },
-    { name: 'Mountaire Siler City' }
+    { name: 'Mountaire Siler City' },
+    { name: 'V.I.J.O.N. Smyrna Tennessee' }
   ];
   it('matches a consignee onto a known customer', () => {
     const m = bol.matchCustomer('HYDROX LABORATORIES ELGIN', customers);
     assert.equal(m.name, 'Hydrox Elgin Illinois');
+  });
+  it('folds VI-JON, INC. onto V.I.J.O.N. Smyrna Tennessee', () => {
+    const m = bol.matchCustomer('VI-JON, INC.', customers, 'Smyrna, TN');
+    assert.equal(m.name, 'V.I.J.O.N. Smyrna Tennessee');
   });
   it('matches trailer numbers by inclusion', () => {
     assert.equal(bol.matchTrailer('94', ['SD 94', 'SD 45']), 'SD 94');
@@ -152,14 +265,15 @@ describe('zoom support', () => {
 });
 
 describe('Gemini prompt is tunable and names the real fields', () => {
-  it('asks for pickup, product, weight, shipper, consignee, trailer', () => {
+  it('asks for Delivery no. as pickup and Net LB as tanker weight', () => {
     const p = bol.bolGeminiPrompt();
-    assert.match(p, /pickupNumber/);
-    assert.match(p, /product/);
+    assert.match(p, /deliveryNumber/);
+    assert.match(p, /Delivery no/);
+    assert.match(p, /Shipment no/);
     assert.match(p, /tankerWeight/);
-    assert.match(p, /shipper/);
+    assert.match(p, /NET/);
     assert.match(p, /consignee/);
-    assert.match(p, /trailerNumber/);
+    assert.match(p, /PERSYNT/);
   });
 });
 
@@ -209,6 +323,9 @@ describe('review HTML highlights a pickup mismatch', () => {
     assert.match(html, /3012874535/);
     assert.match(html, /1112223334/);
     assert.match(html, /data-bol-key="product"/);
+    assert.match(html, /Delivery no/);
+    assert.match(html, /data-bol-key="hazmat"/);
+    assert.match(html, /data-bol-key="shipmentNumber"/);
   });
   it('omits the mismatch banner when typed pickup is empty', () => {
     const html = bol.renderReviewHtml({ pickupNumber: '3012874535' }, '');

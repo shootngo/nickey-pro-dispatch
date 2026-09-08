@@ -1383,18 +1383,20 @@ function applyBolToForm() {
   if (!window.NickeyBolScan) return;
   var body = document.getElementById('bolReviewBody');
   var f = NickeyBolScan.readReviewFields(body);
-  if (f.pickupDate) document.getElementById('td').value = f.pickupDate;
-  if (f.pickupNumber) {
-    document.getElementById('pki').value = f.pickupNumber;
+  var nts = document.getElementById('nts');
+  var patch = NickeyBolScan.formPatchFromBol(f, customers, nts ? nts.value : '');
+  if (patch.pickupDate) document.getElementById('td').value = patch.pickupDate;
+  else if (f.pickupDate) document.getElementById('td').value = f.pickupDate;
+  if (patch.pickupNumber) {
+    document.getElementById('pki').value = patch.pickupNumber;
     upPk();
   }
-  var match = NickeyBolScan.matchCustomer(f.consignee, customers);
-  if (match) {
-    document.getElementById('customerSelect').value = match.name;
+  if (patch.customer) {
+    document.getElementById('customerSelect').value = patch.customer;
     loadCustomerData();
   }
-  if (f.tankerWeight) {
-    document.getElementById('tw').value = f.tankerWeight;
+  if (patch.tankerWeight) {
+    document.getElementById('tw').value = patch.tankerWeight;
     if (typeof calcAndUpdate === 'function') calcAndUpdate();
   }
   if (f.trailerNumber) {
@@ -1404,8 +1406,7 @@ function applyBolToForm() {
     var trailer = NickeyBolScan.matchTrailer(f.trailerNumber, opts);
     if (trailer) sel.value = trailer;
   }
-  var nts = document.getElementById('nts');
-  if (nts) nts.value = NickeyBolScan.composeNotes(nts.value, f);
+  if (nts) nts.value = patch.notes;
   closeBolReview();
   closeBolScanner();
   if (typeof saveFormState === 'function') saveFormState();
