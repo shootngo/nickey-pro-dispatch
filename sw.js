@@ -12,7 +12,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'nickey-v8.2f';
+const CACHE_VERSION = 'nickey-v8.2g';
 const CACHE_NAME    = 'nickey-shell-' + CACHE_VERSION;
 const FONT_CACHE    = 'nickey-fonts-' + CACHE_VERSION;
 
@@ -29,6 +29,7 @@ const PRECACHE_URLS = [
   './ndsync.js',
   './nickey-bot-drive-inbox.js',
   './nickey-bot-client.js',
+  './nickey-rosa-push.js',
   './manifest.json',
   './icon-192.png',
   './icon-512-2.png'
@@ -39,7 +40,11 @@ const NETWORK_ONLY_ORIGINS = [
   'generativelanguage.googleapis.com',
   'oauth2.googleapis.com',
   'accounts.google.com',
-  'www.googleapis.com'
+  'www.googleapis.com',
+  'firebase.googleapis.com',
+  'firestore.googleapis.com',
+  'identitytoolkit.googleapis.com',
+  'securetoken.googleapis.com'
   // After deploy, add the Nickey Bot Worker host, e.g.:
   // 'nickey-bot-api.your-account.workers.dev'
 ];
