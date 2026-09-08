@@ -1,13 +1,18 @@
 {
+  "id": "/nickey-pro-dispatch/rosas-ledger/?pwa=rosa",
   "name": "Rosa's Ledger",
-  "short_name": "Rosa",
+  "short_name": "Rosa's Ledger",
   "description": "Pay-verification companion for bookkeeper Rosa",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#12080c",
   "theme_color": "#7a2438",
+  "lang": "en",
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
   "icons": [
     {
       "src": "assets/icon-192.png",
@@ -19,7 +24,25 @@
       "src": "assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
