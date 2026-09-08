@@ -268,15 +268,27 @@ export function weekRunningTotal(trips, sundayISO) {
   const list = tripsInWeek(trips, sundayISO);
   let est = 0;
   let actual = 0;
+  let running = 0;
   let actualCount = 0;
   for (const t of list) {
-    est += estTotal(t);
+    const e = estTotal(t);
+    est += e;
     if (hasActuals(t)) {
-      actual += actualTotal(t);
+      const a = actualTotal(t);
+      actual += a;
+      running += a;
       actualCount += 1;
+    } else {
+      running += e;
     }
   }
-  return { est: round2(est), actual: round2(actual), actualCount, tripCount: list.length };
+  return {
+    est: round2(est),
+    actual: round2(actual),
+    running: round2(running),
+    actualCount,
+    tripCount: list.length
+  };
 }
 
 export function pnlForYear(trips, year) {

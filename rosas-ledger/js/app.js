@@ -57,6 +57,7 @@ function icon(name) {
 }
 
 function go(hash) {
+  toastEl.classList.remove("show");
   location.hash = hash;
 }
 
@@ -219,7 +220,7 @@ function renderCalendar() {
   const m = ui.cursor.getMonth();
   const sunday = startOfPayWeek(ui.selectedDay);
   const run = weekRunningTotal(trips, sunday);
-  const displayTotal = run.actualCount ? run.actual : run.est;
+  const displayTotal = run.running;
   const switcher = `<div class="view-switch">
     <button class="${ui.calMode === "month" ? "on" : ""}" data-act="cal-mode" data-mode="month">Month</button>
     <button class="${ui.calMode === "year" ? "on" : ""}" data-act="cal-mode" data-mode="year">Year</button>
@@ -273,7 +274,7 @@ function renderCalendar() {
     <button class="week-summary" data-act="open-week" data-sunday="${sunday}" data-day="${ui.selectedDay}">
       <div class="k">Pay week ${esc(formatWeekRange(sunday))}</div>
       <div class="v tabular">${money(displayTotal)}</div>
-      <div class="meta">${run.tripCount} trip${run.tripCount === 1 ? "" : "s"} · ${run.actualCount ? "actuals running" : "estimates"} · tap a day for the whole week</div>
+      <div class="meta">${run.tripCount} trip${run.tripCount === 1 ? "" : "s"} · ${run.actualCount === run.tripCount && run.tripCount ? "all actuals" : run.actualCount ? run.actualCount + " booked, rest estimated" : "estimates"} · tap a day for the whole week</div>
     </button>`;
   }
 
@@ -309,7 +310,7 @@ function renderWeek() {
   const sunday = ui.weekSunday || startOfPayWeek(ui.selectedDay);
   const days = payWeekDays(sunday);
   const run = weekRunningTotal(trips, sunday);
-  const shown = run.actualCount ? run.actual : run.est;
+  const shown = run.running;
   const older = [];
   let cursor = addDays(sunday, -7);
   for (let i = 0; i < ui.olderCount; i++) {
@@ -321,7 +322,7 @@ function renderWeek() {
     <div class="week-head">
       <div class="k">Running weekly total</div>
       <div class="range">${esc(formatWeekRange(sunday))}</div>
-      <div class="tot tabular"><b>${money(shown)}</b> ${run.actualCount ? "actuals" : "estimated"} · ${run.tripCount} trip${run.tripCount === 1 ? "" : "s"}</div>
+      <div class="tot tabular"><b>${money(shown)}</b> ${run.actualCount === run.tripCount && run.tripCount ? "actuals" : run.actualCount ? "mixed actuals + estimates" : "estimated"} · ${run.tripCount} trip${run.tripCount === 1 ? "" : "s"}</div>
     </div>
     ${days.map((iso) => {
       const list = tripsOnDay(trips, iso);
@@ -336,7 +337,7 @@ function renderWeek() {
       <h3>Older weeks</h3>
       ${older.map((sun) => {
         const r = weekRunningTotal(trips, sun);
-        const tot = r.actualCount ? r.actual : r.est;
+        const tot = r.running;
         const flag = tripsInWeek(trips, sun).some((t) => t.flagged);
         return `<button class="week-card" data-act="open-week" data-sunday="${sun}" data-day="${sun}">
           <div><div class="r">${esc(formatWeekRange(sun))}</div><div class="m">${r.tripCount} trip${r.tripCount === 1 ? "" : "s"}${flag ? " · flagged" : ""}</div></div>

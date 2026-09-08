@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import {
   addDays, applyVariance, endOfPayWeek, estTotal, exportRows, fromNickeyRecord,
   hasActuals, isFlagged, lastDeduction, money, num, parseISODate, startOfPayWeek,
-  toCsv, toISODate, varianceOf, weekShade
+  toCsv, toISODate, varianceOf, weekRunningTotal, weekShade
 } from "../js/core.js";
 import { getDemoTrips } from "../js/demo-data.js";
 import { buildXlsx } from "../js/xlsx-lite.js";
@@ -124,6 +124,27 @@ test("xlsx builder returns a ZIP (PK) blob", async () => {
   assert.equal(buf[0], 0x50);
   assert.equal(buf[1], 0x4b);
   assert.ok(blob.size > 100);
+});
+
+test("running weekly total mixes booked actuals with remaining estimates", () => {
+  const trips = [
+    {
+      id: "1", tripDate: "2026-09-08", payWeek: "2026-09-06",
+      estLinehaul: 100, estDetention: 0, estExtraPay: 0, estReeferFuel: 0,
+      actualPay: 110, actualDetention: 0, actualExtra: 0, actualReefer: 0
+    },
+    {
+      id: "2", tripDate: "2026-09-09", payWeek: "2026-09-06",
+      estLinehaul: 50, estDetention: 0, estExtraPay: 0, estReeferFuel: 0,
+      actualPay: null, actualDetention: null, actualExtra: null, actualReefer: null
+    }
+  ];
+  const r = weekRunningTotal(trips, "2026-09-06");
+  assert.equal(r.est, 150);
+  assert.equal(r.actual, 110);
+  assert.equal(r.running, 160);
+  assert.equal(r.actualCount, 1);
+  assert.equal(r.tripCount, 2);
 });
 
 test("money formatting", () => {
