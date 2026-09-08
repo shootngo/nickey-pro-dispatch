@@ -839,7 +839,7 @@
               .catch(() => setTimeout(retryResume, 30000));
           };
           setTimeout(retryResume, 8000);
-        } else {
+        } else if (!reconnectNeeded) {
           markNeedsReconnect('resume failed');
         }
       });
