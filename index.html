@@ -107,6 +107,21 @@ body.nd-menu-open{overflow:hidden}
 .pay-result-box{background:#0f2a0f;border:3px solid #4caf50;border-radius:16px;padding:24px;text-align:center;margin:20px 0}
 .pay-result-value{font-family:'Rajdhani',sans-serif;font-size:52px;font-weight:800;color:#4caf50;letter-spacing:2px}
 .pay-result-label{font-size:15px;color:#a5d6a7;margin-top:6px;letter-spacing:1px}
+.pk-row{display:flex;gap:8px;align-items:stretch;flex-wrap:nowrap}
+.pk-row #pki,.pk-row .nd-voice-wrap{flex:1;min-width:0;width:auto}
+.bol-cam-btn{flex-shrink:0;width:58px;min-height:58px;background:#1a2a1a;color:#4caf50;border:1px solid #4caf50;border-radius:8px;font-size:26px;cursor:pointer;padding:0}
+.bol-cam-btn:active{background:#0f3a0f}
+.bol-cam-stage{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:3/4;max-height:52vh}
+.bol-cam-video,.bol-cam-preview{width:100%;height:100%;object-fit:cover;display:block}
+.bol-cam-preview{position:absolute;inset:0;width:100%;height:100%}
+.bol-zoom-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:12px 0}
+.bol-zoom-btn{width:48px;height:48px;border-radius:8px;border:1px solid #ffd700;background:#2a2500;color:#ffd700;font-size:24px;font-weight:700;cursor:pointer}
+.bol-cam-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.bol-cam-actions button{flex:1;min-width:28%;padding:14px 10px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;border:none}
+.bol-mismatch{background:#2a0a0a;border:1px solid #cc0000;color:#ff8888;border-radius:8px;padding:12px;font-size:13px;line-height:1.4;margin-bottom:8px}
+.sr-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #333}
+.sr-row{display:flex;gap:10px;align-items:flex-start;background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;position:relative}
+.sr-check{width:22px;height:22px;margin-top:4px;flex-shrink:0;accent-color:#ffd700}
 </style>
 </head>
 <body>
@@ -143,7 +158,10 @@ body.nd-menu-open{overflow:hidden}
       <div class="fld">
         <label>Pickup Number</label>
         <div class="pkwrap">
-          <input type="text" id="pki" maxlength="12" inputmode="numeric" pattern="[0-9]*" oninput="upPk()" style="font-size:30px;text-align:center">
+          <div class="pk-row">
+            <input type="text" id="pki" maxlength="12" inputmode="numeric" pattern="[0-9]*" oninput="upPk()" style="font-size:30px;text-align:center">
+            <button type="button" class="bol-cam-btn" id="bolScanBtn" onclick="openBolScanner()" title="Scan BOL photo" aria-label="Scan BOL">📷</button>
+          </div>
           <div class="pkdisp" id="pkd">PICKUP #</div>
         </div>
         <button type="button" onclick="pasteDispatchText()" style="background:#4caf50;color:#fff;border:none;padding:12px 20px;font-size:16px;border-radius:6px;width:100%;margin-top:10px;cursor:pointer">📋 Paste Dispatch</button>
@@ -291,6 +309,7 @@ body.nd-menu-open{overflow:hidden}
     <div class="menu-item" onclick="sendEmail()">✉️ Email Dispatch Report</div>
     <div class="menu-item" onclick="pushToRosaManual()" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">📤 Push to Rosa</div>
     <div class="menu-item" onclick="viewSavedRecords()">📋 View Saved Records</div>
+    <div class="menu-item" onclick="viewSavedRecords()" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">📤 Push Saved to Rosa</div>
     <div class="menu-item" onclick="openPayAnalyzer()" style="background:linear-gradient(135deg,#1e3a8a 0%,#2d4fbd 100%);color:#ffd700;border:2px solid #ffd700;">📊 Pay Analyzer</div>
     <a href="earnings.html" class="menu-item" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">💰 Earnings & Expenses</a>
     <a href="inspection.html" class="menu-item">🚛 Trailer Inspection</a>
@@ -345,6 +364,51 @@ body.nd-menu-open{overflow:hidden}
   </div>
 </div>
 
+<div class="emerg-overlay" id="bolScanOverlay">
+  <div class="emerg-modal" style="border-color:#4caf50;max-width:540px;">
+    <div class="emerg-header" style="background:#1a3a1a;">
+      <div class="emerg-title">📷 SCAN BOL</div>
+      <div class="emerg-close" onclick="closeBolScanner()">✕</div>
+    </div>
+    <div style="padding:16px 18px;">
+      <div id="bolCamStatus" style="display:none;margin-bottom:10px;padding:10px;background:#1a1a1a;border:1px solid #444;border-radius:8px;font-size:13px;color:#aaa;line-height:1.4;"></div>
+      <div class="bol-cam-stage" id="bolCamStage">
+        <video id="bolCamVideo" class="bol-cam-video" autoplay playsinline muted></video>
+        <img id="bolCamPreview" class="bol-cam-preview" alt="BOL preview" style="display:none">
+      </div>
+      <div class="bol-zoom-row" id="bolCamZoomRow">
+        <button type="button" class="bol-zoom-btn" onclick="bolZoomOut()" aria-label="Zoom out">−</button>
+        <div id="bolCamZoomLabel" style="min-width:7em;text-align:center;font-size:13px;color:#ccc;">Zoom 1.0×</div>
+        <button type="button" class="bol-zoom-btn" onclick="bolZoomIn()" aria-label="Zoom in">+</button>
+      </div>
+      <div class="bol-cam-actions" id="bolCamLiveActions">
+        <button type="button" id="bolCaptureBtn" onclick="captureBolFrame()" style="background:#4caf50;color:#fff;">Capture</button>
+        <button type="button" onclick="pickBolGallery()" style="background:#333;color:#ffd700;border:1px solid #ffd700;">Gallery</button>
+        <button type="button" onclick="closeBolScanner()" style="background:#3a2a2a;color:#ff8888;">Cancel</button>
+      </div>
+      <div class="bol-cam-actions" id="bolCamShotActions" style="display:none;">
+        <button type="button" onclick="retakeBolPhoto()" style="background:#333;color:#ffd700;border:1px solid #ffd700;">Retake</button>
+        <button type="button" id="bolReadBtn" onclick="readBolPhoto()" style="background:#1e3a8a;color:#ffd700;border:1px solid #ffd700;">Read BOL</button>
+        <button type="button" onclick="closeBolScanner()" style="background:#3a2a2a;color:#ff8888;">Cancel</button>
+      </div>
+      <input type="file" id="bolGalleryInput" accept="image/*" style="display:none">
+    </div>
+  </div>
+</div>
+<div class="emerg-overlay" id="bolReviewOverlay">
+  <div class="emerg-modal" style="border-color:#ffd700;max-width:540px;">
+    <div class="emerg-header" style="background:#1e3a8a;">
+      <div class="emerg-title">📷 REVIEW BOL</div>
+      <div class="emerg-close" onclick="closeBolReview()">✕</div>
+    </div>
+    <div id="bolReviewBody" style="padding:16px 18px 8px;"></div>
+    <div style="padding:0 18px 8px;display:flex;flex-wrap:wrap;gap:8px;">
+      <button type="button" onclick="applyBolToForm()" style="flex:1;min-width:40%;padding:14px;background:#1e3a8a;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-size:16px;font-weight:700;">✓ Apply</button>
+      <button type="button" onclick="retakeBolFromReview()" style="flex:1;min-width:30%;padding:14px;background:#333;color:#ffd700;border:1px solid #555;border-radius:8px;font-size:16px;font-weight:700;">Retake</button>
+    </div>
+    <button class="back-btn" onclick="closeBolReview()">✕ Cancel</button>
+  </div>
+</div>
 <div class="emerg-overlay" id="pasteDispatchOverlay">
   <div class="emerg-modal" style="border-color:#4caf50;max-width:540px;">
     <div class="emerg-header" style="background:#1a3a1a;border-color:#4caf50;">
@@ -424,6 +488,7 @@ body.nd-menu-open{overflow:hidden}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
 <script src="nickey-rosa-push.js" defer></script>
+<script src="nickey-bol-scan.js" defer></script>
 <script>
 const TRUCK_IMG='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGRj/wAARCAC0ALQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlbaWmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/2Q==';
 document.getElementById('splashTruckImg').src=TRUCK_IMG;
@@ -665,7 +730,153 @@ function processFuelReceiptImage(input){
 }
 function collectFuelEntries(){const e=[];document.querySelectorAll('.fuel-entry').forEach(en=>{const s=en.querySelector('.fuel-station-input').value.trim();const a=parseFloat(en.querySelector('.fuel-amount-input').value)||0;const g=parseFloat(en.querySelector('.fuel-gallons-input').value)||0;if(s||a>0||g>0)e.push({station:s,amount:a,gallons:g})});return e}
 function saveRecord(){toggleMenu();const f=collectFuelEntries();f.forEach(x=>{if(x.station)saveFuelStation(x.station)});const r={id:editingRecordIdx!==-1?savedRecords[editingRecordIdx].id:'REC-'+Date.now(),driverName:currentDriver,date:document.getElementById("td").value,pickup:document.getElementById("pki").value,customer:document.getElementById("customerSelect").value,basePay:parseFloat(document.getElementById("bpay").value)||0,highLimit:document.getElementById("thl").value,trailer:document.getElementById("tki").value,arrivalDate:document.getElementById("arrivalDate").value,arrivalTime:document.getElementById("arrivalTime").value,departureDate:document.getElementById("departureDate").value,departureTime:document.getElementById("departureTime").value,tankerWeight:document.getElementById("tw").value,arrivalGallons:document.getElementById("atl").value,departureLoad:document.getElementById("departureLoad").value,totalGallons:document.getElementById("ttval").textContent,notes:document.getElementById("nts").value,odometerIn:document.getElementById("odoIn").value,odometerOut:document.getElementById("odoOut").value,miles:calcTripMiles(),costPerMile:calcTripCostPerMile(),reimbursements:[],fuelEntries:f,actualPay:null,bookkeepingComplete:false,timestamp:new Date().toISOString()};const ai=document.querySelectorAll('#reimbContainer input[type="number"]');const di=document.querySelectorAll('#reimbContainer input[type="text"]');for(let i=0;i<ai.length;i++){if(ai[i].value){r.reimbursements.push({desc:di[i]?di[i].value:"",amount:parseFloat(ai[i].value)||0})}}if(editingRecordIdx!==-1&&editingRecordIdx<savedRecords.length){const o=savedRecords[editingRecordIdx];r.actualPay=o.actualPay;r.bookkeepingComplete=o.bookkeepingComplete||false;r.timestamp=o.timestamp||r.timestamp;r.rosaPushedAt=o.rosaPushedAt||null;r.updatedAt=new Date().toISOString();savedRecords[editingRecordIdx]=r;localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record updated!");editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy();return}savedRecords.push(r);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record saved!")}
-function viewSavedRecords(){var _ov=document.getElementById("savedRecordsOverlay");if(!_ov||_ov.style.display!=="flex")toggleMenu();try{const s=localStorage.getItem("nickeySavedRecords");if(s)savedRecords=JSON.parse(s)||[]}catch(e){}const b=document.getElementById("savedRecordsBody");if(savedRecords.length===0){b.innerHTML='<div style="padding:30px 10px;text-align:center;color:#aaa;">No saved records yet.</div>';document.getElementById("savedRecordsOverlay").style.display="flex";return}let h='';savedRecords.slice().reverse().forEach((r,idx)=>{const realIdx=savedRecords.length-1-idx;const ft=(r.fuelEntries||[]).reduce((s,f)=>s+(parseFloat(f.amount)||0),0);h+=`<div style="background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;position:relative;"><div onclick="loadRecordIntoForm(${realIdx}); closeSavedRecords();" style="cursor:pointer;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;">Pickup #${r.pickup}</div><div style="font-size:13px;color:#aaa;">${r.date} • ${r.customer}</div><div style="font-size:13px;color:#4caf50;margin-top:4px;">Base Pay: $${(r.basePay||0).toFixed(2)}${ft>0?' • Fuel: $'+ft.toFixed(2):''}${(r.miles>0)?' • '+r.miles+' mi':''}${r.rosaPushedAt?' • Rosa':''}</div></div><button onclick="deleteSavedRecord(${realIdx}); event.stopImmediatePropagation();" style="position:absolute;top:12px;right:12px;background:#3a2a2a;color:#ff8888;border:none;border-radius:6px;padding:6px 10px;font-size:13px;">🗑️</button></div>`});b.innerHTML=h;document.getElementById("savedRecordsOverlay").style.display="flex"}
+var savedRecordSelectedIds = {};
+function savedRecordKey(r, idx) {
+  return (r && r.id) ? String(r.id) : ('idx-' + idx);
+}
+function viewSavedRecords() {
+  var ov = document.getElementById('savedRecordsOverlay');
+  if (!ov || ov.style.display !== 'flex') toggleMenu();
+  renderSavedRecordsBody();
+  ov.style.display = 'flex';
+}
+function renderSavedRecordsBody() {
+  try {
+    var s = localStorage.getItem('nickeySavedRecords');
+    if (s) savedRecords = JSON.parse(s) || [];
+  } catch (e) {}
+  var b = document.getElementById('savedRecordsBody');
+  if (!b) return;
+  if (!savedRecords.length) {
+    savedRecordSelectedIds = {};
+    b.innerHTML = '<div style="padding:30px 10px;text-align:center;color:#aaa;">No saved records yet.</div>';
+    return;
+  }
+  var selectedCount = 0;
+  savedRecords.forEach(function (r, idx) {
+    if (savedRecordSelectedIds[savedRecordKey(r, idx)]) selectedCount++;
+  });
+  var allChecked = selectedCount === savedRecords.length;
+  var h = '';
+  h += '<div class="sr-toolbar">';
+  h += '<label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#ccc;flex:1;min-width:140px;">';
+  h += '<input type="checkbox" class="sr-check" id="srSelectAll"' + (allChecked ? ' checked' : '') + ' onclick="toggleSelectAllSavedRecords(this.checked)"> Select all</label>';
+  h += '<button type="button" onclick="pushSelectedToRosa()" style="flex:1;min-width:170px;padding:12px;background:linear-gradient(135deg,#2a2500,#3a3000);color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;font-size:14px;">📤 Push selected to Rosa</button>';
+  h += '</div>';
+  h += '<div id="srPushStatus" style="display:none;margin-bottom:12px;padding:10px;background:#1a1a1a;border:1px solid #444;border-radius:8px;font-size:13px;color:#aaa;line-height:1.45;"></div>';
+  savedRecords.slice().reverse().forEach(function (r, idx) {
+    var realIdx = savedRecords.length - 1 - idx;
+    var key = savedRecordKey(r, realIdx);
+    var checked = !!savedRecordSelectedIds[key];
+    var ft = (r.fuelEntries || []).reduce(function (sum, f) { return sum + (parseFloat(f.amount) || 0); }, 0);
+    h += '<div class="sr-row">';
+    h += '<input type="checkbox" class="sr-check" data-sr-key="' + String(key).replace(/"/g, '&quot;') + '"' + (checked ? ' checked' : '') + ' onclick="event.stopPropagation(); toggleSavedRecordSelected(this)">';
+    h += '<div style="flex:1;min-width:0;cursor:pointer;padding-right:36px;" onclick="loadRecordIntoForm(' + realIdx + '); closeSavedRecords();">';
+    h += '<div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;">Pickup #' + (r.pickup || '—') + '</div>';
+    h += '<div style="font-size:13px;color:#aaa;">' + (r.date || '') + ' • ' + (r.customer || '') + '</div>';
+    h += '<div style="font-size:13px;color:#4caf50;margin-top:4px;">Base Pay: $' + (r.basePay || 0).toFixed(2);
+    if (ft > 0) h += ' • Fuel: $' + ft.toFixed(2);
+    if (r.miles > 0) h += ' • ' + r.miles + ' mi';
+    if (r.rosaPushedAt) h += ' • Rosa';
+    h += '</div></div>';
+    h += '<button onclick="deleteSavedRecord(' + realIdx + '); event.stopImmediatePropagation();" style="position:absolute;top:12px;right:12px;background:#3a2a2a;color:#ff8888;border:none;border-radius:6px;padding:6px 10px;font-size:13px;">🗑️</button>';
+    h += '</div>';
+  });
+  b.innerHTML = h;
+}
+function toggleSavedRecordSelected(el) {
+  var key = el && el.getAttribute('data-sr-key');
+  if (!key) return;
+  if (el.checked) savedRecordSelectedIds[key] = true;
+  else delete savedRecordSelectedIds[key];
+  var all = document.getElementById('srSelectAll');
+  if (all) {
+    var n = 0;
+    savedRecords.forEach(function (r, idx) {
+      if (savedRecordSelectedIds[savedRecordKey(r, idx)]) n++;
+    });
+    all.checked = savedRecords.length > 0 && n === savedRecords.length;
+  }
+}
+function toggleSelectAllSavedRecords(checked) {
+  savedRecords.forEach(function (r, idx) {
+    var key = savedRecordKey(r, idx);
+    if (checked) savedRecordSelectedIds[key] = true;
+    else delete savedRecordSelectedIds[key];
+  });
+  renderSavedRecordsBody();
+}
+function setSrPushStatus(msg, kind) {
+  var el = document.getElementById('srPushStatus');
+  if (!el) return;
+  el.style.display = msg ? 'block' : 'none';
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? '#4caf50' : (kind === 'err' ? '#ff8888' : '#aaa');
+  el.style.borderColor = kind === 'ok' ? '#4caf50' : (kind === 'err' ? '#cc0000' : '#444');
+  el.style.whiteSpace = 'pre-wrap';
+}
+function pushSelectedToRosa() {
+  var selected = [];
+  savedRecords.forEach(function (r, idx) {
+    if (savedRecordSelectedIds[savedRecordKey(r, idx)]) selected.push(r);
+  });
+  if (!selected.length) {
+    alert('Select at least one saved trip.');
+    return;
+  }
+  if (pushSelectedToRosa._busy) return;
+  if (!window.NickeyRosa) {
+    setSrPushStatus('Skipped: Rosa push is not loaded yet. Check the network and reopen the app.', 'err');
+    return;
+  }
+  if (!NickeyRosa.isConfigured()) {
+    setSrPushStatus('Skipped ' + selected.length + ' (no Firebase config). Paste it in Settings → Rosa first.', 'err');
+    return;
+  }
+  if (!NickeyRosa.currentUser()) {
+    setSrPushStatus('Skipped ' + selected.length + ' (not signed in). Sign in under Settings → Rosa (email / password) first.', 'err');
+    return;
+  }
+  var i = 0;
+  var pushed = 0;
+  var failed = [];
+  pushSelectedToRosa._busy = true;
+  function finish() {
+    pushSelectedToRosa._busy = false;
+    var lines = ['Pushed ' + pushed + ' of ' + selected.length + '.'];
+    if (failed.length) {
+      lines.push('Failed ' + failed.length + ':');
+      failed.forEach(function (f) { lines.push('• ' + f); });
+    }
+    renderSavedRecordsBody();
+    setSrPushStatus(lines.join('\n'), failed.length && !pushed ? 'err' : 'ok');
+  }
+  function next() {
+    if (i >= selected.length) {
+      finish();
+      return;
+    }
+    var rec = selected[i];
+    setSrPushStatus('Pushing ' + (i + 1) + ' of ' + selected.length + '…');
+    var now = new Date().toISOString();
+    var doc = NickeyRosa.buildTripDoc(NickeyRosa.savedRecordToTripInput(rec, customers), now);
+    Promise.resolve()
+      .then(function () { return NickeyRosa.pushTrip(doc); })
+      .then(function () {
+        stampRosaPushed(doc.pickup, now, rec && rec.id);
+        pushed++;
+        i++;
+        next();
+      })
+      .catch(function (err) {
+        var who = (doc && doc.pickup) || (rec && rec.pickup) || '?';
+        failed.push(who + ' — ' + ((err && err.message) ? err.message : String(err)));
+        i++;
+        next();
+      });
+  }
+  next();
+}
 function closeSavedRecords(){document.getElementById("savedRecordsOverlay").style.display="none"}
 function loadRecordIntoForm(idx){if(idx<0||idx>=savedRecords.length)return;const r=savedRecords[idx];editingRecordIdx=idx;document.getElementById("editBanner").classList.add("active");document.getElementById("editPickupLabel").textContent="Pickup #"+r.pickup;document.getElementById("td").value=r.date;document.getElementById("pki").value=r.pickup;upPk();document.getElementById("customerSelect").value=r.customer;document.getElementById("bpay").value=r.basePay;document.getElementById("thl").value=r.highLimit;document.getElementById("tki").value=r.trailer;document.getElementById("arrivalDate").value=r.arrivalDate;document.getElementById("arrivalTime").value=r.arrivalTime;document.getElementById("departureDate").value=r.departureDate;document.getElementById("departureTime").value=r.departureTime;document.getElementById("tw").value=r.tankerWeight;document.getElementById("atl").value=r.arrivalGallons;document.getElementById("departureLoad").value=r.departureLoad;document.getElementById("nts").value=r.notes||"";if(document.getElementById("odoIn"))document.getElementById("odoIn").value=r.odometerIn||"";if(document.getElementById("odoOut"))document.getElementById("odoOut").value=r.odometerOut||"";document.getElementById("reimbContainer").innerHTML="";(r.reimbursements||[]).forEach(rei=>addReimbRow());document.querySelectorAll('#reimbContainer input[type="text"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].desc});document.querySelectorAll('#reimbContainer input[type="number"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].amount});document.getElementById("fuelContainer").innerHTML="";(r.fuelEntries||[]).forEach(f=>addFuelEntry(f));updateWarning();updateRemaining();updateReimbTotal();updateFuelGrandTotal();calculateDetention();updateOdometerMiles();saveFormState();window.scrollTo(0,0)}
 function deleteSavedRecord(idx){if(confirm("Delete this record?")){savedRecords.splice(idx,1);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));viewSavedRecords()}}
@@ -897,6 +1108,311 @@ function applyParsedDispatch(){
   closePasteDispatch();
   window.scrollTo(0,0);
 }
+
+// ── BOL scanner (Gemini multimodal — same key / model as Paste Dispatch) ────
+var bolCamStream = null;
+var bolCamTrack = null;
+var bolZoomSupport = { mode: 'css', min: 1, max: 3, step: 0.25 };
+var bolZoomValue = 1;
+var bolCapturedDataUrl = null;
+
+function setBolCamStatus(msg, kind) {
+  var el = document.getElementById('bolCamStatus');
+  if (!el) return;
+  el.style.display = msg ? 'block' : 'none';
+  el.textContent = msg || '';
+  el.style.color = kind === 'err' ? '#ff8888' : (kind === 'ok' ? '#4caf50' : '#aaa');
+  el.style.borderColor = kind === 'err' ? '#cc0000' : '#444';
+}
+
+function stopBolCamera() {
+  if (window.NickeyBolScan) NickeyBolScan.stopStream(bolCamStream);
+  bolCamStream = null;
+  bolCamTrack = null;
+  var video = document.getElementById('bolCamVideo');
+  if (video) {
+    video.srcObject = null;
+    if (window.NickeyBolScan) NickeyBolScan.applyCssZoom(video, 1);
+  }
+}
+
+function showBolLiveActions() {
+  var live = document.getElementById('bolCamLiveActions');
+  var shot = document.getElementById('bolCamShotActions');
+  var preview = document.getElementById('bolCamPreview');
+  var video = document.getElementById('bolCamVideo');
+  if (live) live.style.display = 'flex';
+  if (shot) shot.style.display = 'none';
+  if (preview) preview.style.display = 'none';
+  if (video) video.style.visibility = 'visible';
+}
+
+function showBolShotActions(dataUrl) {
+  var live = document.getElementById('bolCamLiveActions');
+  var shot = document.getElementById('bolCamShotActions');
+  var preview = document.getElementById('bolCamPreview');
+  var video = document.getElementById('bolCamVideo');
+  if (live) live.style.display = 'none';
+  if (shot) shot.style.display = 'flex';
+  if (preview) {
+    preview.src = dataUrl;
+    preview.style.display = 'block';
+  }
+  if (video) video.style.visibility = 'hidden';
+}
+
+async function applyBolZoom() {
+  if (!window.NickeyBolScan) return;
+  bolZoomValue = NickeyBolScan.clampZoom(bolZoomSupport, bolZoomValue);
+  var video = document.getElementById('bolCamVideo');
+  var label = document.getElementById('bolCamZoomLabel');
+  if (bolZoomSupport.mode === 'hardware' && bolCamTrack) {
+    var ok = await NickeyBolScan.applyTrackZoom(bolCamTrack, bolZoomValue);
+    if (!ok) {
+      bolZoomSupport = { mode: 'css', min: 1, max: 3, step: 0.25 };
+      bolZoomValue = NickeyBolScan.clampZoom(bolZoomSupport, Math.max(1, bolZoomValue));
+    }
+  }
+  if (bolZoomSupport.mode === 'css') NickeyBolScan.applyCssZoom(video, bolZoomValue);
+  else NickeyBolScan.applyCssZoom(video, 1);
+  if (label) {
+    label.textContent = (bolZoomSupport.mode === 'hardware' ? 'Zoom ' : 'Zoom ') +
+      bolZoomValue.toFixed(1) + '×';
+  }
+}
+
+function bolZoomIn() {
+  bolZoomValue += bolZoomSupport.step || 0.25;
+  applyBolZoom();
+}
+function bolZoomOut() {
+  bolZoomValue -= bolZoomSupport.step || 0.25;
+  applyBolZoom();
+}
+
+async function startBolCamera() {
+  var stage = document.getElementById('bolCamStage');
+  var zoomRow = document.getElementById('bolCamZoomRow');
+  var captureBtn = document.getElementById('bolCaptureBtn');
+  if (stage) stage.style.display = 'block';
+  if (zoomRow) zoomRow.style.display = 'flex';
+  if (captureBtn) captureBtn.style.display = '';
+  stopBolCamera();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setBolCamStatus('This device has no camera API — use Gallery to pick a BOL photo.', 'err');
+    if (captureBtn) captureBtn.style.display = 'none';
+    return;
+  }
+  var constraints = [
+    { audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } },
+    { audio: false, video: { facingMode: 'environment' } },
+    { audio: false, video: true }
+  ];
+  var lastErr = null;
+  for (var c = 0; c < constraints.length; c++) {
+    try {
+      bolCamStream = await navigator.mediaDevices.getUserMedia(constraints[c]);
+      lastErr = null;
+      break;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  if (!bolCamStream) {
+    setBolCamStatus('Camera not available — use Gallery to pick a BOL photo.', 'err');
+    if (captureBtn) captureBtn.style.display = 'none';
+    return;
+  }
+  var video = document.getElementById('bolCamVideo');
+  if (video) {
+    video.srcObject = bolCamStream;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.muted = true;
+    try { await video.play(); } catch (e) { /* autoplay policies */ }
+  }
+  bolCamTrack = bolCamStream.getVideoTracks()[0] || null;
+  var caps = {};
+  try {
+    if (bolCamTrack && bolCamTrack.getCapabilities) caps = bolCamTrack.getCapabilities() || {};
+  } catch (e) { caps = {}; }
+  bolZoomSupport = window.NickeyBolScan
+    ? NickeyBolScan.resolveZoomSupport(caps)
+    : { mode: 'css', min: 1, max: 3, step: 0.25 };
+  bolZoomValue = bolZoomSupport.min;
+  await applyBolZoom();
+}
+
+function openBolScanner() {
+  bolCapturedDataUrl = null;
+  var ov = document.getElementById('bolScanOverlay');
+  if (ov) ov.style.display = 'flex';
+  showBolLiveActions();
+  var gallery = document.getElementById('bolGalleryInput');
+  if (gallery && !gallery._bolBound) {
+    gallery._bolBound = true;
+    gallery.addEventListener('change', function () {
+      var file = gallery.files && gallery.files[0];
+      if (!file || !window.NickeyBolScan) return;
+      NickeyBolScan.fileToDataUrl(file).then(function (url) {
+        bolCapturedDataUrl = url;
+        showBolShotActions(url);
+        setBolCamStatus('Photo loaded — tap Read BOL, or Retake.');
+      }).catch(function (err) {
+        setBolCamStatus((err && err.message) || 'Could not read that photo.', 'err');
+      });
+    });
+  }
+  if (!window.NickeyBolScan) {
+    setBolCamStatus('BOL scanner did not load. Check the network and reopen the app.', 'err');
+    return;
+  }
+  var key = NickeyBolScan.getGeminiKey();
+  if (!key) {
+    key = prompt(NickeyBolScan.MISSING_KEY_MESSAGE);
+    if (key && key.trim()) {
+      NickeyBolScan.setGeminiKey(key.trim());
+      setBolCamStatus('');
+    } else {
+      setBolCamStatus(NickeyBolScan.MISSING_KEY_MESSAGE, 'err');
+    }
+  } else {
+    setBolCamStatus('');
+  }
+  startBolCamera();
+}
+
+function closeBolScanner() {
+  stopBolCamera();
+  bolCapturedDataUrl = null;
+  var ov = document.getElementById('bolScanOverlay');
+  if (ov) ov.style.display = 'none';
+  var preview = document.getElementById('bolCamPreview');
+  if (preview) preview.removeAttribute('src');
+  showBolLiveActions();
+}
+
+function pickBolGallery() {
+  var input = document.getElementById('bolGalleryInput');
+  if (!input) return;
+  input.value = '';
+  input.click();
+}
+
+function captureBolFrame() {
+  var video = document.getElementById('bolCamVideo');
+  if (!window.NickeyBolScan) return;
+  try {
+    var cssZoom = bolZoomSupport.mode === 'css' ? bolZoomValue : 1;
+    bolCapturedDataUrl = NickeyBolScan.captureVideoFrame(video, cssZoom, 1600);
+    showBolShotActions(bolCapturedDataUrl);
+    setBolCamStatus('Captured — tap Read BOL, or Retake.');
+  } catch (err) {
+    setBolCamStatus((err && err.message) || 'Capture failed.', 'err');
+  }
+}
+
+function retakeBolPhoto() {
+  bolCapturedDataUrl = null;
+  showBolLiveActions();
+  setBolCamStatus('');
+  if (!bolCamStream) startBolCamera();
+}
+
+function closeBolReview() {
+  var ov = document.getElementById('bolReviewOverlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function retakeBolFromReview() {
+  closeBolReview();
+  openBolScanner();
+}
+
+async function readBolPhoto() {
+  if (!window.NickeyBolScan) {
+    setBolCamStatus('BOL scanner did not load.', 'err');
+    return;
+  }
+  if (!bolCapturedDataUrl) {
+    setBolCamStatus('Capture or pick a photo first.', 'err');
+    return;
+  }
+  var key = NickeyBolScan.getGeminiKey();
+  if (!key) {
+    key = prompt(NickeyBolScan.MISSING_KEY_MESSAGE);
+    if (key && key.trim()) NickeyBolScan.setGeminiKey(key.trim());
+    key = NickeyBolScan.getGeminiKey();
+  }
+  if (!key) {
+    setBolCamStatus(NickeyBolScan.MISSING_KEY_MESSAGE, 'err');
+    return;
+  }
+  var btn = document.getElementById('bolReadBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Reading…'; }
+  setBolCamStatus('Reading BOL with Gemini…');
+  try {
+    var parts = NickeyBolScan.dataUrlParts(bolCapturedDataUrl);
+    var fields = await NickeyBolScan.extractBolFromImage(parts.b64, parts.mime, key);
+    showBolReview(fields);
+  } catch (err) {
+    setBolCamStatus((err && err.message) || String(err), 'err');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Read BOL'; }
+}
+
+function showBolReview(fields) {
+  var typed = (document.getElementById('pki') || {}).value || '';
+  var body = document.getElementById('bolReviewBody');
+  if (!body || !window.NickeyBolScan) return;
+  body.innerHTML = NickeyBolScan.renderReviewHtml(fields, typed);
+  var pu = body.querySelector('[data-bol-key="pickupNumber"]');
+  if (pu) {
+    pu.addEventListener('input', function () {
+      NickeyBolScan.updateMismatchBanner(body, typed);
+    });
+  }
+  stopBolCamera();
+  var cam = document.getElementById('bolScanOverlay');
+  if (cam) cam.style.display = 'none';
+  var rev = document.getElementById('bolReviewOverlay');
+  if (rev) rev.style.display = 'flex';
+}
+
+function applyBolToForm() {
+  if (!window.NickeyBolScan) return;
+  var body = document.getElementById('bolReviewBody');
+  var f = NickeyBolScan.readReviewFields(body);
+  var nts = document.getElementById('nts');
+  var patch = NickeyBolScan.formPatchFromBol(f, customers, nts ? nts.value : '');
+  if (patch.pickupDate) document.getElementById('td').value = patch.pickupDate;
+  else if (f.pickupDate) document.getElementById('td').value = f.pickupDate;
+  if (patch.pickupNumber) {
+    document.getElementById('pki').value = patch.pickupNumber;
+    upPk();
+  }
+  if (patch.customer) {
+    document.getElementById('customerSelect').value = patch.customer;
+    loadCustomerData();
+  }
+  if (patch.tankerWeight) {
+    document.getElementById('tw').value = patch.tankerWeight;
+    if (typeof calcAndUpdate === 'function') calcAndUpdate();
+  }
+  if (f.trailerNumber) {
+    var sel = document.getElementById('tki');
+    var opts = [];
+    for (var i = 0; i < sel.options.length; i++) opts.push(sel.options[i].value);
+    var trailer = NickeyBolScan.matchTrailer(f.trailerNumber, opts);
+    if (trailer) sel.value = trailer;
+  }
+  if (nts) nts.value = patch.notes;
+  closeBolReview();
+  closeBolScanner();
+  if (typeof saveFormState === 'function') saveFormState();
+  window.scrollTo(0, 0);
+}
+
 function setTdy(){document.getElementById("td").value=new Date().toISOString().split("T")[0]}
 function setDateTimeNow(d,t){const n=new Date();document.getElementById(d).value=n.toISOString().split("T")[0];document.getElementById(t).value=String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0")}
 function upPk(){const v=document.getElementById('pki').value;const d=document.getElementById('pkd');if(!v){d.innerHTML='PICKUP #';return}if(v.length<=4)d.innerHTML='<span class="pr">'+v+'</span>';else d.innerHTML='<span class="pb">'+v.slice(0,v.length-4)+'</span><span class="pr">'+v.slice(-4)+'</span>'}
@@ -1069,22 +1585,28 @@ function collectCurrentTripForRosa() {
   };
 }
 
-function stampRosaPushed(pickup, when) {
+function stampRosaPushed(pickup, when, recordId) {
   try {
     var s = localStorage.getItem('nickeySavedRecords');
     if (s) savedRecords = JSON.parse(s) || savedRecords;
   } catch (e) {}
   var pu = String(pickup || '').replace(/\D/g, '');
-  if (!pu) return;
+  var stamped = false;
   var i, r;
   for (i = 0; i < savedRecords.length; i++) {
     r = savedRecords[i];
-    if (r && String(r.pickup || '').replace(/\D/g, '') === pu) {
+    if (!r) continue;
+    if (recordId && r.id === recordId) {
       r.rosaPushedAt = when;
-      localStorage.setItem('nickeySavedRecords', JSON.stringify(savedRecords));
-      return;
+      stamped = true;
+      continue;
+    }
+    if (!recordId && pu && String(r.pickup || '').replace(/\D/g, '') === pu) {
+      r.rosaPushedAt = when;
+      stamped = true;
     }
   }
+  if (stamped) localStorage.setItem('nickeySavedRecords', JSON.stringify(savedRecords));
 }
 
 function pushCurrentTripToRosa(opts) {
@@ -1104,7 +1626,7 @@ function pushCurrentTripToRosa(opts) {
   return Promise.resolve()
     .then(function () { return NickeyRosa.pushTrip(doc); })
     .then(function (id) {
-      stampRosaPushed(doc.pickup, now);
+      stampRosaPushed(doc.pickup, now, src.id);
       return { ok: true, id: id, doc: doc };
     })
     .catch(function (err) {
