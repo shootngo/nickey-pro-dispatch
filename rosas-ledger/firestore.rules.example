@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Optional: lock to Frank + Rosa once you have their Auth UIDs.
+    // function isBookkeeper() {
+    //   return signedIn() && request.auth.uid in [
+    //     'FRANK_UID',
+    //     'ROSA_UID'
+    //   ];
+    // }
+
+    match /trips/{tripId} {
+      allow read, write: if signedIn();
+    }
+
+    match /settings/{id} {
+      allow read, write: if signedIn();
+    }
+  }
+}
