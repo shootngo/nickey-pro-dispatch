@@ -56,6 +56,7 @@ Rosa **actuals and deductions are not written**. Re-push uses `merge: true` and 
 ## When it runs
 
 - **☰ → Push to Rosa** or the **Push to Rosa** button on the trip form — writes now and tells you ok/fail.
+- **☰ → Push Saved to Rosa** or **View Saved Records** — select one, many, or **Select all**, then **Push selected to Rosa**. Same merge-by-pickup mapping; progress then a summary (pushed N, skipped if config/sign-in is missing, failed with reasons).
 - **☰ → Email Dispatch Report** (the end-of-trip mail to Daniel / the dispatcher contact) — also pushes, then opens the mail app. If Firebase is not configured, email still sends.
 
 Odometer in/out are stored with **Save Record** and restored when you reopen a trip from Saved Records. Pay Analyzer prefills miles from those odometer fields when they are set.

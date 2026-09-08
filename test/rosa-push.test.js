@@ -197,6 +197,71 @@ describe('isPlaceholderConfig', () => {
   });
 });
 
+describe('savedRecordToTripInput', () => {
+  it('maps a Saved Records row the same way the trip form does', () => {
+    const src = rosa.savedRecordToTripInput({
+      id: 'REC-9',
+      driverName: 'Frank Mulkey',
+      date: '2026-09-08',
+      pickup: '3012 874535',
+      customer: 'Hydrox Elgin Illinois',
+      basePay: 2256,
+      trailer: 'SD 94',
+      notes: 'Shipper: Evonik',
+      arrivalDate: '2026-09-08',
+      arrivalTime: '08:00',
+      departureDate: '2026-09-08',
+      departureTime: '12:00',
+      reimbursements: [{ desc: 'scales', amount: 12 }],
+      odometerIn: 100000,
+      odometerOut: 100800,
+      miles: 800
+    }, [{ name: 'Hydrox Elgin Illinois', address: 'Elgin, IL' }]);
+    const doc = rosa.buildTripDoc(src, '2026-09-08T18:00:00.000Z');
+    assert.equal(doc.pickup, '3012874535');
+    assert.equal(doc.consignee, 'Hydrox Elgin Illinois');
+    assert.equal(doc.destCity, 'Elgin, IL');
+    assert.equal(doc.estLinehaul, 2256);
+    assert.equal(doc.nickeyRecordId, 'REC-9');
+    assert.equal('actLinehaul' in doc, false);
+  });
+});
+
+describe('pushMany', () => {
+  it('merges each trip by pickup # and continues after a failure', async () => {
+    const calls = [];
+    const fakeDb = {
+      collection: function () {
+        return {
+          doc: function (id) {
+            return {
+              set: function (payload, opts) {
+                if (id === '222') return Promise.reject(new Error('permission-denied'));
+                calls.push({ id: id, opts: opts });
+                return Promise.resolve();
+              }
+            };
+          }
+        };
+      }
+    };
+    const docs = [
+      rosa.buildTripDoc({ pickup: '111', date: '2026-09-08', basePay: 10 }, '2026-09-08T00:00:00.000Z'),
+      rosa.buildTripDoc({ pickup: '222', date: '2026-09-08', basePay: 20 }, '2026-09-08T00:00:00.000Z'),
+      rosa.buildTripDoc({ pickup: '333', date: '2026-09-08', basePay: 30 }, '2026-09-08T00:00:00.000Z')
+    ];
+    const results = await rosa.pushMany(docs, fakeDb);
+    assert.equal(results.length, 3);
+    assert.equal(results[0].ok, true);
+    assert.equal(results[0].id, '111');
+    assert.equal(results[1].ok, false);
+    assert.match(results[1].error, /permission-denied/);
+    assert.equal(results[2].ok, true);
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[0].opts, { merge: true });
+  });
+});
+
 describe('pushTrip merge id', () => {
   it('uses pickup digits as the document id', () => {
     const doc = rosa.buildTripDoc({ pickup: '3012-874535', date: '2026-09-08', basePay: 1 });

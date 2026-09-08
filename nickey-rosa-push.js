@@ -352,6 +352,67 @@
   }
 
   /**
+   * Map a nickeySavedRecords row onto buildTripDoc input.
+   * Looks up customer address when a customers list is passed.
+   */
+  function savedRecordToTripInput(rec, customers) {
+    var r = rec || {};
+    var custName = r.customer || r.consignee || '';
+    var list = customers || [];
+    var cust = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].name === custName) { cust = list[i]; break; }
+    }
+    return {
+      id: r.id || r.nickeyRecordId || '',
+      driverName: r.driverName || '',
+      date: r.date || r.tripDate || '',
+      pickup: r.pickup || r.pickupNumber || '',
+      customer: custName,
+      customerAddress: (cust && cust.address) || r.customerAddress || r.address || '',
+      basePay: r.basePay != null ? r.basePay : r.estLinehaul,
+      trailer: r.trailer || '',
+      notes: r.notes || '',
+      arrivalDate: r.arrivalDate || '',
+      arrivalTime: r.arrivalTime || '',
+      departureDate: r.departureDate || '',
+      departureTime: r.departureTime || '',
+      reimbursements: r.reimbursements || [],
+      odometerIn: r.odometerIn || '',
+      odometerOut: r.odometerOut || '',
+      miles: r.miles
+    };
+  }
+
+  /**
+   * Push many trip docs sequentially (same merge-by-pickup rule as pushTrip).
+   * Continues after individual failures so one bad row does not abort the batch.
+   */
+  function pushMany(docs, firestoreOverride) {
+    var list = docs || [];
+    var chain = Promise.resolve();
+    var results = [];
+    list.forEach(function (doc, idx) {
+      chain = chain.then(function () {
+        return Promise.resolve()
+          .then(function () { return pushTrip(doc, firestoreOverride); })
+          .then(function (id) {
+            results.push({ ok: true, id: id, pickup: doc && doc.pickup, index: idx });
+          })
+          .catch(function (err) {
+            results.push({
+              ok: false,
+              pickup: doc && doc.pickup,
+              index: idx,
+              error: (err && err.message) ? err.message : String(err)
+            });
+          });
+      });
+    });
+    return chain.then(function () { return results; });
+  }
+
+  /**
    * Write (merge) the trip. Merge so Rosa's later actuals are not clobbered
    * when Frank re-pushes estimates.
    */
@@ -401,6 +462,8 @@
     signIn: signIn,
     signOut: signOut,
     tripDocId: tripDocId,
-    pushTrip: pushTrip
+    pushTrip: pushTrip,
+    pushMany: pushMany,
+    savedRecordToTripInput: savedRecordToTripInput
   };
 }));
