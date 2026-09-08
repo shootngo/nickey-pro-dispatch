@@ -1,0 +1,134 @@
+# Rosa's Ledger
+
+Pay-verification companion for bookkeeper **Rosa**. Frank pushes trip estimates from Nickey into Firestore `trips`; Rosa enters actuals off the pay sheet; the ledger compares them inside an adjustable tolerance band and flags only the large misses.
+
+This folder is a **self-contained static app**. It ships next to Nickey Professional Dispatch on GitHub Pages:
+
+`https://<user>.github.io/nickey-pro-dispatch/rosas-ledger/`
+
+The repo-root `index.html` is still Frank's dispatch app. Do not route `/` here.
+
+## Demo / offline (no Firebase)
+
+Open `rosas-ledger/` and tap **Continue in demo mode**. Sample trips load from `js/demo-data.js` into `localStorage` so you can:
+
+1. Land on the **month calendar** (Sun–Sat pay weeks, alternate-week shading, trip dots, flagged days).
+2. Tap a day → **whole pay week**, with that day highlighted and a running weekly total. Scroll **older weeks**.
+3. Open a trip → Frank's estimates vs Rosa's actuals + deductions. Lease and truck wash **prefill from the last entry** and show an **Edited** chip when changed.
+4. **Save actuals** — variance and flag recompute against the tolerance band.
+5. **Budget / P&L** charts (money in vs out) and **year CSV / XLSX** export.
+6. **SimplyWise** is a stub: it accepts a file and does not parse it yet.
+
+Reset sample trips from **More**.
+
+Local preview (required for ES modules):
+
+```bash
+python3 -m http.server 8080
+# open http://localhost:8080/rosas-ledger/
+```
+
+## Stack
+
+- Pure static HTML / CSS / ES modules — no bundler
+- Firebase **Email/Password** auth (not Google OAuth)
+- Cloud Firestore collection `trips`
+- Demo mode when `js/config.js` still has `YOUR_` placeholders
+
+## Firebase setup (Frank's Google Cloud project)
+
+Use the same Google Cloud / Firebase project Nickey already lives in, or a dedicated one. From [Firebase Console](https://console.firebase.google.com/):
+
+1. Create (or open) the project → add a **Web** app.
+2. Copy the firebaseConfig object into `rosas-ledger/js/config.js` (replace every `YOUR_` sentinel).
+3. Authentication → Sign-in method → enable **Email/Password** only. Do **not** turn on Google for this app.
+4. Authentication → Users → add `frank@…` and `rosa@…` (or share one bookkeeper login).
+5. Firestore Database → create in production (or test) mode, then paste the rules from `firestore.rules.example`.
+6. Publish this folder to GitHub Pages. Add the Pages URL (and `http://localhost:8080`) to Authentication → Settings → **Authorized domains**.
+
+After that, Rosa signs in with email/password. Frank's Nickey "Push to Rosa" (a separate PR) writes the same `trips` documents.
+
+## Trip document contract
+
+```
+trip {
+  id, tripDate, payWeek,   // payWeek = Sunday ISO date of tripDate (Sun–Sat week)
+  pushedAt,
+  shipper, consignee, originCity, destCity,
+  estLinehaul, estDetention, estExtraPay, estReeferFuel,
+  odometerIn, odometerOut, miles, costPerMile,
+  actualPay, actualDetention, actualExtra, actualReefer,
+  deductFuel, deductInsurance, deductLease, deductTruckWash,
+  flagged, variance,
+  notes: [{ text, author: "Frank"|"Rosa", timestamp }]
+}
+```
+
+- `tripDate` / `payWeek` / `pushedAt` are ISO strings (`YYYY-MM-DD` or full timestamps).
+- Money fields are numbers. Actuals and deductions use `null` until Rosa enters them (`0` is a real zero).
+- `variance` = (actualPay + actualDetention + actualExtra + actualReefer) − (estLinehaul + estDetention + estExtraPay + estReeferFuel).
+- `flagged` is true only when actuals exist **and** `abs(variance) > tolerance` (default **$25**, adjustable in More).
+- Rosa's Ledger never overwrites Frank's estimate fields when she saves actuals. Nickey must not clobber Rosa's actuals / deductions / notes on push (merge estimates only).
+
+## Expected Nickey → Rosa push shape
+
+A later Nickey PR may add **Push to Rosa**. Until then, this is the merge contract.
+
+Nickey `saveRecord()` today (chemical tanker form) maps:
+
+| Nickey `saveRecord` | Rosa `trip` |
+| --- | --- |
+| `id` | `id` (stable; do not mint a new id on re-push) |
+| `date` | `tripDate` → derive `payWeek` = Sunday of that date |
+| `timestamp` / now | `pushedAt` |
+| `customer` | `consignee` |
+| `basePay` | `estLinehaul` |
+| `notes` (string) | append `{ text, author: "Frank", timestamp }` if non-empty |
+
+Nickey should **start sending** these estimate fields when Push to Rosa lands (they already exist on the ledger):
+
+```json
+{
+  "id": "REC-… or TRP-…",
+  "tripDate": "2026-09-08",
+  "shipper": "Cargill Meat Solutions",
+  "consignee": "Kroger DC",
+  "originCity": "Chicago, IL",
+  "destCity": "Indianapolis, IN",
+  "estLinehaul": 1240,
+  "estDetention": 80,
+  "estExtraPay": 0,
+  "estReeferFuel": 45,
+  "odometerIn": 439560,
+  "odometerOut": 439972,
+  "miles": 412,
+  "costPerMile": 3.01,
+  "notes": [{ "text": "Pushed from Nickey.", "author": "Frank", "timestamp": "2026-09-08T10:22:00.000Z" }]
+}
+```
+
+**Merge rule for Nickey:** `set`/`merge` only the estimate + identity fields above. Leave `actual*`, `deduct*`, `flagged`, `variance`, and Rosa's notes untouched. Rosa's Ledger recomputes `flagged` / `variance` when she saves actuals.
+
+Helper: `fromNickeyRecord()` in `js/core.js`.
+
+## Firestore security rules
+
+See `firestore.rules.example`. Summary: signed-in users may read/write `trips/{id}` and `settings/rosa`. There is no public access. Tighten to Frank/Rosa UIDs before a real payroll dataset lives here.
+
+## Tolerance, P&L, export, SimplyWise
+
+- **Tolerance** lives in `localStorage` (`rosasLedger.settings`) so Rosa can tighten the band on her phone without a deploy.
+- **P&L** money in = booked actual totals; money out = fuel + insurance + lease + truck wash. Charts are monthly bars for the selected year.
+- **Export** writes every contract field for that year. CSV is UTF-8. XLSX is a real Office Open XML zip (no CDN).
+- **SimplyWise** is intentionally a stub — file picker + message only.
+
+## Icons
+
+- Vector mark: `assets/icon.svg` (rose + eighteen-wheeler)
+- Raster splash / PWA: `assets/icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `icon.jpg`, `splash.jpg`
+
+## Tests
+
+```bash
+node rosas-ledger/test/run.mjs
+```

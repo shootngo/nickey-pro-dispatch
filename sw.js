@@ -99,6 +99,13 @@ self.addEventListener('fetch', function(event) {
   // Ignore non-http(s) requests (chrome-extension://, data:, etc.)
   if (!url.protocol.startsWith('http')) return;
 
+  // Rosa's Ledger is a separate static app under /rosas-ledger/ — do not
+  // serve it from Nickey's app-shell cache.
+  if (url.pathname.indexOf('/rosas-ledger/') !== -1) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
   // Network-only: API calls that require a live connection
   if (NETWORK_ONLY_ORIGINS.includes(url.hostname) ||
       req.headers.has('Authorization') ||
