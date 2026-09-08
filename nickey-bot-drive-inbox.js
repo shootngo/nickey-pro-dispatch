@@ -21,7 +21,6 @@
   var FOLDER_NAME = 'Nickey Dispatch Data';
   var INBOX_FILE  = 'nickey-bot-inbox.json';
   var MAIN_FILE   = 'nickey-dispatch-data.json';
-  var TOKEN_BUFFER = 120000;
   var ACKED_KEY   = 'nickeyBotInboxAckedPickups';
 
   function log(msg, data) {
@@ -217,7 +216,7 @@
     try {
       var stored = w.localStorage.getItem('ndsync_accessToken');
       var exp = parseInt(w.localStorage.getItem('ndsync_tokenExpiry') || '0', 10);
-      if (stored && Date.now() < exp - TOKEN_BUFFER) return stored;
+      if (stored && Date.now() < exp) return stored;
     } catch (e) { /* ignore */ }
     return null;
   }
