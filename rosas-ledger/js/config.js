@@ -1,19 +1,17 @@
 /**
- * Rosa's Ledger — Firebase placeholders.
+ * Rosa's Ledger — live Firebase web config for project rosa-s-ledger.
  *
- * Frank: paste values from the Google Cloud / Firebase project that already
- * serves Nickey. Enable Email/Password auth (not Google OAuth) and create
- * two users (frank@… and rosa@…). See README.md.
- *
- * Leave the YOUR_ sentinels in place to keep the app in demo/offline mode.
+ * Keys are live (Email/Password auth, not Google OAuth). Demo mode remains
+ * available from the login screen. See README.md.
  */
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBdQI88hmhev1YDa2DFKw-cuAZBQmOtC4I",
+  authDomain: "rosa-s-ledger.firebaseapp.com",
+  projectId: "rosa-s-ledger",
+  storageBucket: "rosa-s-ledger.firebasestorage.app",
+  messagingSenderId: "807399140103",
+  appId: "1:807399140103:web:d629847288aeb3cbac73a2",
+  measurementId: "G-L1G739S6ZC"
 };
 
 export const COLLECTION_TRIPS = "trips";
