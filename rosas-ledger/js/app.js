@@ -880,8 +880,12 @@ async function boot() {
   render();
   await initStore();
   setTimeout(() => {
-    ui.screen = readSession() ? "calendar" : "login";
-    if (readSession() && !location.hash) go("#/calendar");
+    const session = readSession();
+    const hashTop = parseHash()[0] || "";
+    // Demo sessions skip splash → calendar, but #/login always shows the form
+    // so Sign in stays reachable after "Continue in demo mode".
+    ui.screen = session && hashTop !== "login" ? "calendar" : "login";
+    if (session && !location.hash) go("#/calendar");
     else applyHash();
     render();
   }, 2200);

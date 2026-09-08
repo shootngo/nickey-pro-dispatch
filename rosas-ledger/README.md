@@ -33,18 +33,16 @@ python3 -m http.server 8080
 - Pure static HTML / CSS / ES modules — no bundler
 - Firebase **Email/Password** auth (not Google OAuth)
 - Cloud Firestore collection `trips`
-- Demo mode when `js/config.js` still has `YOUR_` placeholders
+- Demo mode is still available from the login screen ("Continue in demo mode")
 
 ## Firebase setup (Frank's Google Cloud project)
 
-Use the same Google Cloud / Firebase project Nickey already lives in, or a dedicated one. From [Firebase Console](https://console.firebase.google.com/):
+`js/config.js` already has the live web keys for project **rosa-s-ledger** (Email/Password, not Google OAuth), so **Sign in** is enabled on Pages. From [Firebase Console](https://console.firebase.google.com/):
 
-1. Create (or open) the project → add a **Web** app.
-2. Copy the firebaseConfig object into `rosas-ledger/js/config.js` (replace every `YOUR_` sentinel).
-3. Authentication → Sign-in method → enable **Email/Password** only. Do **not** turn on Google for this app.
-4. Authentication → Users → add `frank@…` and `rosa@…` (or share one bookkeeper login).
-5. Firestore Database → create in production (or test) mode, then paste the rules from `firestore.rules.example`.
-6. Publish this folder to GitHub Pages. Add the Pages URL (and `http://localhost:8080`) to Authentication → Settings → **Authorized domains**.
+1. Authentication → Sign-in method → enable **Email/Password** only. Do **not** turn on Google for this app.
+2. Authentication → Users → add `frank@…` and `rosa@…` (or share one bookkeeper login).
+3. Firestore Database → create in production (or test) mode, then paste the rules from `firestore.rules.example`.
+4. Publish this folder to GitHub Pages. Add the Pages URL (and `http://localhost:8080`) to Authentication → Settings → **Authorized domains**.
 
 After that, Rosa signs in with email/password. Frank's Nickey "Push to Rosa" (a separate PR) writes the same `trips` documents.
 
