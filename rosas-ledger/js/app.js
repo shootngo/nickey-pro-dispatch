@@ -5,12 +5,12 @@ import {
   pnlForYear, shortMonth, startOfPayWeek, toCsv, toISODate, todayISO,
   tripsInMonth, tripsInWeek, tripsInYear, tripsOnDay, varianceOf, weekdayShort,
   weekRunningTotal, weekShade
-} from "./core.js";
+} from "./core.js?v=20260908c";
 import { buildXlsx } from "./xlsx-lite.js";
 import {
   currentAuthor, enterDemo, getSettings, getState, initStore, isFirebaseConfigured,
   readSession, resetDemoData, saveTolerance, saveTrip, signIn, signOutUser, subscribe
-} from "./store.js";
+} from "./store.js?v=20260908c";
 
 const appEl = document.getElementById("app");
 const toastEl = document.getElementById("toast");

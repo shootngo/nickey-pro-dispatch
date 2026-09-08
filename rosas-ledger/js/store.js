@@ -1,6 +1,6 @@
-import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, DEFAULT_TOLERANCE } from "./config.js";
-import { applyVariance, normalizeTrip, num } from "./core.js";
-import { DEMO_SEED_VERSION, getDemoTrips } from "./demo-data.js";
+import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, DEFAULT_TOLERANCE } from "./config.js?v=20260908c";
+import { applyVariance, normalizeTrip, num } from "./core.js?v=20260908c";
+import { DEMO_SEED_VERSION, getDemoTrips } from "./demo-data.js?v=20260908c";
 
 const LS_TRIPS = "rosasLedger.trips";
 const LS_SETTINGS = "rosasLedger.settings";
