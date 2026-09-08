@@ -8,6 +8,20 @@ This folder is a **self-contained static app**. It ships next to Nickey Professi
 
 The repo-root `index.html` is still Frank's dispatch app. Do not route `/` here.
 
+## Install as two separate apps (Frank's phone)
+
+Nickey and Rosa's Ledger share the GitHub Pages origin, so Chrome can collapse them into **one** home-screen shortcut if an old install used a wide scope. After this update they are distinct PWAs (`id`, `name`, `start_url`, Rosa-only `scope` + service worker). The home-screen icon for Rosa is the rose + eighteen-wheeler art in `assets/`.
+
+**Reinstall on Android Chrome** so the phone actually creates two icons:
+
+1. Long-press the confused shortcut (the one that sometimes opens the wrong app) → **Remove** / **Delete**. Also remove any extra Nickey or Rosa icon left on the home screen or in the app drawer.
+2. Chrome → menu (⋮) → **Settings** → **Site settings** (or **Privacy** → **Clear browsing data**) for `shootngo.github.io` if an old WebAPK still hijacks opens — optional but helps if step 1 is not enough.
+3. Open **Nickey** at `https://shootngo.github.io/nickey-pro-dispatch/` → ⋮ → **Add to Home screen** / **Install app**. Confirm the name is Nickey Dispatch and the icon is the green Nickey trucks.
+4. Open **Rosa's Ledger** at `https://shootngo.github.io/nickey-pro-dispatch/rosas-ledger/` → ⋮ → **Add to Home screen** / **Install app**. Confirm the name is Rosa's Ledger and the icon is the rose + eighteen-wheeler.
+5. Voice / home should now open each icon's own app. Do not install Rosa from inside the Nickey window; use the Rosa URL in a Chrome tab.
+
+iPhone (Safari): **Share → Add to Home Screen** from each URL separately. Delete the old icon first.
+
 ## Demo / offline (no Firebase)
 
 Open `rosas-ledger/` and tap **Continue in demo mode**. Sample trips load from `js/demo-data.js` into `localStorage` so you can:
@@ -138,6 +152,7 @@ If the ledger header shows **Live** but a red banner says the listen failed, the
 
 - Vector mark: `assets/icon.svg` (rose + eighteen-wheeler)
 - Raster splash / PWA: `assets/icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `icon.jpg`, `splash.jpg`
+- Adaptive (maskable) home-screen: `assets/icon-maskable-192.png`, `icon-maskable-512.png` (same rose + truck, padded for Android's crop)
 
 ## Tests
 

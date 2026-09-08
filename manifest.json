@@ -1,13 +1,18 @@
 {
-  "name": "Nickey Dispatch",
-  "short_name": "Nickey",
+  "id": "/nickey-pro-dispatch/?pwa=nickey",
+  "name": "Nickey Professional Dispatch",
+  "short_name": "Nickey Dispatch",
   "description": "Nickey Professional Dispatch — trucking dispatch app",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0a0a0a",
   "theme_color": "#ffd700",
+  "lang": "en",
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
   "icons": [
     {
       "src": "icon-192.png",
@@ -19,7 +24,13 @@
       "src": "icon-512-2.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

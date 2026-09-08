@@ -12,7 +12,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'nickey-v8.2j';
+const CACHE_VERSION = 'nickey-v8.2k';
 const CACHE_NAME    = 'nickey-shell-' + CACHE_VERSION;
 const FONT_CACHE    = 'nickey-fonts-' + CACHE_VERSION;
 
@@ -100,10 +100,10 @@ self.addEventListener('fetch', function(event) {
   // Ignore non-http(s) requests (chrome-extension://, data:, etc.)
   if (!url.protocol.startsWith('http')) return;
 
-  // Rosa's Ledger is a separate static app under /rosas-ledger/ — do not
-  // serve it from Nickey's app-shell cache.
+  // Rosa's Ledger is a separate PWA under /rosas-ledger/. Do not intercept:
+  // Rosa's own SW (longer scope) should control those pages, and Nickey's
+  // app-shell cache must never satisfy them.
   if (url.pathname.indexOf('/rosas-ledger/') !== -1) {
-    event.respondWith(fetch(req));
     return;
   }
 

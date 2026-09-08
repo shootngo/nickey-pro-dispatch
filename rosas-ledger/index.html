@@ -9,7 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="Rosa's Ledger">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192.png">
-  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="./assets/icon-512.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="./assets/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -19,5 +21,18 @@
   <div id="app"></div>
   <div id="toast" class="toast" role="status"></div>
   <script type="module" src="./js/app.js?v=20260908d"></script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('./sw.js', { scope: './' })
+        .then(function(reg) {
+          console.log('[Rosa SW] Registered, scope:', reg.scope);
+        })
+        .catch(function(err) {
+          console.warn('[Rosa SW] Registration failed:', err);
+        });
+    });
+  }
+  </script>
 </body>
 </html>
