@@ -79,6 +79,10 @@ export function emptySaveRecord() {
     departureLoad: '',
     totalGallons: '',
     notes: '',
+    odometerIn: '',
+    odometerOut: '',
+    miles: 0,
+    costPerMile: 0,
     reimbursements: [],
     fuelEntries: [],
     actualPay: null,
@@ -131,6 +135,10 @@ export function normalizeIncoming(body) {
   record.departureLoad = b.departureLoad || '';
   record.totalGallons = b.totalGallons || '';
   record.notes = notes;
+  record.odometerIn = b.odometerIn == null ? '' : b.odometerIn;
+  record.odometerOut = b.odometerOut == null ? '' : b.odometerOut;
+  record.miles = b.miles == null || b.miles === '' ? 0 : (parseFloat(b.miles) || 0);
+  record.costPerMile = b.costPerMile == null || b.costPerMile === '' ? 0 : (parseFloat(b.costPerMile) || 0);
   record.reimbursements = Array.isArray(b.reimbursements) ? b.reimbursements : [];
   record.fuelEntries = Array.isArray(b.fuelEntries) ? b.fuelEntries : [];
   if (b.actualPay !== undefined) record.actualPay = b.actualPay;

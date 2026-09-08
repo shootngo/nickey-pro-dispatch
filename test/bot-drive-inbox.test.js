@@ -92,6 +92,22 @@ describe('applyInboxToRecords — example trip 3012874535', () => {
     assert.equal(result.added, 0);
     assert.equal(result.records.length, 0);
   });
+
+  it('keeps phone odometer when the inbox trip has none', () => {
+    const existing = [{
+      id: 'REC-1',
+      pickup: '3012874535',
+      basePay: 4385,
+      odometerIn: '100000',
+      odometerOut: '100400',
+      miles: 400,
+      notes: '',
+      fuelEntries: []
+    }];
+    const result = inbox.applyInboxToRecords(existing, [EXAMPLE], 'Frank');
+    assert.equal(result.records[0].odometerIn, '100000');
+    assert.equal(result.records[0].miles, 400);
+  });
 });
 
 describe('inbox write-back payload', () => {

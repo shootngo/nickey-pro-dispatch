@@ -64,6 +64,10 @@
       departureLoad: trip.departureLoad || '',
       totalGallons: trip.totalGallons || '',
       notes: trip.notes || '',
+      odometerIn: trip.odometerIn || '',
+      odometerOut: trip.odometerOut || '',
+      miles: typeof trip.miles === 'number' ? trip.miles : (parseFloat(trip.miles) || 0),
+      costPerMile: typeof trip.costPerMile === 'number' ? trip.costPerMile : (parseFloat(trip.costPerMile) || 0),
       reimbursements: Array.isArray(trip.reimbursements) ? trip.reimbursements : [],
       fuelEntries: Array.isArray(trip.fuelEntries) ? trip.fuelEntries : [],
       actualPay: trip.actualPay !== undefined ? trip.actualPay : null,
@@ -78,11 +82,14 @@
     var out = Object.assign({}, local);
     var fields = ['driverName', 'date', 'pickup', 'customer', 'highLimit', 'trailer',
       'arrivalDate', 'arrivalTime', 'departureDate', 'departureTime',
-      'tankerWeight', 'arrivalGallons', 'departureLoad', 'totalGallons', 'notes'];
+      'tankerWeight', 'arrivalGallons', 'departureLoad', 'totalGallons', 'notes',
+      'odometerIn', 'odometerOut'];
     fields.forEach(function (k) {
       if (isEmpty(out[k]) && !isEmpty(incoming[k])) out[k] = incoming[k];
     });
     if ((!out.basePay || out.basePay === 0) && incoming.basePay) out.basePay = incoming.basePay;
+    if ((!out.miles || out.miles === 0) && incoming.miles) out.miles = incoming.miles;
+    if ((!out.costPerMile || out.costPerMile === 0) && incoming.costPerMile) out.costPerMile = incoming.costPerMile;
     if (incoming.notes && out.notes && incoming.notes !== out.notes) {
       if (out.notes.indexOf(incoming.notes) === -1) out.notes = out.notes + ' — ' + incoming.notes;
     }

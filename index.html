@@ -156,6 +156,29 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
       <div class="fld"><label>Base Pay</label><input type="number" id="bpay" step="0.01" placeholder="0.00" style="font-size:18px"></div>
       <div class="fld"><label>Customer High Limit (gallons)</label><input type="number" id="thl" placeholder="5400" style="font-size:18px" oninput="updateWarning()"></div>
       <div class="fld"><label>Tanker / Trailer Number</label><select id="tki" class="trailer-select" onchange="calcAndUpdate()"><option value="">— Select Trailer —</option></select></div>
+      <div class="fld" style="margin-top:10px;">
+        <label>Odometer</label>
+        <div class="datetime-row" style="grid-template-columns:1fr 1fr;">
+          <div>
+            <label style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">In</label>
+            <input type="number" id="odoIn" step="0.1" inputmode="decimal" placeholder="Start miles" oninput="updateOdometerMiles()" style="font-size:18px">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Out</label>
+            <input type="number" id="odoOut" step="0.1" inputmode="decimal" placeholder="End miles" oninput="updateOdometerMiles()" style="font-size:18px">
+          </div>
+        </div>
+        <div id="odoMilesBox" style="margin-top:10px;background:#0a1a2a;border:1px solid #1e3a8a;border-radius:8px;padding:12px 14px;display:flex;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-size:11px;color:#888;letter-spacing:1px;">MILES (OUT − IN)</div>
+            <div id="odoMilesDisp" style="font-family:Rajdhani,sans-serif;font-size:26px;font-weight:700;color:#ffd700;">—</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px;color:#888;letter-spacing:1px;">COST / MILE</div>
+            <div id="odoCpmDisp" style="font-family:Rajdhani,sans-serif;font-size:26px;font-weight:700;color:#4caf50;">—</div>
+          </div>
+        </div>
+      </div>
       <div class="fld"><label>Arrival at Customer</label><div class="datetime-row"><input type="date" class="date-input" id="arrivalDate"><input type="time" class="time-input" id="arrivalTime"><button type="button" class="now-btn" onclick="setDateTimeNow('arrivalDate','arrivalTime')">🕒 Now</button></div></div>
       <div class="fld"><label>Departure from Customer</label><div class="datetime-row"><input type="date" class="date-input" id="departureDate"><input type="time" class="time-input" id="departureTime"><button type="button" class="now-btn" onclick="setDateTimeNow('departureDate','departureTime')">🕒 Now</button></div></div>
 
@@ -213,7 +236,11 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
   </div>
   <div class="sec">
     <div class="sh"><div class="st">Notes</div></div>
-    <div class="sb"><textarea id="nts" rows="5" placeholder="Any additional notes..." style="width:100%;padding:15px;font-size:17px;background:#2a2a2a;color:#eee;border:1.8px solid #555;border-radius:8px"></textarea></div>
+    <div class="sb">
+      <textarea id="nts" rows="5" placeholder="Per-trip note — included when you Push to Rosa…" style="width:100%;padding:15px;font-size:17px;background:#2a2a2a;color:#eee;border:1.8px solid #555;border-radius:8px"></textarea>
+      <p style="font-size:12px;color:#888;margin-top:8px;line-height:1.4;">This note is sent to Rosa as Frank’s trip note. Email to Daniel also pushes the trip.</p>
+      <button type="button" class="action-btn gold" onclick="pushToRosaManual()" style="margin-top:8px;margin-bottom:0;">📤 Push to Rosa</button>
+    </div>
   </div>
   <div class="sec" id="sdsSection">
     <div class="sh"><div class="st">⚠️ Chemical Safety Quick Reference (SDS)</div></div>
@@ -261,6 +288,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
     <div class="menu-item" onclick="printForm()">🖨️ Print / Save as PDF</div>
     <div class="menu-item" onclick="saveRecord()">💾 Save Record</div>
     <div class="menu-item" onclick="sendEmail()">✉️ Email Dispatch Report</div>
+    <div class="menu-item" onclick="pushToRosaManual()" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">📤 Push to Rosa</div>
     <div class="menu-item" onclick="viewSavedRecords()">📋 View Saved Records</div>
     <div class="menu-item" onclick="openPayAnalyzer()" style="background:linear-gradient(135deg,#1e3a8a 0%,#2d4fbd 100%);color:#ffd700;border:2px solid #ffd700;">📊 Pay Analyzer</div>
     <a href="earnings.html" class="menu-item" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">💰 Earnings & Expenses</a>
@@ -301,7 +329,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
       </div>
 
       <div style="font-size:13px;color:#888;text-align:center;margin-top:8px;">
-        Calculation: Base Pay ÷ Miles
+        Calculation: Base Pay ÷ Miles<span id="paMilesHint"></span>
       </div>
     </div>
     <button class="back-btn" onclick="closePayAnalyzer()">✕ Close</button>
@@ -339,6 +367,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
       <button onclick="switchSettingsTab(2)" id="tab2" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Contacts</button>
       <button onclick="switchSettingsTab(3)" id="tab3" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Chemicals</button>
       <button onclick="switchSettingsTab(4)" id="tab4" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Bot</button>
+      <button onclick="switchSettingsTab(5)" id="tab5" style="padding:10px;font-size:13px;background:#333;color:#ddd;border:none;border-radius:6px;font-weight:700;">Rosa</button>
     </div>
     <div id="settingsCustomers" style="padding:14px 14px 0;"><div id="customerList" style="max-height:300px;overflow-y:auto;"></div><button onclick="addNewCustomer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Customer</button></div>
     <div id="settingsTrailers" style="display:none;padding:14px 14px 0;"><div id="trailerList" style="max-height:300px;overflow-y:auto;"></div><button onclick="addNewTrailer()" style="width:100%;margin-top:14px;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">+ Add New Trailer</button></div>
@@ -366,6 +395,16 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
       <button type="button" onclick="window.NickeyBot&&NickeyBot.pullNow()" style="width:100%;margin-top:10px;padding:14px;background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50;border-radius:8px;font-weight:700;">Pull Worker trips now</button>
       <div id="botStatus" style="font-size:12px;color:#888;margin-top:12px;line-height:1.4;"></div>
     </div>
+    <div id="settingsRosa" style="display:none;padding:14px 14px 0;">
+      <div style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.4;">Paste the Firebase <strong style="color:#ccc;">web config</strong> Rosa’s Ledger uses, then sign in with the shared email/password. This does <strong style="color:#ccc;">not</strong> use Google sign-in (that would re-prompt on top of Cloud Sync). Config stays on this phone — not Drive-synced. See docs/rosa-push.md.</div>
+      <div class="fld"><label>Firebase config</label><textarea id="rosaFirebaseConfig" rows="7" placeholder='{ "apiKey": "YOUR_API_KEY", "authDomain": "YOUR_PROJECT.firebaseapp.com", "projectId": "YOUR_PROJECT_ID", "storageBucket": "YOUR_PROJECT.appspot.com", "messagingSenderId": "YOUR_SENDER_ID", "appId": "YOUR_APP_ID" }' style="width:100%;padding:10px;font-size:13px;font-family:monospace;background:#2a2a2a;color:#eee;border:1.8px solid #555;border-radius:8px;"></textarea></div>
+      <button type="button" onclick="saveRosaConfigFromForm()" style="width:100%;padding:14px;background:#2a2500;color:#ffd700;border:1px solid #ffd700;border-radius:8px;font-weight:700;">Save config</button>
+      <div class="fld" style="margin-top:16px;"><label>Email</label><input type="email" id="rosaAuthEmail" placeholder="frank@example.com" autocomplete="username"></div>
+      <div class="fld"><label>Password</label><input type="password" id="rosaAuthPassword" placeholder="Shared password" autocomplete="current-password"></div>
+      <button type="button" onclick="signInRosaFromForm()" style="width:100%;padding:14px;background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50;border-radius:8px;font-weight:700;">Sign in (email / password)</button>
+      <button type="button" onclick="signOutRosa()" style="width:100%;margin-top:10px;padding:12px;background:#333;color:#ddd;border:none;border-radius:8px;font-weight:700;">Sign out</button>
+      <div id="rosaStatus" style="font-size:12px;color:#888;margin-top:12px;line-height:1.4;"></div>
+    </div>
     <button class="back-btn" onclick="closeSettings()">← Back</button>
   </div>
 </div>
@@ -380,6 +419,10 @@ body{font-family:'Source Sans 3',sans-serif;background:#1a1a1a;color:#eee;min-he
 <script src="ndsync.js" defer></script>
 <script src="nickey-bot-drive-inbox.js" defer></script>
 <script src="nickey-bot-client.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
+<script src="nickey-rosa-push.js" defer></script>
 <script>
 const TRUCK_IMG='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwMDAgQDAwMEBAQFBgoGBgUFBgwICQcKDgwPDg4MDQ0PERYTDxAVEQ0NExoTFRcYGRkZDxIbHRsYHRYYGRj/2wBDAQQEBAYFBgsGBgsYEA0QGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGRj/wAARCAC0ALQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlbaWmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/2Q==';
 document.getElementById('splashTruckImg').src=TRUCK_IMG;
@@ -411,6 +454,8 @@ function saveFormState() {
     liveGauge: document.getElementById("liveGauge").value,
     departureLoad: document.getElementById("departureLoad").value,
     nts: document.getElementById("nts").value,
+    odoIn: document.getElementById("odoIn") ? document.getElementById("odoIn").value : "",
+    odoOut: document.getElementById("odoOut") ? document.getElementById("odoOut").value : "",
     reimbursements: [],
     fuelEntries: [],
     preInspection:  _existing.preInspection  || null,
@@ -453,6 +498,8 @@ function restoreFormState() {
   setVal("liveGauge", state.liveGauge);
   setVal("departureLoad", state.departureLoad);
   setVal("nts", state.nts);
+  setVal("odoIn", state.odoIn);
+  setVal("odoOut", state.odoOut);
   upPk();
   calcAndUpdate();
   updateWarning();
@@ -480,13 +527,14 @@ function restoreFormState() {
 }
 
 function setupFormPersistence() {
-  const inputs = ["td","pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts"];
+  const inputs = ["td","pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts","odoIn","odoOut"];
   inputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener("input", () => {
         clearTimeout(window._saveTimeout);
         window._saveTimeout = setTimeout(saveFormState, 300);
+        if (id === "bpay" || id === "odoIn" || id === "odoOut") updateOdometerMiles();
       });
       if (el.tagName === "SELECT" || el.type === "date" || el.type === "time") {
         el.addEventListener("change", saveFormState);
@@ -513,12 +561,13 @@ function setupFormPersistence() {
   });
   restoreFormState();
   calculateDetention();
+  updateOdometerMiles();
 }
 
 function setupDriverName(){let s=localStorage.getItem("currentDriver");if(!s){s=prompt("Enter your full name:","Frank Mulkey");if(!s||!s.trim())s="Unknown Driver";s=s.trim();localStorage.setItem("currentDriver",s)}currentDriver=s;document.getElementById("driverBadge").textContent="👤 "+currentDriver}
 function populateCustomerDropdown(){const s=document.getElementById("customerSelect");s.innerHTML='<option value="">— Select Customer —</option>';customers.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=c.name;s.appendChild(o)})}
 function populateTrailerDropdown(){const s=document.getElementById("tki");s.innerHTML='<option value="">— Select Trailer —</option>';allTrailers.forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=t;s.appendChild(o)})}
-function loadCustomerData(){const s=document.getElementById("customerSelect").value;const c=customers.find(x=>x.name===s);if(c){document.getElementById("thl").value=c.limit||"";document.getElementById("bpay").value=c.pay||"";updateWarning()}}
+function loadCustomerData(){const s=document.getElementById("customerSelect").value;const c=customers.find(x=>x.name===s);if(c){document.getElementById("thl").value=c.limit||"";document.getElementById("bpay").value=c.pay||"";updateWarning();updateOdometerMiles()}}
 function getTotalGallons(){const tg=parseFloat(document.getElementById('ttval').dataset.tankerGal)||0;const ag=parseFloat(document.getElementById('atl').value)||0;return tg+ag}
 function updateWarning(){const t=getTotalGallons();const l=parseFloat(document.getElementById('thl').value)||999999;const b=document.getElementById("tankWarnBox");const txt=document.getElementById("tankStatusTxt");const v=document.getElementById("ttval");if(t===0){b.className="tankwarn-box";txt.textContent="ENTER WEIGHT ABOVE";v.style.color="#ffd700";return}v.textContent=t.toFixed(1)+" GAL TOTAL";if(t>l){b.className="tankwarn-box danger";txt.innerHTML="⚠️ WARNING — TANK OVERFILL";txt.style.color="#ff6666";v.style.color="#ff6666"}else if(t>=l-200){b.className="tankwarn-box caution";txt.textContent="CAUTION — NEAR HIGH LIMIT";txt.style.color="#ffd700";v.style.color="#ffd700"}else{b.className="tankwarn-box safe";txt.textContent="SAFE TO PUMP";txt.style.color="#28a745";v.style.color="#ffd700"}}
 function calcGal(){const w=parseFloat(document.getElementById('tw').value)||0;if(!w){document.getElementById('ttval').textContent='— GAL TOTAL';document.getElementById('ttval').dataset.tankerGal="0";updateWarning();return}const tv=document.getElementById('tki').value||"";let div=9.43;if(tv.indexOf("SD")===0)div=10;else if(tv.indexOf("ISO")===0)div=9.43;const gal=(w/div).toFixed(1);document.getElementById('ttval').dataset.tankerGal=gal;updateWarning()}
@@ -614,10 +663,10 @@ function processFuelReceiptImage(input){
   reader.readAsDataURL(file);
 }
 function collectFuelEntries(){const e=[];document.querySelectorAll('.fuel-entry').forEach(en=>{const s=en.querySelector('.fuel-station-input').value.trim();const a=parseFloat(en.querySelector('.fuel-amount-input').value)||0;const g=parseFloat(en.querySelector('.fuel-gallons-input').value)||0;if(s||a>0||g>0)e.push({station:s,amount:a,gallons:g})});return e}
-function saveRecord(){toggleMenu();const f=collectFuelEntries();f.forEach(x=>{if(x.station)saveFuelStation(x.station)});const r={id:editingRecordIdx!==-1?savedRecords[editingRecordIdx].id:'REC-'+Date.now(),driverName:currentDriver,date:document.getElementById("td").value,pickup:document.getElementById("pki").value,customer:document.getElementById("customerSelect").value,basePay:parseFloat(document.getElementById("bpay").value)||0,highLimit:document.getElementById("thl").value,trailer:document.getElementById("tki").value,arrivalDate:document.getElementById("arrivalDate").value,arrivalTime:document.getElementById("arrivalTime").value,departureDate:document.getElementById("departureDate").value,departureTime:document.getElementById("departureTime").value,tankerWeight:document.getElementById("tw").value,arrivalGallons:document.getElementById("atl").value,departureLoad:document.getElementById("departureLoad").value,totalGallons:document.getElementById("ttval").textContent,notes:document.getElementById("nts").value,reimbursements:[],fuelEntries:f,actualPay:null,bookkeepingComplete:false,timestamp:new Date().toISOString()};const ai=document.querySelectorAll('#reimbContainer input[type="number"]');const di=document.querySelectorAll('#reimbContainer input[type="text"]');for(let i=0;i<ai.length;i++){if(ai[i].value){r.reimbursements.push({desc:di[i]?di[i].value:"",amount:parseFloat(ai[i].value)||0})}}if(editingRecordIdx!==-1&&editingRecordIdx<savedRecords.length){const o=savedRecords[editingRecordIdx];r.actualPay=o.actualPay;r.bookkeepingComplete=o.bookkeepingComplete||false;r.timestamp=o.timestamp||r.timestamp;r.updatedAt=new Date().toISOString();savedRecords[editingRecordIdx]=r;localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record updated!");editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy();return}savedRecords.push(r);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record saved!")}
-function viewSavedRecords(){toggleMenu();try{const s=localStorage.getItem("nickeySavedRecords");if(s)savedRecords=JSON.parse(s)||[]}catch(e){}const b=document.getElementById("savedRecordsBody");if(savedRecords.length===0){b.innerHTML='<div style="padding:30px 10px;text-align:center;color:#aaa;">No saved records yet.</div>';document.getElementById("savedRecordsOverlay").style.display="flex";return}let h='';savedRecords.slice().reverse().forEach((r,idx)=>{const realIdx=savedRecords.length-1-idx;const ft=(r.fuelEntries||[]).reduce((s,f)=>s+(parseFloat(f.amount)||0),0);h+=`<div style="background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;position:relative;"><div onclick="loadRecordIntoForm(${realIdx}); closeSavedRecords();" style="cursor:pointer;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;">Pickup #${r.pickup}</div><div style="font-size:13px;color:#aaa;">${r.date} • ${r.customer}</div><div style="font-size:13px;color:#4caf50;margin-top:4px;">Base Pay: $${(r.basePay||0).toFixed(2)}${ft>0?' • Fuel: $'+ft.toFixed(2):''}</div></div><button onclick="deleteSavedRecord(${realIdx}); event.stopImmediatePropagation();" style="position:absolute;top:12px;right:12px;background:#3a2a2a;color:#ff8888;border:none;border-radius:6px;padding:6px 10px;font-size:13px;">🗑️</button></div>`});b.innerHTML=h;document.getElementById("savedRecordsOverlay").style.display="flex"}
+function saveRecord(){toggleMenu();const f=collectFuelEntries();f.forEach(x=>{if(x.station)saveFuelStation(x.station)});const r={id:editingRecordIdx!==-1?savedRecords[editingRecordIdx].id:'REC-'+Date.now(),driverName:currentDriver,date:document.getElementById("td").value,pickup:document.getElementById("pki").value,customer:document.getElementById("customerSelect").value,basePay:parseFloat(document.getElementById("bpay").value)||0,highLimit:document.getElementById("thl").value,trailer:document.getElementById("tki").value,arrivalDate:document.getElementById("arrivalDate").value,arrivalTime:document.getElementById("arrivalTime").value,departureDate:document.getElementById("departureDate").value,departureTime:document.getElementById("departureTime").value,tankerWeight:document.getElementById("tw").value,arrivalGallons:document.getElementById("atl").value,departureLoad:document.getElementById("departureLoad").value,totalGallons:document.getElementById("ttval").textContent,notes:document.getElementById("nts").value,odometerIn:document.getElementById("odoIn").value,odometerOut:document.getElementById("odoOut").value,miles:calcTripMiles(),costPerMile:calcTripCostPerMile(),reimbursements:[],fuelEntries:f,actualPay:null,bookkeepingComplete:false,timestamp:new Date().toISOString()};const ai=document.querySelectorAll('#reimbContainer input[type="number"]');const di=document.querySelectorAll('#reimbContainer input[type="text"]');for(let i=0;i<ai.length;i++){if(ai[i].value){r.reimbursements.push({desc:di[i]?di[i].value:"",amount:parseFloat(ai[i].value)||0})}}if(editingRecordIdx!==-1&&editingRecordIdx<savedRecords.length){const o=savedRecords[editingRecordIdx];r.actualPay=o.actualPay;r.bookkeepingComplete=o.bookkeepingComplete||false;r.timestamp=o.timestamp||r.timestamp;r.rosaPushedAt=o.rosaPushedAt||null;r.updatedAt=new Date().toISOString();savedRecords[editingRecordIdx]=r;localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record updated!");editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy();return}savedRecords.push(r);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record saved!")}
+function viewSavedRecords(){var _ov=document.getElementById("savedRecordsOverlay");if(!_ov||_ov.style.display!=="flex")toggleMenu();try{const s=localStorage.getItem("nickeySavedRecords");if(s)savedRecords=JSON.parse(s)||[]}catch(e){}const b=document.getElementById("savedRecordsBody");if(savedRecords.length===0){b.innerHTML='<div style="padding:30px 10px;text-align:center;color:#aaa;">No saved records yet.</div>';document.getElementById("savedRecordsOverlay").style.display="flex";return}let h='';savedRecords.slice().reverse().forEach((r,idx)=>{const realIdx=savedRecords.length-1-idx;const ft=(r.fuelEntries||[]).reduce((s,f)=>s+(parseFloat(f.amount)||0),0);h+=`<div style="background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;position:relative;"><div onclick="loadRecordIntoForm(${realIdx}); closeSavedRecords();" style="cursor:pointer;"><div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;">Pickup #${r.pickup}</div><div style="font-size:13px;color:#aaa;">${r.date} • ${r.customer}</div><div style="font-size:13px;color:#4caf50;margin-top:4px;">Base Pay: $${(r.basePay||0).toFixed(2)}${ft>0?' • Fuel: $'+ft.toFixed(2):''}${(r.miles>0)?' • '+r.miles+' mi':''}${r.rosaPushedAt?' • Rosa':''}</div></div><button onclick="deleteSavedRecord(${realIdx}); event.stopImmediatePropagation();" style="position:absolute;top:12px;right:12px;background:#3a2a2a;color:#ff8888;border:none;border-radius:6px;padding:6px 10px;font-size:13px;">🗑️</button></div>`});b.innerHTML=h;document.getElementById("savedRecordsOverlay").style.display="flex"}
 function closeSavedRecords(){document.getElementById("savedRecordsOverlay").style.display="none"}
-function loadRecordIntoForm(idx){if(idx<0||idx>=savedRecords.length)return;const r=savedRecords[idx];editingRecordIdx=idx;document.getElementById("editBanner").classList.add("active");document.getElementById("editPickupLabel").textContent="Pickup #"+r.pickup;document.getElementById("td").value=r.date;document.getElementById("pki").value=r.pickup;upPk();document.getElementById("customerSelect").value=r.customer;document.getElementById("bpay").value=r.basePay;document.getElementById("thl").value=r.highLimit;document.getElementById("tki").value=r.trailer;document.getElementById("arrivalDate").value=r.arrivalDate;document.getElementById("arrivalTime").value=r.arrivalTime;document.getElementById("departureDate").value=r.departureDate;document.getElementById("departureTime").value=r.departureTime;document.getElementById("tw").value=r.tankerWeight;document.getElementById("atl").value=r.arrivalGallons;document.getElementById("departureLoad").value=r.departureLoad;document.getElementById("nts").value=r.notes;document.getElementById("reimbContainer").innerHTML="";(r.reimbursements||[]).forEach(rei=>addReimbRow());document.querySelectorAll('#reimbContainer input[type="text"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].desc});document.querySelectorAll('#reimbContainer input[type="number"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].amount});document.getElementById("fuelContainer").innerHTML="";(r.fuelEntries||[]).forEach(f=>addFuelEntry(f));updateWarning();updateRemaining();updateReimbTotal();updateFuelGrandTotal();calculateDetention();window.scrollTo(0,0)}
+function loadRecordIntoForm(idx){if(idx<0||idx>=savedRecords.length)return;const r=savedRecords[idx];editingRecordIdx=idx;document.getElementById("editBanner").classList.add("active");document.getElementById("editPickupLabel").textContent="Pickup #"+r.pickup;document.getElementById("td").value=r.date;document.getElementById("pki").value=r.pickup;upPk();document.getElementById("customerSelect").value=r.customer;document.getElementById("bpay").value=r.basePay;document.getElementById("thl").value=r.highLimit;document.getElementById("tki").value=r.trailer;document.getElementById("arrivalDate").value=r.arrivalDate;document.getElementById("arrivalTime").value=r.arrivalTime;document.getElementById("departureDate").value=r.departureDate;document.getElementById("departureTime").value=r.departureTime;document.getElementById("tw").value=r.tankerWeight;document.getElementById("atl").value=r.arrivalGallons;document.getElementById("departureLoad").value=r.departureLoad;document.getElementById("nts").value=r.notes||"";if(document.getElementById("odoIn"))document.getElementById("odoIn").value=r.odometerIn||"";if(document.getElementById("odoOut"))document.getElementById("odoOut").value=r.odometerOut||"";document.getElementById("reimbContainer").innerHTML="";(r.reimbursements||[]).forEach(rei=>addReimbRow());document.querySelectorAll('#reimbContainer input[type="text"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].desc});document.querySelectorAll('#reimbContainer input[type="number"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].amount});document.getElementById("fuelContainer").innerHTML="";(r.fuelEntries||[]).forEach(f=>addFuelEntry(f));updateWarning();updateRemaining();updateReimbTotal();updateFuelGrandTotal();calculateDetention();updateOdometerMiles();saveFormState();window.scrollTo(0,0)}
 function deleteSavedRecord(idx){if(confirm("Delete this record?")){savedRecords.splice(idx,1);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));viewSavedRecords()}}
 function printForm(){toggleMenu();window.print()}
 function toggleMenu(){const o=document.getElementById("menuOverlay");o.style.display=(o.style.display==="flex")?"none":"flex"}
@@ -630,18 +679,20 @@ function closeEmergency(){document.getElementById("emergencyOverlay").style.disp
 function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex";renderCustomerList()}
 function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
 function switchSettingsTab(tab){
-  [0,1,2,3,4].forEach(function(i){var b=document.getElementById("tab"+i);if(b){b.style.background=tab===i?"#1e3a8a":"#333";b.style.color=tab===i?"#ffd700":"#ddd";}});
+  [0,1,2,3,4,5].forEach(function(i){var b=document.getElementById("tab"+i);if(b){b.style.background=tab===i?"#1e3a8a":"#333";b.style.color=tab===i?"#ffd700":"#ddd";}});
   document.getElementById("settingsCustomers").style.display=tab===0?"block":"none";
   document.getElementById("settingsTrailers").style.display=tab===1?"block":"none";
   document.getElementById("settingsContacts").style.display=tab===2?"block":"none";
   document.getElementById("settingsChemicals").style.display=tab===3?"block":"none";
   var bot=document.getElementById("settingsBot");if(bot)bot.style.display=tab===4?"block":"none";
+  var rosa=document.getElementById("settingsRosa");if(rosa)rosa.style.display=tab===5?"block":"none";
   if(tab===2) renderContactList();
   if(tab===3) renderChemicalList();
   if(tab===4){
     if(window.NickeyBot) NickeyBot.hydrateSettingsForm();
     if(window.NickeyBotDrive) NickeyBotDrive.hydrateStatus();
   }
+  if(tab===5) hydrateRosaSettings();
 }
 
 // ── Contacts management ───────────────────────────────────────────────────────
@@ -848,8 +899,8 @@ function setTdy(){document.getElementById("td").value=new Date().toISOString().s
 function setDateTimeNow(d,t){const n=new Date();document.getElementById(d).value=n.toISOString().split("T")[0];document.getElementById(t).value=String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0")}
 function upPk(){const v=document.getElementById('pki').value;const d=document.getElementById('pkd');if(!v){d.innerHTML='PICKUP #';return}if(v.length<=4)d.innerHTML='<span class="pr">'+v+'</span>';else d.innerHTML='<span class="pb">'+v.slice(0,v.length-4)+'</span><span class="pr">'+v.slice(-4)+'</span>'}
 function clearForm(){if(editingRecordIdx!==-1){if(confirm("Exit edit mode and clear the form?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}return}if(confirm("Clear this form?")){clearAllFormFields();setTdy()}}
-function clearAllFormFields(){["pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("pkd").innerHTML="PICKUP #";document.getElementById("ttval").textContent="— GAL TOTAL";document.getElementById("ttval").dataset.tankerGal="0";const b=document.getElementById("tankWarnBox");if(b){b.className="tankwarn-box";document.getElementById("tankStatusTxt").textContent="ENTER WEIGHT ABOVE"}updateRemaining();document.getElementById("reimbContainer").innerHTML="";addReimbRow();updateReimbTotal();document.getElementById("fuelContainer").innerHTML="";addFuelEntry();localStorage.removeItem(FORM_STORAGE_KEY);calculateDetention()}
-function loadSavedRecords(){const s=localStorage.getItem("nickeySavedRecords");if(s){try{savedRecords=JSON.parse(s);savedRecords.forEach(r=>{if(!r.fuelEntries)r.fuelEntries=(r.fuel&&(r.fuel.amount||r.fuel.station))?[r.fuel]:[];if(r.actualPay===undefined)r.actualPay=null;if(r.bookkeepingComplete===undefined)r.bookkeepingComplete=false;if(!r.id)r.id='REC-'+r.timestamp})}catch(e){savedRecords=[]}}}
+function clearAllFormFields(){["pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts","odoIn","odoOut"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("pkd").innerHTML="PICKUP #";document.getElementById("ttval").textContent="— GAL TOTAL";document.getElementById("ttval").dataset.tankerGal="0";const b=document.getElementById("tankWarnBox");if(b){b.className="tankwarn-box";document.getElementById("tankStatusTxt").textContent="ENTER WEIGHT ABOVE"}updateRemaining();document.getElementById("reimbContainer").innerHTML="";addReimbRow();updateReimbTotal();document.getElementById("fuelContainer").innerHTML="";addFuelEntry();localStorage.removeItem(FORM_STORAGE_KEY);calculateDetention();updateOdometerMiles()}
+function loadSavedRecords(){const s=localStorage.getItem("nickeySavedRecords");if(s){try{savedRecords=JSON.parse(s);savedRecords.forEach(r=>{if(!r.fuelEntries)r.fuelEntries=(r.fuel&&(r.fuel.amount||r.fuel.station))?[r.fuel]:[];if(r.actualPay===undefined)r.actualPay=null;if(r.bookkeepingComplete===undefined)r.bookkeepingComplete=false;if(!r.id)r.id='REC-'+r.timestamp;if(r.odometerIn===undefined)r.odometerIn='';if(r.odometerOut===undefined)r.odometerOut='';if(r.miles===undefined)r.miles=0;if(r.costPerMile===undefined)r.costPerMile=0})}catch(e){savedRecords=[]}}}
 function updateRemaining(){const tg=parseFloat(document.getElementById("ttval").dataset.tankerGal)||0;const a=parseFloat(document.getElementById("atl").value)||0;const l=document.getElementById("liveGauge").value;const b=document.getElementById("remainingBox");const v=document.getElementById("remainingValue");const sub=document.getElementById("remainingSub");if(tg===0||l===""||isNaN(parseFloat(l))){b.className="remaining-box";v.textContent="—";sub.textContent="Enter tanker weight, arrival level, and live gauge";return}const rem=tg-(parseFloat(l)-a);if(rem<0){b.className="remaining-box empty";v.textContent="0";sub.textContent="Tank is empty"}else if(rem<500){b.className="remaining-box low";v.textContent=rem.toFixed(1);sub.textContent="Low fuel warning"}else{b.className="remaining-box";v.textContent=rem.toFixed(1);sub.textContent="Fuel remaining"}}
 
 // === PAY ANALYZER FUNCTIONS ===
@@ -873,7 +924,8 @@ function openPayAnalyzer() {
   const currentCustomer = document.getElementById("customerSelect").value;
   if (currentCustomer) paSelect.value = currentCustomer;
 
-  document.getElementById("paMiles").value = "";
+  const odoMiles = calcTripMiles();
+  document.getElementById("paMiles").value = odoMiles > 0 ? odoMiles : "";
   document.getElementById("paCentsPerMile").textContent = "—";
 
   document.getElementById("paMiles").oninput = updatePayAnalyzer;
@@ -889,6 +941,11 @@ function updatePayAnalyzer() {
   const miles = parseFloat(document.getElementById("paMiles").value) || 0;
   const resultEl = document.getElementById("paCentsPerMile");
   const resultBox = document.querySelector("#payAnalyzerOverlay .pay-result-box");
+  const hint = document.getElementById("paMilesHint");
+  if (hint) {
+    const odo = calcTripMiles();
+    hint.textContent = (odo > 0 && miles === odo) ? "  •  from odometer" : "";
+  }
   if (miles <= 0) {
     resultEl.textContent = "—";
     resultEl.style.color = "#4caf50";
@@ -948,9 +1005,199 @@ function updateCustomerField(index, field, value) {
 
 /* loadSavedCustomers() replaced by ndLoadCustomers() in nickey-shared.js */
 
+function calcTripMiles() {
+  var innEl = document.getElementById('odoIn');
+  var outEl = document.getElementById('odoOut');
+  var inn = innEl ? innEl.value : '';
+  var out = outEl ? outEl.value : '';
+  if (window.NickeyRosa) return NickeyRosa.milesFromOdo(inn, out);
+  var a = parseFloat(inn) || 0, b = parseFloat(out) || 0;
+  if (a <= 0 || b <= 0 || b < a) return 0;
+  return Math.round((b - a) * 10) / 10;
+}
+function calcTripCostPerMile() {
+  var pay = parseFloat(document.getElementById('bpay') && document.getElementById('bpay').value) || 0;
+  var miles = calcTripMiles();
+  if (window.NickeyRosa) return NickeyRosa.costPerMile(pay, miles);
+  return miles > 0 ? Math.round((pay / miles) * 100) / 100 : 0;
+}
+function updateOdometerMiles() {
+  var miles = calcTripMiles();
+  var cpm = calcTripCostPerMile();
+  var milesEl = document.getElementById('odoMilesDisp');
+  var cpmEl = document.getElementById('odoCpmDisp');
+  if (milesEl) milesEl.textContent = miles > 0 ? miles.toFixed(1) : '—';
+  if (cpmEl) cpmEl.textContent = miles > 0 ? '$' + cpm.toFixed(2) : '—';
+  var paOpen = document.getElementById('payAnalyzerOverlay');
+  if (paOpen && paOpen.style.display === 'flex') {
+    var paMiles = document.getElementById('paMiles');
+    if (paMiles && miles > 0) paMiles.value = miles;
+    if (typeof updatePayAnalyzer === 'function') updatePayAnalyzer();
+  }
+}
+
+function collectCurrentTripForRosa() {
+  var reimb = [];
+  var ai = document.querySelectorAll('#reimbContainer input[type="number"]');
+  var di = document.querySelectorAll('#reimbContainer input[type="text"]');
+  for (var i = 0; i < ai.length; i++) {
+    if (ai[i].value) reimb.push({ desc: di[i] ? di[i].value : '', amount: parseFloat(ai[i].value) || 0 });
+  }
+  var custName = document.getElementById('customerSelect').value;
+  var cust = (typeof customers !== 'undefined' ? customers : []).find(function (c) { return c.name === custName; });
+  var recId = (editingRecordIdx !== -1 && savedRecords[editingRecordIdx]) ? savedRecords[editingRecordIdx].id : '';
+  return {
+    id: recId,
+    driverName: currentDriver || (typeof ndGetDriver === 'function' ? ndGetDriver() : 'Frank Mulkey'),
+    date: document.getElementById('td').value,
+    pickup: document.getElementById('pki').value,
+    customer: custName,
+    customerAddress: cust && cust.address ? cust.address : '',
+    basePay: parseFloat(document.getElementById('bpay').value) || 0,
+    trailer: document.getElementById('tki').value,
+    notes: document.getElementById('nts').value,
+    arrivalDate: document.getElementById('arrivalDate').value,
+    arrivalTime: document.getElementById('arrivalTime').value,
+    departureDate: document.getElementById('departureDate').value,
+    departureTime: document.getElementById('departureTime').value,
+    reimbursements: reimb,
+    odometerIn: document.getElementById('odoIn') ? document.getElementById('odoIn').value : '',
+    odometerOut: document.getElementById('odoOut') ? document.getElementById('odoOut').value : '',
+    miles: calcTripMiles()
+  };
+}
+
+function stampRosaPushed(pickup, when) {
+  try {
+    var s = localStorage.getItem('nickeySavedRecords');
+    if (s) savedRecords = JSON.parse(s) || savedRecords;
+  } catch (e) {}
+  var pu = String(pickup || '').replace(/\D/g, '');
+  if (!pu) return;
+  var i, r;
+  for (i = 0; i < savedRecords.length; i++) {
+    r = savedRecords[i];
+    if (r && String(r.pickup || '').replace(/\D/g, '') === pu) {
+      r.rosaPushedAt = when;
+      localStorage.setItem('nickeySavedRecords', JSON.stringify(savedRecords));
+      return;
+    }
+  }
+}
+
+function pushCurrentTripToRosa(opts) {
+  opts = opts || {};
+  saveFormState();
+  if (!window.NickeyRosa) {
+    if (!opts.silent) alert('Rosa push is not loaded yet. Check the network and reopen the app.');
+    return Promise.resolve({ skipped: true, reason: 'no-module' });
+  }
+  if (!NickeyRosa.isConfigured()) {
+    if (!opts.silent) alert('Paste the Firebase config in Settings → Rosa first.');
+    return Promise.resolve({ skipped: true, reason: 'no-config' });
+  }
+  var src = collectCurrentTripForRosa();
+  var now = new Date().toISOString();
+  var doc = NickeyRosa.buildTripDoc(src, now);
+  return Promise.resolve()
+    .then(function () { return NickeyRosa.pushTrip(doc); })
+    .then(function (id) {
+      stampRosaPushed(doc.pickup, now);
+      return { ok: true, id: id, doc: doc };
+    })
+    .catch(function (err) {
+      var msg = (err && err.message) ? err.message : String(err);
+      console.error('[NickeyRosa] push failed', err);
+      if (!opts.silent) alert('Push to Rosa failed: ' + msg);
+      return { ok: false, error: msg };
+    });
+}
+
+function pushToRosaManual() {
+  var menu = document.getElementById('menuOverlay');
+  if (menu && menu.style.display === 'flex') toggleMenu();
+  pushCurrentTripToRosa({ silent: false }).then(function (res) {
+    if (res && res.ok) {
+      alert('Pushed to Rosa' + (res.id ? ' (trip ' + res.id + ')' : '') + '.');
+    }
+  });
+}
+
+function setRosaStatus(msg, ok) {
+  var el = document.getElementById('rosaStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = ok === false ? '#ff8888' : (ok ? '#4caf50' : '#888');
+}
+
+function hydrateRosaSettings() {
+  if (!window.NickeyRosa) {
+    setRosaStatus('Rosa module not loaded yet. Wait a moment and reopen this tab.', false);
+    return;
+  }
+  var cfg = NickeyRosa.loadConfig();
+  var ta = document.getElementById('rosaFirebaseConfig');
+  if (ta) ta.value = JSON.stringify(cfg, null, 2);
+  var emailEl = document.getElementById('rosaAuthEmail');
+  if (emailEl) {
+    try { emailEl.value = localStorage.getItem(NickeyRosa.EMAIL_KEY) || ''; } catch (e) {}
+  }
+  var user = NickeyRosa.currentUser();
+  if (user && user.email) setRosaStatus('Signed in as ' + user.email, true);
+  else if (NickeyRosa.isConfigured()) setRosaStatus('Config saved. Sign in with email / password (not Google).', true);
+  else setRosaStatus('Placeholder config — paste the real Firebase web config, then sign in.', false);
+}
+
+function saveRosaConfigFromForm() {
+  if (!window.NickeyRosa) { alert('Rosa module not loaded.'); return; }
+  var ta = document.getElementById('rosaFirebaseConfig');
+  try {
+    var cfg = NickeyRosa.parseConfigPaste(ta ? ta.value : '');
+    NickeyRosa.saveConfig(cfg);
+    if (ta) ta.value = JSON.stringify(cfg, null, 2);
+    var ready = NickeyRosa.isConfigured();
+    var msg = ready ? 'Config saved on this phone.' : 'That still looks like a placeholder. Paste the real keys.';
+    if (ready && window.firebase && firebase.apps && firebase.apps.length) {
+      msg = 'Config saved. Reload the app if you changed projects.';
+    }
+    setRosaStatus(msg, ready);
+  } catch (err) {
+    setRosaStatus((err && err.message) || String(err), false);
+  }
+}
+
+function signInRosaFromForm() {
+  if (!window.NickeyRosa) { alert('Rosa module not loaded.'); return; }
+  var email = (document.getElementById('rosaAuthEmail') || {}).value || '';
+  var password = (document.getElementById('rosaAuthPassword') || {}).value || '';
+  if (!email.trim() || !password) {
+    setRosaStatus('Enter email and password.', false);
+    return;
+  }
+  setRosaStatus('Signing in…');
+  NickeyRosa.signIn(email.trim(), password).then(function (cred) {
+    var who = cred && cred.user && cred.user.email ? cred.user.email : email;
+    setRosaStatus('Signed in as ' + who, true);
+    var pw = document.getElementById('rosaAuthPassword');
+    if (pw) pw.value = '';
+  }).catch(function (err) {
+    setRosaStatus((err && err.message) || String(err), false);
+  });
+}
+
+function signOutRosa() {
+  if (!window.NickeyRosa) return;
+  NickeyRosa.signOut().then(function () {
+    setRosaStatus('Signed out.', true);
+  }).catch(function (err) {
+    setRosaStatus((err && err.message) || String(err), false);
+  });
+}
+
 // === EMAIL FUNCTION ===
 function sendEmail() {
   toggleMenu();
+  saveFormState();
 
   let state = {};
   try {
@@ -1063,7 +1310,15 @@ function sendEmail() {
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 
   const dispatchEmail = ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
-  window.location.href = `mailto:${dispatchEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const mailUrl = `mailto:${dispatchEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  var opened = false;
+  function openMail() {
+    if (opened) return;
+    opened = true;
+    window.location.href = mailUrl;
+  }
+  pushCurrentTripToRosa({ silent: true }).then(openMail, openMail);
+  setTimeout(openMail, 4000);
 }
 
 // ── Install Prompt ────────────────────────────────────────────────────────────
@@ -1112,7 +1367,7 @@ addFuelEntry();
 setupFormPersistence();
 
 // Voice inputs — static fields
-['pki','bpay','thl','tw','atl','liveGauge','departureLoad'].forEach(function(id){ ndAttachVoiceInput(id, {numericOnly:true}); });
+['pki','bpay','thl','tw','atl','liveGauge','departureLoad','odoIn','odoOut'].forEach(function(id){ ndAttachVoiceInput(id, {numericOnly:true}); });
 ndAttachVoiceInput('nts');
 
 renderCustomSDSCards();
