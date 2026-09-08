@@ -5,12 +5,12 @@ import {
   pnlForYear, shortMonth, startOfPayWeek, toCsv, toISODate, todayISO,
   tripsInMonth, tripsInWeek, tripsInYear, tripsOnDay, varianceOf, weekdayShort,
   weekRunningTotal, weekShade
-} from "./core.js";
-import { buildXlsx } from "./xlsx-lite.js";
+} from "./core.js?v=20260908d";
+import { buildXlsx } from "./xlsx-lite.js?v=20260908d";
 import {
   currentAuthor, enterDemo, getSettings, getState, initStore, isFirebaseConfigured,
   readSession, resetDemoData, saveTolerance, saveTrip, signIn, signOutUser, subscribe
-} from "./store.js";
+} from "./store.js?v=20260908d";
 
 const appEl = document.getElementById("app");
 const toastEl = document.getElementById("toast");
@@ -25,6 +25,7 @@ const ui = {
   draft: null,
   olderCount: 10,
   loginError: "",
+  loginBusy: false,
   modal: null,
   pnlYear: new Date().getFullYear(),
   exporting: false
@@ -149,10 +150,16 @@ function nav(active) {
   </nav>`;
 }
 
-function demoPill() {
+function modePill() {
   const s = getState();
-  if (s.mode !== "demo") return "";
-  return `<span class="demo-pill">Demo</span>`;
+  if (s.mode === "demo") return `<span class="demo-pill">Demo</span>`;
+  return `<span class="live-pill">Live</span>`;
+}
+
+function listenBanner() {
+  const err = getState().listenError;
+  if (!err) return "";
+  return `<p class="error listen-banner">Could not load live trips: ${esc(err)}. Confirm Firestore rules allow signed-in read on collection <code>trips</code>, then sign in again.</p>`;
 }
 
 function renderSplash() {
@@ -175,10 +182,10 @@ function renderLogin() {
       <div class="fld"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" ${configured ? "required" : ""}></div>
       <div class="fld"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" ${configured ? "required" : ""}></div>
       ${ui.loginError ? `<p class="error">${esc(ui.loginError)}</p>` : ""}
-      <button class="btn btn-primary" type="submit" ${configured ? "" : "disabled"}>Sign in</button>
+      <button class="btn btn-primary" type="submit" ${configured && !ui.loginBusy ? "" : "disabled"}>${ui.loginBusy ? "Loading trips…" : "Sign in"}</button>
       <div style="height:8px"></div>
       <button class="btn btn-gold" type="button" data-act="demo">Continue in demo mode</button>
-      <p class="hint">Demo loads sample trips so calendar → week → trip → save actuals can be reviewed without Frank's Google Cloud project.</p>
+      <p class="hint">Demo loads sample trips only — Nickey "Push to Rosa" jobs will not appear until you Sign in.</p>
     </form>
   </section>`;
 }
@@ -279,8 +286,9 @@ function renderCalendar() {
   }
 
   return `<div class="app-shell">
-    ${header("Rosa's Ledger", "Bookkeeper companion", { right: demoPill() })}
+    ${header("Rosa's Ledger", "Bookkeeper companion", { right: modePill() })}
     ${switcher}
+    ${listenBanner()}
     ${body}
     ${nav("calendar")}
   </div>`;
@@ -296,7 +304,7 @@ function tripRow(t) {
   return `<button class="trip-row" data-act="open-trip" data-id="${esc(t.id)}">
     <div class="lane">
       <div class="who">${esc(ln.parties || t.id)} ${badge}</div>
-      <div class="cities">${esc(ln.cities || formatLongDate(t.tripDate))}</div>
+      <div class="cities">${esc(ln.cities || formatLongDate(t.tripDate))}${t.pickup ? ` · #${esc(t.pickup)}` : ""}</div>
     </div>
     <div class="amt">
       <div class="est">Est ${money(estTotal(t))}</div>
@@ -318,7 +326,8 @@ function renderWeek() {
     cursor = addDays(cursor, -7);
   }
   return `<div class="app-shell">
-    ${header("Pay week", formatWeekRange(sunday), { back: true, right: demoPill() })}
+    ${header("Pay week", formatWeekRange(sunday), { back: true, right: modePill() })}
+    ${listenBanner()}
     <div class="week-head">
       <div class="k">Running weekly total</div>
       <div class="range">${esc(formatWeekRange(sunday))}</div>
@@ -494,7 +503,8 @@ function renderPnl() {
   const max = Math.max(1, ...pnl.months.map((m) => Math.max(m.moneyIn, m.moneyOut, m.estIn)));
   const months = ["J","F","M","A","M","J","J","A","S","O","N","D"];
   return `<div class="app-shell">
-    ${header("Budget / P&L", String(year), { right: demoPill() })}
+    ${header("Budget / P&L", String(year), { right: modePill() })}
+    ${listenBanner()}
     <div class="period-nav">
       <button class="icon-btn" data-act="shift-pnl-year" data-dir="-1" aria-label="Previous year">${icon("back")}</button>
       <div class="label"><div class="main">${year}</div><div class="sub">Money in vs out · booked actuals</div></div>
@@ -555,7 +565,7 @@ function simplyWiseModal() {
 function renderSettings() {
   const { settings, mode, session } = getState();
   return `<div class="app-shell">
-    ${header("More", mode === "demo" ? "Demo / offline" : (session?.email || "Signed in"), { right: demoPill() })}
+    ${header("More", mode === "demo" ? "Demo / offline" : (session?.email || "Signed in"), { right: modePill() })}
     <div class="settings">
       <div class="card">
         <div class="sec-title" style="margin-top:0">Tolerance band</div>
@@ -577,11 +587,15 @@ function renderSettings() {
       </div>
       ${mode === "demo" ? `<div class="card">
         <div class="sec-title" style="margin-top:0">Demo data</div>
-        <button class="btn btn-ghost" data-act="reset-demo">Reset sample trips</button>
+        <p class="hint" style="margin-top:0">Sample trips only. Sign in to see jobs Frank pushed from Nickey.</p>
+        <div class="export-stack">
+          ${isFirebaseConfigured() ? `<button class="btn btn-gold" data-act="goto-login">Sign in to live ledger</button>` : ""}
+          <button class="btn btn-ghost" data-act="reset-demo">Reset sample trips</button>
+        </div>
       </div>` : ""}
       <div class="card">
         <div class="sec-title" style="margin-top:0">Session</div>
-        <p class="hint" style="margin-top:0">${isFirebaseConfigured() ? "Firebase keys are present." : "Using demo mode until js/config.js is filled from Frank's Google Cloud project."}</p>
+        <p class="hint" style="margin-top:0">${mode === "firebase" ? `Live Firestore · ${esc(session?.email || "signed in")}.` : isFirebaseConfigured() ? "Firebase keys are present. You are in demo mode until you Sign in." : "Using demo mode until js/config.js is filled from Frank's Google Cloud project."}</p>
         <button class="btn btn-ghost" data-act="signout">Sign out</button>
       </div>
     </div>
@@ -637,6 +651,11 @@ async function onClick(e) {
     ui.screen = "calendar";
     go("#/calendar");
     render();
+    return;
+  }
+  if (act === "goto-login") {
+    ui.loginError = "";
+    go("#/login");
     return;
   }
   if (act === "nav") { go(el.dataset.href); return; }
@@ -774,12 +793,16 @@ async function onSubmit(e) {
     render();
     return;
   }
+  ui.loginBusy = true;
+  render();
   try {
     await signIn(email, password);
+    ui.loginBusy = false;
     ui.screen = "calendar";
     go("#/calendar");
     render();
   } catch (err) {
+    ui.loginBusy = false;
     ui.loginError = err.message || "Sign-in failed";
     render();
   }

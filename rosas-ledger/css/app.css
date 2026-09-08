@@ -437,11 +437,13 @@ label { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform:
 }
 .modal-card h2 { font-family: var(--font-display); font-size: 1.5rem; color: var(--gold-2); margin-bottom: 8px; }
 
-.demo-pill {
+.demo-pill, .live-pill {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--gold); border: 1px solid var(--line-strong); padding: 3px 8px; border-radius: 999px;
 }
+.live-pill { color: #7dcaa0; border-color: #7dcaa0; }
+.listen-banner { padding: 0 16px 8px; }
 
 @media (min-width: 500px) {
   .nav { border-radius: 16px 16px 0 0; }

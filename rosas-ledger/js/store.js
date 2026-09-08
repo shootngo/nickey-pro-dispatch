@@ -1,6 +1,6 @@
-import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, DEFAULT_TOLERANCE } from "./config.js";
-import { applyVariance, normalizeTrip, num } from "./core.js";
-import { DEMO_SEED_VERSION, getDemoTrips } from "./demo-data.js";
+import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, DEFAULT_TOLERANCE } from "./config.js?v=20260908d";
+import { applyVariance, normalizeTrip, num } from "./core.js?v=20260908d";
+import { DEMO_SEED_VERSION, getDemoTrips } from "./demo-data.js?v=20260908d";
 
 const LS_TRIPS = "rosasLedger.trips";
 const LS_SETTINGS = "rosasLedger.settings";
@@ -13,6 +13,34 @@ let settings = { tolerance: DEFAULT_TOLERANCE };
 let listeners = new Set();
 let unsubFs = null;
 let firebase = null; // { app, auth, db, mods }
+let listenError = "";
+const LISTEN_FALLBACK_MS = 8000;
+
+function applyFsDocs(docs) {
+  trips = (docs || []).map((d) => normalizeTrip({ id: d.id, ...d.data() }, settings.tolerance));
+}
+
+function waitForAuthUser(fb) {
+  if (fb.auth.currentUser) return Promise.resolve(fb.auth.currentUser);
+  return new Promise((resolve) => {
+    const unsub = fb.authMod.onAuthStateChanged(fb.auth, (user) => {
+      unsub();
+      resolve(user || null);
+    });
+  });
+}
+
+function enterFirebaseSession(user) {
+  mode = "firebase";
+  trips = [];
+  listenError = "";
+  writeSession({
+    mode: "firebase",
+    email: user.email,
+    uid: user.uid,
+    author: guessAuthor(user.email)
+  });
+}
 
 function emit() {
   for (const fn of listeners) fn(getState());
@@ -29,7 +57,8 @@ export function getState() {
     trips: trips.map((t) => applyVariance(t, settings.tolerance)),
     settings: { ...settings },
     session: readSession(),
-    firebaseReady: Boolean(firebase)
+    firebaseReady: Boolean(firebase),
+    listenError
   };
 }
 
@@ -94,9 +123,14 @@ export async function initStore() {
   const session = readSession();
   if (session?.mode === "firebase" && isFirebaseConfigured()) {
     try {
-      await initFirebase();
-      mode = "firebase";
-      return;
+      const fb = await initFirebase();
+      const user = await waitForAuthUser(fb);
+      if (user) {
+        enterFirebaseSession(user);
+        await listenFirestore();
+        return;
+      }
+      writeSession(null);
     } catch (err) {
       console.warn("[Rosa] Firebase init failed, staying demo", err);
     }
@@ -109,6 +143,7 @@ export async function initStore() {
 
 export function enterDemo() {
   if (unsubFs) { unsubFs(); unsubFs = null; }
+  listenError = "";
   mode = "demo";
   writeSession({ mode: "demo", email: "rosa@demo.ledger", author: "Rosa" });
   loadLocalTrips();
@@ -124,7 +159,9 @@ export async function initFirebase() {
   const fsMod = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
   const app = appMod.initializeApp(firebaseConfig);
   const auth = authMod.getAuth(app);
-  const db = fsMod.getFirestore(app);
+  const db = typeof fsMod.initializeFirestore === "function"
+    ? fsMod.initializeFirestore(app, { experimentalAutoDetectLongPolling: true })
+    : fsMod.getFirestore(app);
   firebase = { app, auth, db, authMod, fsMod };
   return firebase;
 }
@@ -132,13 +169,7 @@ export async function initFirebase() {
 export async function signIn(email, password) {
   const fb = await initFirebase();
   const cred = await fb.authMod.signInWithEmailAndPassword(fb.auth, email, password);
-  mode = "firebase";
-  writeSession({
-    mode: "firebase",
-    email: cred.user.email,
-    uid: cred.user.uid,
-    author: guessAuthor(cred.user.email)
-  });
+  enterFirebaseSession(cred.user);
   await listenFirestore();
   emit();
   return cred.user;
@@ -155,21 +186,58 @@ export function currentAuthor() {
   return s?.author || "Rosa";
 }
 
-async function listenFirestore() {
-  if (!firebase) return;
-  if (unsubFs) unsubFs();
+function listenFirestore() {
+  if (!firebase) return Promise.resolve();
+  if (unsubFs) { unsubFs(); unsubFs = null; }
+  listenError = "";
   const { fsMod, db } = firebase;
   const col = fsMod.collection(db, COLLECTION_TRIPS);
-  unsubFs = fsMod.onSnapshot(col, (snap) => {
-    trips = snap.docs.map((d) => normalizeTrip({ id: d.id, ...d.data() }, settings.tolerance));
-    emit();
-  }, (err) => {
-    console.warn("[Rosa] Firestore listen failed", err);
+
+  function loadOnce() {
+    return fsMod.getDocs(col).then((snap) => {
+      applyFsDocs(snap.docs);
+      emit();
+    });
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const hang = setTimeout(() => {
+      loadOnce().catch((err) => {
+        console.warn("[Rosa] Firestore getDocs fallback failed", err);
+        listenError = (err && err.message) || String(err);
+        emit();
+      }).finally(done);
+    }, LISTEN_FALLBACK_MS);
+
+    unsubFs = fsMod.onSnapshot(col, (snap) => {
+      clearTimeout(hang);
+      applyFsDocs(snap.docs);
+      listenError = "";
+      emit();
+      done();
+    }, (err) => {
+      clearTimeout(hang);
+      console.warn("[Rosa] Firestore listen failed", err);
+      listenError = (err && err.message) || String(err);
+      emit();
+      loadOnce().catch((err2) => {
+        console.warn("[Rosa] Firestore getDocs fallback failed", err2);
+        if (!listenError) listenError = (err2 && err2.message) || String(err2);
+        emit();
+      }).finally(done);
+    });
   });
 }
 
 export async function signOutUser() {
   if (unsubFs) { unsubFs(); unsubFs = null; }
+  listenError = "";
   if (firebase?.auth) {
     try { await firebase.authMod.signOut(firebase.auth); } catch { /* ignore */ }
   }

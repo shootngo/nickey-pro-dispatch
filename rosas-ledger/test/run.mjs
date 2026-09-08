@@ -1,8 +1,9 @@
 import { strict as assert } from "node:assert";
 import {
   addDays, applyVariance, endOfPayWeek, estTotal, exportRows, fromNickeyRecord,
-  hasActuals, isFlagged, lastDeduction, money, num, parseISODate, startOfPayWeek,
-  toCsv, toISODate, varianceOf, weekRunningTotal, weekShade
+  hasActuals, isFlagged, lastDeduction, money, normalizeTrip, num, parseISODate,
+  startOfPayWeek, toCsv, toISODate, tripsInWeek, tripsOnDay, varianceOf,
+  weekRunningTotal, weekShade
 } from "../js/core.js";
 import { getDemoTrips } from "../js/demo-data.js";
 import { buildXlsx } from "../js/xlsx-lite.js";
@@ -152,6 +153,35 @@ test("money formatting", () => {
   assert.equal(money(-35, { signed: true }), "-$35.00");
   assert.equal(money(10, { signed: true }), "+$10.00");
   assert.equal(num("$1,240.50"), 1240.5);
+});
+
+test("Nickey Firestore push docs appear on tripDate / payWeek after normalize", () => {
+  const t = normalizeTrip({
+    id: "3012865610",
+    tripDate: "2026-09-08",
+    payWeek: "2026-09-06",
+    pickup: "3012865610",
+    consignee: "V.I.J.O.N. Smyrna Tennessee",
+    destCity: "Smyrna, TN",
+    shipper: "Evonik / Harcros, Memphis TN",
+    estLinehaul: 0,
+    estDetention: 0,
+    estExtraPay: 0,
+    estReeferFuel: 0,
+    odometerIn: 0,
+    odometerOut: 0,
+    miles: 0,
+    costPerMile: 0,
+    source: "nickey",
+    notes: [{ text: "BOL", author: "Frank", timestamp: "2026-09-08T15:39:13.779Z" }]
+  });
+  assert.equal(t.id, "3012865610");
+  assert.equal(t.tripDate, "2026-09-08");
+  assert.equal(t.payWeek, "2026-09-06");
+  assert.equal(t.consignee, "V.I.J.O.N. Smyrna Tennessee");
+  assert.equal(tripsOnDay([t], "2026-09-08").length, 1);
+  assert.equal(tripsInWeek([t], "2026-09-06").length, 1);
+  assert.equal(tripsOnDay([t], "2026-09-07").length, 0);
 });
 
 console.log("\n" + passed + " tests passed");

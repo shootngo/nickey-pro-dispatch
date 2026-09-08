@@ -44,7 +44,11 @@ python3 -m http.server 8080
 3. Firestore Database → create in production (or test) mode, then paste the rules from `firestore.rules.example`.
 4. Publish this folder to GitHub Pages. Add the Pages URL (and `http://localhost:8080`) to Authentication → Settings → **Authorized domains**.
 
-After that, Rosa signs in with email/password. Frank's Nickey "Push to Rosa" (a separate PR) writes the same `trips` documents.
+After that, **Sign in** (email/password) — not "Continue in demo mode". Demo sample trips are local only; Nickey pushes never appear there. A **Live** pill in the header means the calendar is bound to Firestore `trips`.
+
+On boot, a saved Firebase session waits for Auth, then listens to `trips` (and falls back to a one-shot `getDocs` if the live listener hangs or errors). If you previously used demo mode, open **More → Sign in to live ledger**.
+
+Frank's Nickey **Push to Rosa** writes the same `trips` documents (document id = pickup digits, `merge: true`).
 
 ## Trip document contract
 
@@ -111,7 +115,17 @@ Helper: `fromNickeyRecord()` in `js/core.js`.
 
 ## Firestore security rules
 
-See `firestore.rules.example`. Summary: signed-in users may read/write `trips/{id}` and `settings/rosa`. There is no public access. Tighten to Frank/Rosa UIDs before a real payroll dataset lives here.
+See `firestore.rules.example`. Paste this into Firebase Console → Firestore → Rules and **Publish**:
+
+```
+match /trips/{tripId} {
+  allow read, write: if request.auth != null;
+}
+```
+
+Signed-in users may read/write `trips/{id}` and `settings/rosa`. There is no public access. Tighten to Frank/Rosa UIDs before a real payroll dataset lives here.
+
+If the ledger header shows **Live** but a red banner says the listen failed, the rules (or missing Auth) are blocking `list` on `trips`. Auth can succeed while Firestore still denies the snapshot — the app now surfaces that instead of keeping demo rows.
 
 ## Tolerance, P&L, export, SimplyWise
 
