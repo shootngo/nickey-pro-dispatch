@@ -65,10 +65,45 @@ describe('Nickey and Rosa PWA identities stay distinct', () => {
     const srcs = nickey.icons.map((icon) => icon.src);
     assert.ok(srcs.includes('icon-192.png'));
     assert.ok(srcs.includes('icon-512-2.png'));
+    assert.ok(srcs.includes('icon-maskable-512.png'));
+    assert.ok(srcs.includes('apple-touch-icon.png'));
     assert.ok(!srcs.some((src) => src.includes('rosas-ledger')));
     for (const icon of nickey.icons) {
       assert.ok(exists(icon.src), icon.src);
     }
+    const hasAny = nickey.icons.some((icon) => /\bany\b/.test(icon.purpose));
+    const hasMaskable = nickey.icons.some((icon) => /\bmaskable\b/.test(icon.purpose));
+    assert.ok(hasAny && hasMaskable);
+    assert.ok(exists('favicon.ico'));
+  });
+
+  it('points Nickey HTML heads at Night run favicons', () => {
+    for (const page of ['index.html', 'earnings.html', 'inspection.html', 'intermodal.html', 'sds.html']) {
+      const html = read(page);
+      assert.match(html, /rel="apple-touch-icon"[^>]*href="apple-touch-icon\.png"/);
+      assert.match(html, /href="icon-192\.png"/);
+      assert.match(html, /href="icon-512-2\.png"/);
+      assert.match(html, /href="favicon\.ico"/);
+      assert.doesNotMatch(html, /rel="apple-touch-icon" href="icon-512-2/);
+    }
+  });
+
+  it('serves Night run PNGs at the declared sizes (not the old green trucks)', () => {
+    const pngSize = (rel) => {
+      const buf = fs.readFileSync(path.join(root, rel));
+      assert.equal(buf[0], 0x89);
+      assert.equal(buf.slice(1, 4).toString(), 'PNG');
+      return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    };
+    assert.deepEqual(pngSize('icon-192.png'), { w: 192, h: 192 });
+    assert.deepEqual(pngSize('icon-512-2.png'), { w: 512, h: 512 });
+    assert.deepEqual(pngSize('icon-maskable-512.png'), { w: 512, h: 512 });
+    assert.deepEqual(pngSize('apple-touch-icon.png'), { w: 180, h: 180 });
+    // Old green-truck assets were larger; Night run rasters must stay distinct.
+    const old192 = 55053;
+    const old512 = 287236;
+    assert.notEqual(fs.statSync(path.join(root, 'icon-192.png')).size, old192);
+    assert.notEqual(fs.statSync(path.join(root, 'icon-512-2.png')).size, old512);
   });
 });
 
@@ -78,7 +113,12 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   const rosaHtml = read('rosas-ledger/index.html');
 
   it('bumps Nickey cache when the manifest/icons change', () => {
-    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.4'/);
+    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.5'/);
+    assert.match(nickeySw, /'\.\/icon-192\.png'/);
+    assert.match(nickeySw, /'\.\/icon-512-2\.png'/);
+    assert.match(nickeySw, /'\.\/icon-maskable-512\.png'/);
+    assert.match(nickeySw, /'\.\/apple-touch-icon\.png'/);
+    assert.match(nickeySw, /'\.\/favicon\.ico'/);
   });
 
   it('still precaches Nickey BOL scan after the PWA split', () => {
