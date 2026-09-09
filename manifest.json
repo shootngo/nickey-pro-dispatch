@@ -7,7 +7,7 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#020e26",
+  "background_color": "#020913",
   "theme_color": "#ffd700",
   "lang": "en",
   "launch_handler": {
