@@ -6,6 +6,12 @@
  * On save: write localStorage, keep a .bak copy, snapshot IndexedDB.
  * Drive sync (ndsync) must MERGE record lists — never replace the whole array
  * with a smaller remote copy. Deletes sync via nickeyDeletedRecordIds tombstones.
+ *
+ * Drive snapshot retention (nickey-backup-*.json, never overwritten):
+ *   Keep a file if it is (a) among the 30 newest, OR (b) newer than 14 days,
+ *   OR (c) the single largest snapshot by trip count (then file size).
+ *   Everything else is trashed. Policy is the UNION of those rules so a
+ *   giant history file is never pruned just because it is older than 14 days.
  * ============================================================================= */
 
 (function (root, factory) {
@@ -24,6 +30,19 @@
   var SCHEMA_VERSION = 2;
   var IDB_NAME = 'nickey-persist';
   var IDB_STORE = 'snapshots';
+  var BACKUP_PREFIX = 'nickey-backup-';
+  var BACKUP_NAME_RE = /^nickey-backup-\d{4}-\d{2}-\d{2}T\d{6,9}Z\.json$/;
+  var SHRINK_ABS = 5;
+  var SHRINK_PCT = 0.10;
+  var SNAPSHOT_KEEP_COUNT = 30;
+  var SNAPSHOT_KEEP_DAYS = 14;
+  var EXPORT_KEYS = [
+    'nickeySavedRecords', 'nickeyDeletedRecordIds', 'weeklyDeductions', 'fuelStations', 'currentDriver',
+    'nickeyInspectionHistory', 'nickeyLatestInspection', 'nickeyIntermodalHistory',
+    'nickeyDraftLoad', 'nickeyTrailerInspectionDraft', 'nickeyIntermodalDraft',
+    'exportFormat', 'nickeyCustomers', 'geminiApiKey', 'nickeyDispatchFormState',
+    'nickeyContacts', 'nickeyCustomSDS'
+  ];
 
   // Historical / alias keys that may still hold trips after a version bump.
   var LEGACY_RECORD_KEYS = [
@@ -605,10 +624,10 @@
     var fromMain = parseFailed ? [] : parsed;
     var recovered = false;
 
-    if (parseFailed) {
-      var bak = parseRecordsValue(safeGet(storage, BAK_KEY));
-      if (bak && bak.length) {
-        fromMain = bak;
+    var bakParsed = parseRecordsValue(safeGet(storage, BAK_KEY));
+    if (parseFailed || (!fromMain.length && bakParsed && bakParsed.length)) {
+      if (bakParsed && bakParsed.length) {
+        fromMain = bakParsed;
         recovered = true;
       }
     }
@@ -693,24 +712,394 @@
     return wr;
   }
 
+  function backupFileName(date) {
+    var d = date ? new Date(date) : new Date();
+    if (isNaN(d.getTime())) d = new Date();
+    var iso = d.toISOString();
+    var m = iso.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?Z$/);
+    if (!m) return BACKUP_PREFIX + String(d.getTime()) + 'Z.json';
+    var ms = m[5] || '';
+    return BACKUP_PREFIX + m[1] + 'T' + m[2] + m[3] + m[4] + ms + 'Z.json';
+  }
+
+  function isBackupFileName(name) {
+    return BACKUP_NAME_RE.test(name || '');
+  }
+
+  function parseSnapshotTripCount(file) {
+    if (!file) return 0;
+    if (typeof file.tripCount === 'number' && file.tripCount > 0) return file.tripCount;
+    var desc = file.description || '';
+    var m = String(desc).match(/trips:(\d+)/i);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
+  function snapshotSortKey(file) {
+    var trips = parseSnapshotTripCount(file);
+    var size = parseInt(file.size, 10) || 0;
+    return trips * 1e12 + size;
+  }
+
+  function selectSnapshotsToKeep(files, nowMs, opts) {
+    // Retention: keep if among the 30 newest OR newer than 14 days OR the
+    // single largest snapshot (trip count, then bytes). Never overwrite;
+    // pruning only trashes files outside this union.
+    opts = opts || {};
+    var maxCount = opts.maxCount != null ? opts.maxCount : SNAPSHOT_KEEP_COUNT;
+    var maxAgeMs = opts.maxAgeMs != null ? opts.maxAgeMs : (SNAPSHOT_KEEP_DAYS * 24 * 60 * 60 * 1000);
+    nowMs = nowMs || Date.now();
+    var list = (files || []).filter(function (f) {
+      return f && (isBackupFileName(f.name) || opts.allowUnnamed);
+    });
+    if (!list.length) return { keep: [], trash: [] };
+
+    var keepIds = {};
+    function mark(f) {
+      if (!f) return;
+      keepIds[f.id || f.name] = true;
+    }
+
+    var largest = list[0];
+    var i;
+    for (i = 1; i < list.length; i++) {
+      if (snapshotSortKey(list[i]) > snapshotSortKey(largest)) largest = list[i];
+    }
+    mark(largest);
+
+    list.forEach(function (f) {
+      var t = Date.parse(f.createdTime || f.modifiedTime || '') || 0;
+      if (t && nowMs - t <= maxAgeMs) mark(f);
+    });
+
+    var newest = list.slice().sort(function (a, b) {
+      return (Date.parse(b.createdTime || b.modifiedTime || '') || 0) -
+        (Date.parse(a.createdTime || a.modifiedTime || '') || 0);
+    });
+    for (i = 0; i < newest.length && i < maxCount; i++) mark(newest[i]);
+
+    var keep = [];
+    var trash = [];
+    list.forEach(function (f) {
+      if (keepIds[f.id || f.name]) keep.push(f);
+      else trash.push(f);
+    });
+    return { keep: keep, trash: trash };
+  }
+
+  function shouldWarnShrink(localCount, remoteCount, opts) {
+    opts = opts || {};
+    var abs = opts.absoluteDrop != null ? opts.absoluteDrop : SHRINK_ABS;
+    var pct = opts.percentDrop != null ? opts.percentDrop : SHRINK_PCT;
+    localCount = localCount || 0;
+    remoteCount = remoteCount || 0;
+    if (remoteCount <= 0) return false;
+    var drop = remoteCount - localCount;
+    if (drop <= 0) return false;
+    return drop > abs || (drop / remoteCount) > pct;
+  }
+
+  function shouldOfferLocalRestore(localCount, backupCount) {
+    if (!backupCount) return false;
+    if (!localCount) return backupCount > 0;
+    return shouldWarnShrink(localCount, backupCount);
+  }
+
+  function countTripsInPayload(payload) {
+    if (!payload) return 0;
+    if (Array.isArray(payload)) {
+      var arr = payload.map(migrateRecord).filter(Boolean);
+      return arr.length;
+    }
+    if (Array.isArray(payload.nickeySavedRecords)) {
+      return payload.nickeySavedRecords.map(migrateRecord).filter(Boolean).length;
+    }
+    if (payload.keys && payload.keys.nickeySavedRecords) {
+      var parsed = parseRecordsValue(payload.keys.nickeySavedRecords.value);
+      return parsed ? parsed.length : 0;
+    }
+    if (Array.isArray(payload.trips)) {
+      return payload.trips.map(migrateRecord).filter(Boolean).length;
+    }
+    var asRecords = parseRecordsValue(payload);
+    return asRecords ? asRecords.length : 0;
+  }
+
+  function recordsFingerprint(payload) {
+    if (!payload) return '';
+    if (payload.keys && payload.keys.nickeySavedRecords && payload.keys.nickeySavedRecords.value != null) {
+      return String(payload.keys.nickeySavedRecords.value);
+    }
+    if (Array.isArray(payload.nickeySavedRecords)) {
+      return JSON.stringify(payload.nickeySavedRecords);
+    }
+    return JSON.stringify(payload);
+  }
+
+  function parseBackupFile(data) {
+    if (data == null) return { ok: false, error: 'Backup file is empty.' };
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); }
+      catch (e) { return { ok: false, error: 'Backup file is not valid JSON.' }; }
+    }
+    var records = [];
+    var tombs = [];
+    var keys = {};
+    var exportedAt = data.exportedAt || data.snapshotAt || data.syncedAt || '';
+
+    if (Array.isArray(data)) {
+      records = data.map(migrateRecord).filter(Boolean);
+    } else if (data.keys && typeof data.keys === 'object') {
+      keys = data.keys;
+      records = parseRecordsValue(data.keys.nickeySavedRecords && data.keys.nickeySavedRecords.value) || [];
+      tombs = parseTombstones(data.keys.nickeyDeletedRecordIds && data.keys.nickeyDeletedRecordIds.value);
+    } else {
+      records = parseRecordsValue(data.nickeySavedRecords) || [];
+      if (!records.length && Array.isArray(data.trips)) {
+        records = data.trips.map(migrateRecord).filter(Boolean);
+      }
+      tombs = parseTombstones(data.nickeyDeletedRecordIds);
+      EXPORT_KEYS.forEach(function (k) {
+        if (data[k] == null || k === RECORDS_KEY || k === TOMBSTONE_KEY) return;
+        var val = data[k];
+        keys[k] = {
+          value: typeof val === 'string' ? val : JSON.stringify(val),
+          updatedAt: exportedAt || isoNow()
+        };
+      });
+    }
+
+    if (!records.length && !Object.keys(keys).length) {
+      return { ok: false, error: 'Invalid backup file — no saved records found.' };
+    }
+    return {
+      ok: true,
+      records: records,
+      tombstones: tombs,
+      keys: keys,
+      exportedAt: exportedAt,
+      tripCount: records.length,
+      kind: data.kind || ''
+    };
+  }
+
+  function stampSyncKey(storage, key) {
+    try { safeSet(storage, 'ndsync_ts_' + key, isoNow()); } catch (e) {}
+  }
+
+  function importBackupMerge(data, opts) {
+    opts = opts || {};
+    var storage = getStorage(opts.storage);
+    if (!storage) return { ok: false, error: 'localStorage is not available' };
+    var parsed = parseBackupFile(data);
+    if (!parsed.ok) return parsed;
+
+    var existing = loadRecords({ storage: storage });
+    var tombs = mergeTombstones(existing.tombstones || [], parsed.tombstones || []);
+    var ts = saveTombstones(tombs, storage);
+    if (!ts.ok) return { ok: false, error: ts.error };
+
+    var wr = writeRecords(parsed.records, { storage: storage, tombstones: tombs });
+    if (!wr.ok) return wr;
+    stampSyncKey(storage, RECORDS_KEY);
+    stampSyncKey(storage, TOMBSTONE_KEY);
+
+    var otherChanged = 0;
+    EXPORT_KEYS.forEach(function (k) {
+      if (k === RECORDS_KEY || k === TOMBSTONE_KEY) return;
+      var remote = parsed.keys[k];
+      if (!remote || remote.value == null) return;
+      var localVal = safeGet(storage, k);
+      var localTs = safeGet(storage, 'ndsync_ts_' + k) || '';
+      var merged = mergeSyncKey(k, localVal, localTs, remote.value, remote.updatedAt || isoNow(), {});
+      if (merged.value == null) return;
+      try {
+        if (merged.changed || localVal == null) {
+          safeSet(storage, k, merged.value);
+          stampSyncKey(storage, k);
+          otherChanged++;
+        }
+      } catch (e) {
+        reportWriteError(k, e);
+      }
+    });
+
+    wr.imported = parsed.records.length;
+    wr.added = Math.max(0, wr.count - (existing.records || []).length);
+    wr.otherKeys = otherChanged;
+    wr.exportedAt = parsed.exportedAt;
+    return wr;
+  }
+
+  function buildExportPayload(opts) {
+    opts = opts || {};
+    var storage = getStorage(opts.storage);
+    var loaded = loadRecords({ storage: storage });
+    var payload = {
+      version: 3,
+      kind: 'nickey-backup',
+      exportedAt: isoNow(),
+      nickeySavedRecords: loaded.records || [],
+      nickeyDeletedRecordIds: loadTombstones(storage),
+      keys: {}
+    };
+    EXPORT_KEYS.forEach(function (k) {
+      if (!storage) return;
+      var val = safeGet(storage, k);
+      if (val === null || val === undefined) return;
+      payload.keys[k] = {
+        value: val,
+        updatedAt: safeGet(storage, 'ndsync_ts_' + k) || payload.exportedAt
+      };
+      if (k !== RECORDS_KEY && k !== TOMBSTONE_KEY) {
+        try { payload[k] = JSON.parse(val); }
+        catch (e) { payload[k] = val; }
+      }
+    });
+    payload.tripCount = (loaded.records || []).length;
+    return payload;
+  }
+
+  function triggerDownload(filename, text) {
+    if (!w || !w.document) return false;
+    try {
+      var blob = new Blob([text], { type: 'application/json' });
+      var url = w.URL.createObjectURL(blob);
+      var a = w.document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      w.document.body.appendChild(a);
+      a.click();
+      w.document.body.removeChild(a);
+      w.URL.revokeObjectURL(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function exportBackupDownload() {
+    var payload = buildExportPayload();
+    var name = backupFileName();
+    var ok = triggerDownload(name, JSON.stringify(payload, null, 2));
+    if (ok) showToast('Exported ' + payload.tripCount + ' trip(s)', false);
+    else showToast('Could not download backup file', true);
+    return { ok: ok, filename: name, count: payload.tripCount };
+  }
+
+  function notifyPagesAfterImport() {
+    if (!w) return;
+    try { if (w.document) w.document.dispatchEvent(new Event('ndsync:pulled')); } catch (e) {}
+    try { if (typeof w.loadSavedRecords === 'function') w.loadSavedRecords(); } catch (e) {}
+    try { if (typeof w.loadData === 'function') w.loadData(); } catch (e) {}
+    try { if (typeof w.eeRender === 'function') w.eeRender(); } catch (e) {}
+    try {
+      if (typeof w.renderSavedRecordsBody === 'function') {
+        var ov = w.document && w.document.getElementById('savedRecordsOverlay');
+        if (ov && ov.style.display === 'flex') w.renderSavedRecordsBody();
+      }
+    } catch (e) {}
+  }
+
+  function importBackupFile(file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        var data = JSON.parse(e.target.result);
+        var parsed = parseBackupFile(data);
+        if (!parsed.ok) {
+          if (w && w.alert) w.alert(parsed.error);
+          else showToast(parsed.error, true);
+          return;
+        }
+        var when = parsed.exportedAt ? new Date(parsed.exportedAt).toLocaleString() : 'unknown date';
+        var msg = 'Import backup from ' + when + '?\n\n' +
+          parsed.tripCount + ' trip(s) in this file.\n\n' +
+          'This MERGES into Saved Records — existing trips are not wiped. Continue?';
+        if (w && w.confirm && !w.confirm(msg)) return;
+        var wr = importBackupMerge(data);
+        if (!wr.ok) {
+          var err = wr.error || 'Import failed';
+          if (w && w.alert) w.alert(err);
+          else showToast(err, true);
+          return;
+        }
+        notifyPagesAfterImport();
+        var added = wr.added || 0;
+        var summary = 'Merged backup — ' + wr.count + ' trip(s) on this phone' +
+          (added ? ' (' + added + ' added)' : '');
+        if (w && w.alert) w.alert(summary);
+        else showToast(summary, false);
+      } catch (err) {
+        var fail = 'Could not read backup file: ' + (err && err.message ? err.message : err);
+        if (w && w.alert) w.alert(fail);
+        else showToast(fail, true);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function pickImportFile() {
+    if (!w || !w.document) return;
+    var input = w.document.getElementById('nickeyBackupFileInput');
+    if (!input) {
+      input = w.document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.id = 'nickeyBackupFileInput';
+      input.style.display = 'none';
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        input.value = '';
+        if (file) importBackupFile(file);
+      });
+      w.document.body.appendChild(input);
+    }
+    input.click();
+  }
+
   function hydrateFromIndexedDB(cb) {
     cb = cb || function () {};
     idbGet(function (snap) {
-      if (!snap || !Array.isArray(snap.records) || !snap.records.length) {
-        cb({ merged: false, records: loadRecords().records });
+      var storage = getStorage();
+      var loaded = loadRecords({ storage: storage });
+      var bakRecs = parseRecordsValue(storage ? safeGet(storage, BAK_KEY) : null) || [];
+      var idbRecs = (snap && Array.isArray(snap.records)) ? snap.records : [];
+      var bakCount = bakRecs.length;
+      var idbCount = idbRecs.length;
+      var localCount = (loaded.records || []).length;
+      var bestCount = Math.max(bakCount, idbCount);
+
+      if (bestCount <= localCount) {
+        cb({ merged: false, records: loaded.records || [] });
         return;
       }
-      var loaded = loadRecords();
-      var tombs = mergeTombstones(loaded.tombstones || [], snap.tombstones || []);
-      var merged = mergeRecordLists(loaded.records, snap.records, tombs);
-      if (merged.length > loaded.records.length) {
-        saveTombstones(tombs);
-        writeRecords(merged, { tombstones: tombs });
-        showToast('Restored ' + (merged.length - loaded.records.length) + ' trip(s) from backup', false);
+
+      var tiny = shouldOfferLocalRestore(localCount, bestCount);
+      if (tiny && localCount > 0 && w && typeof w.confirm === 'function') {
+        var source = idbCount >= bakCount ? 'IndexedDB' : 'local .bak';
+        var ok = w.confirm(
+          'This phone has ' + localCount + ' saved trip(s), but a ' + source +
+          ' backup has ' + bestCount + '.\n\nMerge the larger backup into Saved Records?\n' +
+          '(Does not delete trips that are already here.)'
+        );
+        if (!ok) {
+          cb({ merged: false, records: loaded.records, declined: true });
+          return;
+        }
+      }
+
+      var tombs = mergeTombstones(loaded.tombstones || [], (snap && snap.tombstones) || []);
+      var merged = mergeRecordLists(loaded.records, bakRecs, tombs);
+      merged = mergeRecordLists(merged, idbRecs, tombs);
+      if (merged.length > localCount) {
+        saveTombstones(tombs, storage);
+        writeRecords(merged, { storage: storage, tombstones: tombs });
+        showToast('Restored ' + (merged.length - localCount) + ' trip(s) from local backup', false);
         cb({ merged: true, records: merged });
         return;
       }
-      cb({ merged: false, records: loaded.records });
+      cb({ merged: false, records: loaded.records || [] });
     });
   }
 
@@ -739,6 +1128,26 @@
     reportWriteError: reportWriteError,
     showToast: showToast,
     getLastWriteError: function () { return lastWriteError; },
+    EXPORT_KEYS: EXPORT_KEYS,
+    BACKUP_PREFIX: BACKUP_PREFIX,
+    SHRINK_ABS: SHRINK_ABS,
+    SHRINK_PCT: SHRINK_PCT,
+    SNAPSHOT_KEEP_COUNT: SNAPSHOT_KEEP_COUNT,
+    SNAPSHOT_KEEP_DAYS: SNAPSHOT_KEEP_DAYS,
+    backupFileName: backupFileName,
+    isBackupFileName: isBackupFileName,
+    parseSnapshotTripCount: parseSnapshotTripCount,
+    selectSnapshotsToKeep: selectSnapshotsToKeep,
+    shouldWarnShrink: shouldWarnShrink,
+    shouldOfferLocalRestore: shouldOfferLocalRestore,
+    countTripsInPayload: countTripsInPayload,
+    recordsFingerprint: recordsFingerprint,
+    parseBackupFile: parseBackupFile,
+    importBackupMerge: importBackupMerge,
+    buildExportPayload: buildExportPayload,
+    exportBackupDownload: exportBackupDownload,
+    pickImportFile: pickImportFile,
+    importBackupFile: importBackupFile,
     memoryStorage: function (map) {
       map = map || {};
       return {
