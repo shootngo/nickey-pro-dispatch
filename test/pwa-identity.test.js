@@ -78,12 +78,13 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   const rosaHtml = read('rosas-ledger/index.html');
 
   it('bumps Nickey cache when the manifest/icons change', () => {
-    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.2k'/);
+    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.3'/);
   });
 
   it('still precaches Nickey BOL scan after the PWA split', () => {
     assert.match(nickeySw, /'\.\/nickey-bol-scan\.js'/);
     assert.match(nickeySw, /'\.\/nickey-rosa-push\.js'/);
+    assert.match(nickeySw, /'\.\/nickey-persist\.js'/);
   });
 
   it('lets Rosa requests fall through Nickey SW without cache', () => {
@@ -99,5 +100,15 @@ describe('service workers do not fight over /rosas-ledger/', () => {
     assert.match(rosaHtml, /serviceWorker\.register\('\.\/sw\.js'/);
     assert.match(rosaHtml, /scope:\s*'\.\/'/);
     assert.match(rosaHtml, /rel="manifest"/);
+  });
+});
+
+describe('upgrade-safe persist is wired into the PWA shell', () => {
+  it('loads persist before Drive sync so merges run on pull', () => {
+    const html = read('index.html');
+    const persistAt = html.indexOf('nickey-persist.js');
+    const ndsyncAt = html.indexOf('ndsync.js');
+    assert.ok(persistAt > 0);
+    assert.ok(ndsyncAt > persistAt);
   });
 });

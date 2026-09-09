@@ -481,6 +481,7 @@ body.nd-menu-open{overflow:hidden}
   </div>
 </div>
 <script src="nickey-shared.js"></script>
+<script src="nickey-persist.js"></script>
 <script src="ndsync.js" defer></script>
 <script src="nickey-bot-drive-inbox.js" defer></script>
 <script src="nickey-bot-client.js" defer></script>
@@ -538,7 +539,13 @@ function saveFormState() {
     const gallons = entry.querySelector('.fuel-gallons-input')?.value || "";
     if (station || amount || gallons) state.fuelEntries.push({ station, amount, gallons });
   });
-  localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    if (window.NickeyPersist) NickeyPersist.reportWriteError(FORM_STORAGE_KEY, e);
+    else console.error('Form autosave failed', e);
+    return;
+  }
   const pill = document.getElementById("autosavePill");
   if (pill) { pill.classList.add("show"); setTimeout(() => pill.classList.remove("show"), 1200); }
 }
@@ -729,7 +736,104 @@ function processFuelReceiptImage(input){
   reader.readAsDataURL(file);
 }
 function collectFuelEntries(){const e=[];document.querySelectorAll('.fuel-entry').forEach(en=>{const s=en.querySelector('.fuel-station-input').value.trim();const a=parseFloat(en.querySelector('.fuel-amount-input').value)||0;const g=parseFloat(en.querySelector('.fuel-gallons-input').value)||0;if(s||a>0||g>0)e.push({station:s,amount:a,gallons:g})});return e}
-function saveRecord(){toggleMenu();const f=collectFuelEntries();f.forEach(x=>{if(x.station)saveFuelStation(x.station)});const r={id:editingRecordIdx!==-1?savedRecords[editingRecordIdx].id:'REC-'+Date.now(),driverName:currentDriver,date:document.getElementById("td").value,pickup:document.getElementById("pki").value,customer:document.getElementById("customerSelect").value,basePay:parseFloat(document.getElementById("bpay").value)||0,highLimit:document.getElementById("thl").value,trailer:document.getElementById("tki").value,arrivalDate:document.getElementById("arrivalDate").value,arrivalTime:document.getElementById("arrivalTime").value,departureDate:document.getElementById("departureDate").value,departureTime:document.getElementById("departureTime").value,tankerWeight:document.getElementById("tw").value,arrivalGallons:document.getElementById("atl").value,departureLoad:document.getElementById("departureLoad").value,totalGallons:document.getElementById("ttval").textContent,notes:document.getElementById("nts").value,odometerIn:document.getElementById("odoIn").value,odometerOut:document.getElementById("odoOut").value,miles:calcTripMiles(),costPerMile:calcTripCostPerMile(),reimbursements:[],fuelEntries:f,actualPay:null,bookkeepingComplete:false,timestamp:new Date().toISOString()};const ai=document.querySelectorAll('#reimbContainer input[type="number"]');const di=document.querySelectorAll('#reimbContainer input[type="text"]');for(let i=0;i<ai.length;i++){if(ai[i].value){r.reimbursements.push({desc:di[i]?di[i].value:"",amount:parseFloat(ai[i].value)||0})}}if(editingRecordIdx!==-1&&editingRecordIdx<savedRecords.length){const o=savedRecords[editingRecordIdx];r.actualPay=o.actualPay;r.bookkeepingComplete=o.bookkeepingComplete||false;r.timestamp=o.timestamp||r.timestamp;r.rosaPushedAt=o.rosaPushedAt||null;r.updatedAt=new Date().toISOString();savedRecords[editingRecordIdx]=r;localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record updated!");editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy();return}savedRecords.push(r);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));alert("Record saved!")}
+function collectRecordFromForm(){
+  const f = collectFuelEntries();
+  const r = {
+    id: editingRecordIdx !== -1 && savedRecords[editingRecordIdx] ? savedRecords[editingRecordIdx].id : ('REC-' + Date.now()),
+    driverName: currentDriver,
+    date: document.getElementById("td").value,
+    pickup: document.getElementById("pki").value,
+    customer: document.getElementById("customerSelect").value,
+    basePay: parseFloat(document.getElementById("bpay").value) || 0,
+    highLimit: document.getElementById("thl").value,
+    trailer: document.getElementById("tki").value,
+    arrivalDate: document.getElementById("arrivalDate").value,
+    arrivalTime: document.getElementById("arrivalTime").value,
+    departureDate: document.getElementById("departureDate").value,
+    departureTime: document.getElementById("departureTime").value,
+    tankerWeight: document.getElementById("tw").value,
+    arrivalGallons: document.getElementById("atl").value,
+    departureLoad: document.getElementById("departureLoad").value,
+    totalGallons: document.getElementById("ttval").textContent,
+    notes: document.getElementById("nts").value,
+    odometerIn: document.getElementById("odoIn") ? document.getElementById("odoIn").value : "",
+    odometerOut: document.getElementById("odoOut") ? document.getElementById("odoOut").value : "",
+    miles: calcTripMiles(),
+    costPerMile: calcTripCostPerMile(),
+    reimbursements: [],
+    fuelEntries: f,
+    actualPay: null,
+    bookkeepingComplete: false,
+    timestamp: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  const ai = document.querySelectorAll('#reimbContainer input[type="number"]');
+  const di = document.querySelectorAll('#reimbContainer input[type="text"]');
+  for (let i = 0; i < ai.length; i++) {
+    if (ai[i].value) {
+      r.reimbursements.push({ desc: di[i] ? di[i].value : "", amount: parseFloat(ai[i].value) || 0 });
+    }
+  }
+  if (editingRecordIdx !== -1 && editingRecordIdx < savedRecords.length) {
+    const o = savedRecords[editingRecordIdx];
+    r.actualPay = o.actualPay;
+    r.bookkeepingComplete = o.bookkeepingComplete || false;
+    r.timestamp = o.timestamp || r.timestamp;
+    r.rosaPushedAt = o.rosaPushedAt || null;
+    r.source = o.source;
+  }
+  return r;
+}
+function persistTripFromCurrentForm(opts){
+  opts = opts || {};
+  var editId = (editingRecordIdx !== -1 && savedRecords[editingRecordIdx] && savedRecords[editingRecordIdx].id) || '';
+  loadSavedRecords();
+  if (editId) {
+    var found = -1;
+    for (var i = 0; i < savedRecords.length; i++) {
+      if (savedRecords[i] && savedRecords[i].id === editId) { found = i; break; }
+    }
+    editingRecordIdx = found;
+  }
+  const f = collectFuelEntries();
+  f.forEach(x => { if (x.station) saveFuelStation(x.station); });
+  const r = collectRecordFromForm();
+  if (opts.source && !r.source) r.source = opts.source;
+  if (!window.NickeyPersist) {
+    try {
+      if (editingRecordIdx !== -1 && editingRecordIdx < savedRecords.length) savedRecords[editingRecordIdx] = r;
+      else savedRecords.push(r);
+      localStorage.setItem("nickeySavedRecords", JSON.stringify(savedRecords));
+      return { ok: true, records: savedRecords };
+    } catch (e) {
+      return { ok: false, error: (e && e.message) || String(e) };
+    }
+  }
+  const result = NickeyPersist.upsertRecord(r, {
+    matchIndex: (editingRecordIdx !== -1) ? editingRecordIdx : undefined,
+    matchExisting: !!opts.matchExisting
+  });
+  if (result.ok) savedRecords = result.records;
+  return result;
+}
+function saveRecord(){
+  toggleMenu();
+  const wasEdit = editingRecordIdx !== -1;
+  const result = persistTripFromCurrentForm({ source: 'manual' });
+  if (!result.ok) {
+    alert("Could not save record.\n\n" + (result.error || "Storage write failed."));
+    return;
+  }
+  if (wasEdit) {
+    alert("Record updated!");
+    editingRecordIdx = -1;
+    document.getElementById("editBanner").classList.remove("active");
+    clearAllFormFields();
+    setTdy();
+    return;
+  }
+  alert("Record saved!");
+}
 var savedRecordSelectedIds = {};
 function savedRecordKey(r, idx) {
   return (r && r.id) ? String(r.id) : ('idx-' + idx);
@@ -741,10 +845,7 @@ function viewSavedRecords() {
   ov.style.display = 'flex';
 }
 function renderSavedRecordsBody() {
-  try {
-    var s = localStorage.getItem('nickeySavedRecords');
-    if (s) savedRecords = JSON.parse(s) || [];
-  } catch (e) {}
+  loadSavedRecords();
   var b = document.getElementById('savedRecordsBody');
   if (!b) return;
   if (!savedRecords.length) {
@@ -879,7 +980,28 @@ function pushSelectedToRosa() {
 }
 function closeSavedRecords(){document.getElementById("savedRecordsOverlay").style.display="none"}
 function loadRecordIntoForm(idx){if(idx<0||idx>=savedRecords.length)return;const r=savedRecords[idx];editingRecordIdx=idx;document.getElementById("editBanner").classList.add("active");document.getElementById("editPickupLabel").textContent="Pickup #"+r.pickup;document.getElementById("td").value=r.date;document.getElementById("pki").value=r.pickup;upPk();document.getElementById("customerSelect").value=r.customer;document.getElementById("bpay").value=r.basePay;document.getElementById("thl").value=r.highLimit;document.getElementById("tki").value=r.trailer;document.getElementById("arrivalDate").value=r.arrivalDate;document.getElementById("arrivalTime").value=r.arrivalTime;document.getElementById("departureDate").value=r.departureDate;document.getElementById("departureTime").value=r.departureTime;document.getElementById("tw").value=r.tankerWeight;document.getElementById("atl").value=r.arrivalGallons;document.getElementById("departureLoad").value=r.departureLoad;document.getElementById("nts").value=r.notes||"";if(document.getElementById("odoIn"))document.getElementById("odoIn").value=r.odometerIn||"";if(document.getElementById("odoOut"))document.getElementById("odoOut").value=r.odometerOut||"";document.getElementById("reimbContainer").innerHTML="";(r.reimbursements||[]).forEach(rei=>addReimbRow());document.querySelectorAll('#reimbContainer input[type="text"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].desc});document.querySelectorAll('#reimbContainer input[type="number"]').forEach((inp,i)=>{if(r.reimbursements[i])inp.value=r.reimbursements[i].amount});document.getElementById("fuelContainer").innerHTML="";(r.fuelEntries||[]).forEach(f=>addFuelEntry(f));updateWarning();updateRemaining();updateReimbTotal();updateFuelGrandTotal();calculateDetention();updateOdometerMiles();saveFormState();window.scrollTo(0,0)}
-function deleteSavedRecord(idx){if(confirm("Delete this record?")){savedRecords.splice(idx,1);localStorage.setItem("nickeySavedRecords",JSON.stringify(savedRecords));viewSavedRecords()}}
+function deleteSavedRecord(idx){
+  if (!confirm("Delete this record?")) return;
+  loadSavedRecords();
+  var result;
+  if (window.NickeyPersist) {
+    result = NickeyPersist.deleteRecordAt(idx);
+  } else {
+    savedRecords.splice(idx, 1);
+    try {
+      localStorage.setItem("nickeySavedRecords", JSON.stringify(savedRecords));
+      result = { ok: true, records: savedRecords };
+    } catch (e) {
+      result = { ok: false, error: (e && e.message) || String(e) };
+    }
+  }
+  if (!result.ok) {
+    alert("Could not delete record.\n\n" + (result.error || "Storage write failed."));
+    return;
+  }
+  savedRecords = result.records || [];
+  viewSavedRecords();
+}
 function printForm(){toggleMenu();window.print()}
 function toggleMenu(){const o=document.getElementById("menuOverlay");if(!o)return;const opening=o.style.display!=="flex";o.style.display=opening?"flex":"none";document.body.classList.toggle("nd-menu-open",opening)}
 (function(){var ov=document.getElementById("menuOverlay");if(!ov)return;var startY=0,moved=false;ov.addEventListener("touchstart",function(e){if(!e.touches||!e.touches.length)return;startY=e.touches[0].clientY;moved=false},{passive:true});ov.addEventListener("touchmove",function(e){if(!e.touches||!e.touches.length)return;if(Math.abs(e.touches[0].clientY-startY)>10)moved=true},{passive:true});ov.addEventListener("click",function(e){if(e.target!==ov)return;if(moved){moved=false;return}toggleMenu()})})();
@@ -1106,6 +1228,10 @@ function applyParsedDispatch(){
   }
   if (f.notes){ const n = document.getElementById('nts'); if (n) n.value = f.notes; }
   closePasteDispatch();
+  if (typeof saveFormState === 'function') saveFormState();
+  var saved = persistTripFromCurrentForm({ source: 'paste-dispatch', matchExisting: true });
+  if (!saved.ok) alert('Form filled, but the trip could not be saved.\n\n' + (saved.error || 'Storage write failed.'));
+  else if (window.NickeyPersist) NickeyPersist.showToast('Dispatch filled and saved — see Saved Records', false);
   window.scrollTo(0,0);
 }
 
@@ -1410,6 +1536,9 @@ function applyBolToForm() {
   closeBolReview();
   closeBolScanner();
   if (typeof saveFormState === 'function') saveFormState();
+  var saved = persistTripFromCurrentForm({ source: 'bol-scan', matchExisting: true });
+  if (!saved.ok) alert('BOL applied, but the trip could not be saved.\n\n' + (saved.error || 'Storage write failed.'));
+  else if (window.NickeyPersist) NickeyPersist.showToast('BOL applied and saved — see Saved Records', false);
   window.scrollTo(0, 0);
 }
 
@@ -1418,7 +1547,33 @@ function setDateTimeNow(d,t){const n=new Date();document.getElementById(d).value
 function upPk(){const v=document.getElementById('pki').value;const d=document.getElementById('pkd');if(!v){d.innerHTML='PICKUP #';return}if(v.length<=4)d.innerHTML='<span class="pr">'+v+'</span>';else d.innerHTML='<span class="pb">'+v.slice(0,v.length-4)+'</span><span class="pr">'+v.slice(-4)+'</span>'}
 function clearForm(){if(editingRecordIdx!==-1){if(confirm("Exit edit mode and clear the form?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}return}if(confirm("Clear this form?")){clearAllFormFields();setTdy()}}
 function clearAllFormFields(){["pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts","odoIn","odoOut"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("pkd").innerHTML="PICKUP #";document.getElementById("ttval").textContent="— GAL TOTAL";document.getElementById("ttval").dataset.tankerGal="0";const b=document.getElementById("tankWarnBox");if(b){b.className="tankwarn-box";document.getElementById("tankStatusTxt").textContent="ENTER WEIGHT ABOVE"}updateRemaining();document.getElementById("reimbContainer").innerHTML="";addReimbRow();updateReimbTotal();document.getElementById("fuelContainer").innerHTML="";addFuelEntry();localStorage.removeItem(FORM_STORAGE_KEY);calculateDetention();updateOdometerMiles()}
-function loadSavedRecords(){const s=localStorage.getItem("nickeySavedRecords");if(s){try{savedRecords=JSON.parse(s);savedRecords.forEach(r=>{if(!r.fuelEntries)r.fuelEntries=(r.fuel&&(r.fuel.amount||r.fuel.station))?[r.fuel]:[];if(r.actualPay===undefined)r.actualPay=null;if(r.bookkeepingComplete===undefined)r.bookkeepingComplete=false;if(!r.id)r.id='REC-'+r.timestamp;if(r.odometerIn===undefined)r.odometerIn='';if(r.odometerOut===undefined)r.odometerOut='';if(r.miles===undefined)r.miles=0;if(r.costPerMile===undefined)r.costPerMile=0})}catch(e){savedRecords=[]}}}
+function loadSavedRecords(){
+  if (window.NickeyPersist) {
+    var loaded = NickeyPersist.loadRecords();
+    savedRecords = loaded.records || [];
+    if (loaded.parseFailed && loaded.recovered) {
+      NickeyPersist.showToast('Recovered saved trips from backup after a storage read error', false);
+    }
+    return savedRecords;
+  }
+  const s = localStorage.getItem("nickeySavedRecords");
+  if (s) {
+    try {
+      savedRecords = JSON.parse(s);
+      savedRecords.forEach(r => {
+        if (!r.fuelEntries) r.fuelEntries = (r.fuel && (r.fuel.amount || r.fuel.station)) ? [r.fuel] : [];
+        if (r.actualPay === undefined) r.actualPay = null;
+        if (r.bookkeepingComplete === undefined) r.bookkeepingComplete = false;
+        if (!r.id) r.id = 'REC-' + r.timestamp;
+        if (r.odometerIn === undefined) r.odometerIn = '';
+        if (r.odometerOut === undefined) r.odometerOut = '';
+        if (r.miles === undefined) r.miles = 0;
+        if (r.costPerMile === undefined) r.costPerMile = 0;
+      });
+    } catch (e) { /* keep in-memory records rather than wiping */ }
+  }
+  return savedRecords;
+}
 function updateRemaining(){const tg=parseFloat(document.getElementById("ttval").dataset.tankerGal)||0;const a=parseFloat(document.getElementById("atl").value)||0;const l=document.getElementById("liveGauge").value;const b=document.getElementById("remainingBox");const v=document.getElementById("remainingValue");const sub=document.getElementById("remainingSub");if(tg===0||l===""||isNaN(parseFloat(l))){b.className="remaining-box";v.textContent="—";sub.textContent="Enter tanker weight, arrival level, and live gauge";return}const rem=tg-(parseFloat(l)-a);if(rem<0){b.className="remaining-box empty";v.textContent="0";sub.textContent="Tank is empty"}else if(rem<500){b.className="remaining-box low";v.textContent=rem.toFixed(1);sub.textContent="Low fuel warning"}else{b.className="remaining-box";v.textContent=rem.toFixed(1);sub.textContent="Fuel remaining"}}
 
 // === PAY ANALYZER FUNCTIONS ===
@@ -1586,10 +1741,7 @@ function collectCurrentTripForRosa() {
 }
 
 function stampRosaPushed(pickup, when, recordId) {
-  try {
-    var s = localStorage.getItem('nickeySavedRecords');
-    if (s) savedRecords = JSON.parse(s) || savedRecords;
-  } catch (e) {}
+  loadSavedRecords();
   var pu = String(pickup || '').replace(/\D/g, '');
   var stamped = false;
   var i, r;
@@ -1606,7 +1758,17 @@ function stampRosaPushed(pickup, when, recordId) {
       stamped = true;
     }
   }
-  if (stamped) localStorage.setItem('nickeySavedRecords', JSON.stringify(savedRecords));
+  if (stamped) {
+    var wr = window.NickeyPersist
+      ? NickeyPersist.writeRecords(savedRecords)
+      : (function () {
+          try {
+            localStorage.setItem('nickeySavedRecords', JSON.stringify(savedRecords));
+            return { ok: true };
+          } catch (e) { return { ok: false, error: e.message }; }
+        })();
+    if (wr.ok && wr.records) savedRecords = wr.records;
+  }
 }
 
 function pushCurrentTripToRosa(opts) {
@@ -1885,10 +2047,20 @@ setupDriverName();
 populateCustomerDropdown();
 populateTrailerDropdown();
 loadSavedRecords();
+if (window.NickeyPersist) {
+  NickeyPersist.hydrateFromIndexedDB(function (result) {
+    if (result && result.records) savedRecords = result.records;
+    var ov = document.getElementById('savedRecordsOverlay');
+    if (ov && ov.style.display === 'flex') renderSavedRecordsBody();
+  });
+}
 setTdy();
 addReimbRow();
 addFuelEntry();
 setupFormPersistence();
+window.addEventListener('pageshow', function () { loadSavedRecords(); });
+document.addEventListener('ndsync:pulled', function () { loadSavedRecords(); });
+document.addEventListener('nickeybot:pulled', function () { loadSavedRecords(); });
 
 // Voice inputs — static fields
 ['pki','bpay','thl','tw','atl','liveGauge','departureLoad','odoIn','odoOut'].forEach(function(id){ ndAttachVoiceInput(id, {numericOnly:true}); });

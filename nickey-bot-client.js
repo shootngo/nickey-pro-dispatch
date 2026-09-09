@@ -77,6 +77,9 @@
   }
 
   function loadRecords() {
+    if (w.NickeyPersist && typeof w.NickeyPersist.loadRecords === 'function') {
+      return w.NickeyPersist.loadRecords().records || [];
+    }
     try {
       var raw = w.localStorage.getItem('nickeySavedRecords');
       var arr = raw ? JSON.parse(raw) : [];
@@ -87,7 +90,16 @@
   }
 
   function persistRecords(records) {
-    w.localStorage.setItem('nickeySavedRecords', JSON.stringify(records));
+    if (w.NickeyPersist && typeof w.NickeyPersist.writeRecords === 'function') {
+      var wr = w.NickeyPersist.writeRecords(records);
+      if (!wr.ok) {
+        log('persist failed', wr.error);
+        return;
+      }
+      records = wr.records;
+    } else {
+      w.localStorage.setItem('nickeySavedRecords', JSON.stringify(records));
+    }
     try {
       if (typeof savedRecords !== 'undefined') savedRecords = records;
     } catch (e) { /* ignore */ }
