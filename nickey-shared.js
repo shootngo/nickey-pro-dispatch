@@ -15,7 +15,14 @@
 
   w.ndSet = function(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); return true; }
-    catch(e) { return false; }
+    catch(e) {
+      if (w.NickeyPersist && typeof w.NickeyPersist.reportWriteError === 'function') {
+        w.NickeyPersist.reportWriteError(key, e);
+      } else {
+        try { console.error('[ndSet]', key, e); } catch (err) {}
+      }
+      return false;
+    }
   };
 
   w.ndGetRaw = function(key, fallback) {

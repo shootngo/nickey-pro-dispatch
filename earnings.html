@@ -321,6 +321,7 @@ body{background:#0f1419;color:#e8eaed;font-family:'Inter',sans-serif;min-height:
 .sett-cancel-btn{padding:0.85rem 1.2rem;background:transparent;color:#9ba1a8;border:1px solid #2d3540;border-radius:10px;font-weight:700;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;cursor:pointer}
 </style>
 <script src="nickey-shared.js"></script>
+<script src="nickey-persist.js"></script>
 <script src="ndsync.js" defer></script>
 </head>
 <body>
@@ -467,20 +468,40 @@ let eeCurrentView = 'week';
 let eeAnchor = new Date();
 
 function loadData(){
-  try {
-    savedRecords = JSON.parse(localStorage.getItem('nickeySavedRecords') || '[]');
-    savedRecords.forEach(r => {
-      if (!r.fuelEntries) r.fuelEntries = (r.fuel && (r.fuel.amount || r.fuel.station)) ? [r.fuel] : [];
-      if (r.actualPay === undefined) r.actualPay = null;
-      if (r.bookkeepingComplete === undefined) r.bookkeepingComplete = false;
-      if (!r.id) r.id = 'REC-' + r.timestamp;
-    });
-  } catch(e){ savedRecords = []; }
+  if (window.NickeyPersist) {
+    var loaded = NickeyPersist.loadRecords();
+    savedRecords = loaded.records || [];
+  } else {
+    try {
+      savedRecords = JSON.parse(localStorage.getItem('nickeySavedRecords') || '[]');
+      savedRecords.forEach(r => {
+        if (!r.fuelEntries) r.fuelEntries = (r.fuel && (r.fuel.amount || r.fuel.station)) ? [r.fuel] : [];
+        if (r.actualPay === undefined) r.actualPay = null;
+        if (r.bookkeepingComplete === undefined) r.bookkeepingComplete = false;
+        if (!r.id) r.id = 'REC-' + r.timestamp;
+      });
+    } catch(e){ /* keep existing in-memory records */ }
+  }
   try { weeklyDeductions = JSON.parse(localStorage.getItem('weeklyDeductions') || '{}'); } catch(e){ weeklyDeductions = {}; }
 }
 function saveData(){
-  localStorage.setItem('nickeySavedRecords', JSON.stringify(savedRecords));
-  localStorage.setItem('weeklyDeductions', JSON.stringify(weeklyDeductions));
+  var recOk = true;
+  if (window.NickeyPersist) {
+    var wr = NickeyPersist.writeRecords(savedRecords);
+    recOk = wr.ok;
+    if (wr.ok && wr.records) savedRecords = wr.records;
+    if (!wr.ok) alert('Could not save records.\n\n' + (wr.error || 'Storage write failed.'));
+  } else {
+    try { localStorage.setItem('nickeySavedRecords', JSON.stringify(savedRecords)); }
+    catch (e) { recOk = false; alert('Could not save records: ' + e.message); }
+  }
+  try { localStorage.setItem('weeklyDeductions', JSON.stringify(weeklyDeductions)); }
+  catch (e) {
+    recOk = false;
+    if (window.NickeyPersist) NickeyPersist.reportWriteError('weeklyDeductions', e);
+    else alert('Could not save deductions: ' + e.message);
+  }
+  return recOk;
 }
 
 /* eeIsoDate, eeStartOfWeek, eeAddDays, eeWeekNum, eeWeekKey,
@@ -1089,7 +1110,15 @@ function restoreFromBackup(file){
       const wkCount = Object.keys(data.weeklyDeductions||{}).length;
       const exportedAt = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'unknown date';
       if (!confirm('Restore backup from ' + exportedAt + '?\n\n' + recCount + ' load records\n' + wkCount + ' weeks of deductions\n\nThis will REPLACE all current data. Continue?')) return;
-      localStorage.setItem('nickeySavedRecords', JSON.stringify(data.nickeySavedRecords));
+      var wr = window.NickeyPersist
+        ? NickeyPersist.writeRecords(data.nickeySavedRecords, { allowEmpty: true, replace: true })
+        : { ok: true };
+      if (window.NickeyPersist && !wr.ok) {
+        alert('Restore failed: ' + (wr.error || 'Storage write failed.')); return;
+      }
+      if (!window.NickeyPersist) {
+        localStorage.setItem('nickeySavedRecords', JSON.stringify(data.nickeySavedRecords));
+      }
       localStorage.setItem('weeklyDeductions', JSON.stringify(data.weeklyDeductions||{}));
       loadData(); eeRender(); closeEEExport();
       alert('Restored successfully — ' + recCount + ' records loaded.');
@@ -1380,6 +1409,12 @@ function applySettlement(matchResults, deductions, settlementAnchor){
 // Init
 window.onload = function(){
   loadData();
+  if (window.NickeyPersist) {
+    NickeyPersist.hydrateFromIndexedDB(function (result) {
+      if (result && result.records) savedRecords = result.records;
+      if (typeof eeRender === 'function') eeRender();
+    });
+  }
   if (savedRecords.length > 0){
     const ds = savedRecords.map(r => r.date).filter(Boolean).sort();
     if (ds.length > 0){ const l = new Date(ds[ds.length-1]); if (!isNaN(l.getTime())) eeAnchor = l; }

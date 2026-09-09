@@ -3,6 +3,10 @@
  * Pull on load, push on change (30s debounce), pull on focus.
  * One sign-in persists across all pages via localStorage.
  *
+ * Record lists (nickeySavedRecords) are MERGE-SAFE: a newer remote file with
+ * fewer trips cannot wipe newer local trips. Union-by-id/pickup, then push
+ * the combined set. Deletes sync via nickeyDeletedRecordIds tombstones.
+ *
  * Google Identity Services (browser token client) only issues ~1 hour access
  * tokens — no refresh token without a server. We keep the stored token and
  * restore it on return. GIS cannot mint a new token in the background (it
@@ -23,7 +27,7 @@
   const TOKEN_BUFFER  = 120000;  // warn this long before hard expiry (GIS has no refresh token)
 
   const SYNC_KEYS = [
-    'nickeySavedRecords', 'weeklyDeductions', 'fuelStations', 'currentDriver',
+    'nickeySavedRecords', 'nickeyDeletedRecordIds', 'weeklyDeductions', 'fuelStations', 'currentDriver',
     'nickeyInspectionHistory', 'nickeyLatestInspection', 'nickeyIntermodalHistory',
     'nickeyDraftLoad', 'nickeyTrailerInspectionDraft', 'nickeyIntermodalDraft',
     'exportFormat', 'nickeyCustomers', 'geminiApiKey', 'nickeyDispatchFormState',
@@ -176,9 +180,17 @@
   const _rawSet = localStorage.setItem.bind(localStorage);
 
   localStorage.setItem = function(key, value){
-    _rawSet(key, value);
+    try {
+      _rawSet(key, value);
+    } catch (e) {
+      logError('localStorage.setItem failed for ' + key, e);
+      if (window.NickeyPersist && typeof NickeyPersist.reportWriteError === 'function') {
+        NickeyPersist.reportWriteError(key, e);
+      }
+      throw e;
+    }
     if (SYNC_KEY_SET.has(key)){
-      _rawSet('ndsync_ts_' + key, new Date().toISOString());
+      try { _rawSet('ndsync_ts_' + key, new Date().toISOString()); } catch (e) {}
       if (isSignedIn && initialPullDone) debouncedPush();
     }
   };
@@ -580,16 +592,37 @@
   function applyPayload(payload){
     if (!payload || !payload.keys) return 0;
     let changed = 0;
+    const P = window.NickeyPersist;
+    const remoteTombs = payload.keys.nickeyDeletedRecordIds
+      ? (P ? P.parseTombstones(payload.keys.nickeyDeletedRecordIds.value) : [])
+      : [];
+    const ctx = { localTombs: P ? P.loadTombstones() : [], remoteTombs: remoteTombs };
+
     SYNC_KEYS.forEach(k => {
       const remote = payload.keys[k];
       if (!remote) return;
+      const localVal = localStorage.getItem(k);
       const localTs = localStorage.getItem('ndsync_ts_' + k) || new Date(0).toISOString();
-      if (remote.updatedAt > localTs){
-        // Write directly, bypassing our intercept (this is incoming data, not an outgoing change)
-        _rawSet(k, remote.value);
-        _rawSet('ndsync_ts_' + k, remote.updatedAt);
+      let nextVal = null;
+      let nextTs = remote.updatedAt;
+      let keyChanged = false;
+
+      if (P && typeof P.mergeSyncKey === 'function') {
+        const merged = P.mergeSyncKey(k, localVal, localTs, remote.value, remote.updatedAt, ctx);
+        nextVal = merged.value;
+        nextTs = merged.ts || remote.updatedAt;
+        keyChanged = !!merged.changed;
+        if (merged.tombstones) ctx.localTombs = merged.tombstones;
+      } else if (remote.updatedAt > localTs) {
+        nextVal = remote.value;
+        keyChanged = true;
+      }
+
+      if (keyChanged && nextVal != null) {
+        _rawSet(k, nextVal);
+        _rawSet('ndsync_ts_' + k, nextTs || remote.updatedAt);
         changed++;
-        log('Applied key:', k);
+        log('Merged key:', k);
       }
     });
     log('Applied', changed, 'keys from Drive');
@@ -641,6 +674,9 @@
     }).then(data => {
       const changed = applyPayload(data);
       _rawSet('ndsync_lastSync', new Date().toISOString());
+      // Merged records were written with _rawSet (no intercept). Push the
+      // union so a smaller remote file cannot stay canonical on Drive.
+      if (changed > 0 && initialPullDone) debouncedPush();
       return changed;
     });
   }
@@ -689,7 +725,15 @@
 
   function notifyPageOfPull(){
     document.dispatchEvent(new Event('ndsync:pulled'));
-    // Soft-reload page data without a full page refresh
+    // Soft-reload page data without a full page refresh so in-memory
+    // savedRecords cannot overwrite a merged Drive pull on the next save.
+    if (typeof loadSavedRecords === 'function') try { loadSavedRecords(); } catch(e){}
+    if (typeof renderSavedRecordsBody === 'function') {
+      try {
+        var ov = document.getElementById('savedRecordsOverlay');
+        if (ov && ov.style.display === 'flex') renderSavedRecordsBody();
+      } catch(e){}
+    }
     if (typeof loadData   === 'function') try { loadData();   } catch(e){}
     if (typeof eeRender   === 'function') try { eeRender();   } catch(e){}
     if (typeof renderPage === 'function') try { renderPage(); } catch(e){}

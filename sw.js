@@ -12,7 +12,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'nickey-v8.2k';
+const CACHE_VERSION = 'nickey-v8.3';
 const CACHE_NAME    = 'nickey-shell-' + CACHE_VERSION;
 const FONT_CACHE    = 'nickey-fonts-' + CACHE_VERSION;
 
@@ -26,6 +26,7 @@ const PRECACHE_URLS = [
   './sds.html',
   './nickey-shared.css',
   './nickey-shared.js',
+  './nickey-persist.js',
   './ndsync.js',
   './nickey-bot-drive-inbox.js',
   './nickey-bot-client.js',
