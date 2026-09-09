@@ -113,7 +113,7 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   const rosaHtml = read('rosas-ledger/index.html');
 
   it('bumps Nickey cache when the manifest/icons change', () => {
-    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.5'/);
+    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.6'/);
     assert.match(nickeySw, /'\.\/icon-192\.png'/);
     assert.match(nickeySw, /'\.\/icon-512-2\.png'/);
     assert.match(nickeySw, /'\.\/icon-maskable-512\.png'/);

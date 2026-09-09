@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Professional Dispatch V 8.5</title>
+<title>Nickey Professional Dispatch V 8.6</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico" sizes="48x48">
@@ -108,9 +108,19 @@ body.nd-menu-open{overflow:hidden}
 .pay-result-box{background:#0f2a0f;border:3px solid #4caf50;border-radius:16px;padding:24px;text-align:center;margin:20px 0}
 .pay-result-value{font-family:'Rajdhani',sans-serif;font-size:52px;font-weight:800;color:#4caf50;letter-spacing:2px}
 .pay-result-label{font-size:15px;color:#a5d6a7;margin-top:6px;letter-spacing:1px}
-.pk-row{display:flex;gap:8px;align-items:stretch;flex-wrap:nowrap}
-.pk-row #pki,.pk-row .nd-voice-wrap{flex:1;min-width:0;width:auto}
-.bol-cam-btn{flex-shrink:0;width:58px;min-height:58px;background:#1a2a1a;color:#4caf50;border:1px solid #4caf50;border-radius:8px;font-size:26px;cursor:pointer;padding:0}
+/* One bordered pickup field; mic + camera are in-flow trailing actions at the right end.
+   Do not position the mic against a shrink-to-fit input (that left it floating mid-field)
+   and do not let .nd-voice-wrap { width:100% } push the camera off the row. */
+.pk-field{display:flex;align-items:stretch;flex-wrap:nowrap;width:100%;max-width:100%;box-sizing:border-box;background:#2a2a2a;border:1.8px solid #555;border-radius:8px}
+.pk-field:focus-within{border-color:#ffd700}
+.pk-field>.nd-voice-wrap,.fld .pk-field>#pki{flex:1 1 0% !important;min-width:0 !important;width:0 !important}
+.pk-field #pki{border:none !important;background:transparent !important;font-size:28px;text-align:center;padding:14px 8px !important;box-shadow:none;outline:none}
+.pk-field .nd-voice-wrap{position:relative;display:block}
+.pk-field .nd-voice-wrap #pki{width:100% !important}
+.pk-trailing{display:flex;align-items:center;flex-shrink:0;margin-left:auto;gap:2px;padding:0 6px 0 2px}
+.pk-trailing .nd-mic-btn{position:static !important;transform:none !important;top:auto !important;right:auto !important;width:40px;height:40px;min-width:40px}
+.pk-trailing .nd-mic-btn.active{animation:ndMicPulseFlat 0.7s ease-in-out infinite}
+.bol-cam-btn{width:44px;height:44px;min-width:44px;min-height:44px;background:#143214;color:#4caf50;border:2px solid #4caf50;border-radius:8px;font-size:22px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
 .bol-cam-btn:active{background:#0f3a0f}
 .bol-cam-stage{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:3/4;max-height:52vh}
 .bol-cam-video,.bol-cam-preview{width:100%;height:100%;object-fit:cover;display:block}
@@ -127,7 +137,7 @@ body.nd-menu-open{overflow:hidden}
 </head>
 <body>
 <div class="splash-overlay" id="splashOverlay">
-  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 8.5</div></div>
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 8.6</div></div>
   <div class="splash-truck-wrap">
     <img class="splash-truck-img" id="splashTruckImg" alt="">
     <div class="splash-flames"></div>
@@ -136,7 +146,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="splash-loading"><span></span><span></span><span></span></div>
 </div>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 8.5</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 8.6</span></div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="driver-badge" id="driverBadge">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -159,9 +169,11 @@ body.nd-menu-open{overflow:hidden}
       <div class="fld">
         <label>Pickup Number</label>
         <div class="pkwrap">
-          <div class="pk-row">
-            <input type="text" id="pki" maxlength="12" inputmode="numeric" pattern="[0-9]*" oninput="upPk()" style="font-size:30px;text-align:center">
-            <button type="button" class="bol-cam-btn" id="bolScanBtn" onclick="openBolScanner()" title="Scan BOL photo" aria-label="Scan BOL">📷</button>
+          <div class="pk-field" id="pkField">
+            <input type="text" id="pki" maxlength="12" inputmode="numeric" pattern="[0-9]*" oninput="upPk()">
+            <div class="pk-trailing" id="pkTrailing">
+              <button type="button" class="bol-cam-btn" id="bolScanBtn" onclick="openBolScanner()" title="Scan BOL photo" aria-label="Scan BOL with camera">📷</button>
+            </div>
           </div>
           <div class="pkdisp" id="pkd">PICKUP #</div>
         </div>
@@ -2010,7 +2022,7 @@ function sendEmail() {
     if (insp.remarks) body += `\n  REMARKS:\n  ${insp.remarks}\n`;
   });
 
-  body += `\n\nSent from Nickey Dispatch V 8.5`;
+  body += `\n\nSent from Nickey Dispatch V 8.6`;
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 
@@ -2082,7 +2094,8 @@ document.addEventListener('ndsync:pulled', function () { loadSavedRecords(); });
 document.addEventListener('nickeybot:pulled', function () { loadSavedRecords(); });
 
 // Voice inputs — static fields
-['pki','bpay','thl','tw','atl','liveGauge','departureLoad','odoIn','odoOut'].forEach(function(id){ ndAttachVoiceInput(id, {numericOnly:true}); });
+ndAttachVoiceInput('pki', { numericOnly: true, trailingHost: 'pkTrailing' });
+['bpay','thl','tw','atl','liveGauge','departureLoad','odoIn','odoOut'].forEach(function(id){ ndAttachVoiceInput(id, {numericOnly:true}); });
 ndAttachVoiceInput('nts');
 
 renderCustomSDSCards();
