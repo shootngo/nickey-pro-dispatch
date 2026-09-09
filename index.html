@@ -107,10 +107,18 @@ body.nd-menu-open{overflow:hidden}
 .pay-result-box{background:#0f2a0f;border:3px solid #4caf50;border-radius:16px;padding:24px;text-align:center;margin:20px 0}
 .pay-result-value{font-family:'Rajdhani',sans-serif;font-size:52px;font-weight:800;color:#4caf50;letter-spacing:2px}
 .pay-result-label{font-size:15px;color:#a5d6a7;margin-top:6px;letter-spacing:1px}
-.pk-field{position:relative;width:100%}
-.pk-field #pki{width:100%;font-size:30px;text-align:center;padding-left:96px !important;padding-right:96px !important;box-sizing:border-box}
-.pk-trailing{position:absolute;right:6px;top:0;bottom:0;display:flex;align-items:center;gap:2px;z-index:6;pointer-events:none}
-.pk-trailing button{pointer-events:auto;flex-shrink:0}
+/* One bordered pickup field; mic + camera are in-flow trailing actions at the right end.
+   Do not position the mic against a shrink-to-fit input (that left it floating mid-field)
+   and do not let .nd-voice-wrap { width:100% } push the camera off the row. */
+.pk-field{display:flex;align-items:stretch;width:100%;max-width:100%;box-sizing:border-box;background:#2a2a2a;border:1.8px solid #555;border-radius:8px}
+.pk-field:focus-within{border-color:#ffd700}
+.pk-field>.nd-voice-wrap,.pk-field>#pki{flex:1 1 0%;min-width:0;width:auto}
+.pk-field #pki{border:none !important;background:transparent !important;font-size:28px;text-align:center;padding:14px 8px !important;box-shadow:none;outline:none}
+.pk-field .nd-voice-wrap{position:relative;display:block}
+.pk-field .nd-voice-wrap #pki{width:100% !important}
+.pk-trailing{display:flex;align-items:center;flex-shrink:0;gap:2px;padding:0 6px 0 2px}
+.pk-trailing .nd-mic-btn{position:static !important;transform:none !important;top:auto !important;right:auto !important;width:40px;height:40px;min-width:40px}
+.pk-trailing .nd-mic-btn.active{animation:ndMicPulseFlat 0.7s ease-in-out infinite}
 .bol-cam-btn{width:44px;height:44px;min-width:44px;min-height:44px;background:#143214;color:#4caf50;border:2px solid #4caf50;border-radius:8px;font-size:22px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
 .bol-cam-btn:active{background:#0f3a0f}
 .bol-cam-stage{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:3/4;max-height:52vh}
