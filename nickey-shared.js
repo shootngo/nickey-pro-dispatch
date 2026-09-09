@@ -187,11 +187,21 @@
     btn.setAttribute('aria-label', 'Voice input');
     btn.textContent = '🎤';
 
-    var wrap = document.createElement('div');
-    wrap.className = 'nd-voice-wrap';
-    el.parentNode.insertBefore(wrap, el);
-    wrap.appendChild(el);
-    wrap.appendChild(btn);
+    var trailing = opts.trailingHost;
+    if (typeof trailing === 'string') trailing = document.getElementById(trailing);
+    if (trailing) {
+      // Keep sibling trailing actions (e.g. BOL camera) on-screen — do not wrap
+      // the input in .nd-voice-wrap { width:100% }, which shoves them off-row
+      // and leaves the mic floating in empty space beside a shrink-to-fit field.
+      btn.classList.add('nd-mic-in-trailing');
+      trailing.insertBefore(btn, trailing.firstChild);
+    } else {
+      var wrap = document.createElement('div');
+      wrap.className = 'nd-voice-wrap';
+      el.parentNode.insertBefore(wrap, el);
+      wrap.appendChild(el);
+      wrap.appendChild(btn);
+    }
 
     if (el.tagName === 'TEXTAREA') btn.classList.add('nd-mic-textarea');
 

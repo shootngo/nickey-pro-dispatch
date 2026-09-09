@@ -78,7 +78,7 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   const rosaHtml = read('rosas-ledger/index.html');
 
   it('bumps Nickey cache when the manifest/icons change', () => {
-    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.3'/);
+    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.4'/);
   });
 
   it('still precaches Nickey BOL scan after the PWA split', () => {
