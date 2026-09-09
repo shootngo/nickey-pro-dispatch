@@ -36,6 +36,7 @@ describe('Pickup Number trailing actions (mic + BOL camera)', () => {
     assert.doesNotMatch(html, /\.pk-row\s*\{/);
     assert.match(html, /\.pk-field\{[^}]*display:flex/);
     assert.match(html, /\.pk-trailing\{[^}]*flex-shrink:0/);
+    assert.match(html, /\.pk-trailing\{[^}]*margin-left:auto/);
     assert.doesNotMatch(html, /\.pk-trailing\{[^}]*position:absolute/);
     assert.match(html, /\.pk-trailing \.nd-mic-btn\{[^}]*position:static/);
   });

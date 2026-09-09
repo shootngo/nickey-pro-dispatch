@@ -110,13 +110,13 @@ body.nd-menu-open{overflow:hidden}
 /* One bordered pickup field; mic + camera are in-flow trailing actions at the right end.
    Do not position the mic against a shrink-to-fit input (that left it floating mid-field)
    and do not let .nd-voice-wrap { width:100% } push the camera off the row. */
-.pk-field{display:flex;align-items:stretch;width:100%;max-width:100%;box-sizing:border-box;background:#2a2a2a;border:1.8px solid #555;border-radius:8px}
+.pk-field{display:flex;align-items:stretch;flex-wrap:nowrap;width:100%;max-width:100%;box-sizing:border-box;background:#2a2a2a;border:1.8px solid #555;border-radius:8px}
 .pk-field:focus-within{border-color:#ffd700}
-.pk-field>.nd-voice-wrap,.pk-field>#pki{flex:1 1 0%;min-width:0;width:auto}
+.pk-field>.nd-voice-wrap,.fld .pk-field>#pki{flex:1 1 0% !important;min-width:0 !important;width:0 !important}
 .pk-field #pki{border:none !important;background:transparent !important;font-size:28px;text-align:center;padding:14px 8px !important;box-shadow:none;outline:none}
 .pk-field .nd-voice-wrap{position:relative;display:block}
 .pk-field .nd-voice-wrap #pki{width:100% !important}
-.pk-trailing{display:flex;align-items:center;flex-shrink:0;gap:2px;padding:0 6px 0 2px}
+.pk-trailing{display:flex;align-items:center;flex-shrink:0;margin-left:auto;gap:2px;padding:0 6px 0 2px}
 .pk-trailing .nd-mic-btn{position:static !important;transform:none !important;top:auto !important;right:auto !important;width:40px;height:40px;min-width:40px}
 .pk-trailing .nd-mic-btn.active{animation:ndMicPulseFlat 0.7s ease-in-out infinite}
 .bol-cam-btn{width:44px;height:44px;min-width:44px;min-height:44px;background:#143214;color:#4caf50;border:2px solid #4caf50;border-radius:8px;font-size:22px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
