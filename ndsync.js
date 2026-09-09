@@ -7,6 +7,13 @@
  * fewer trips cannot wipe newer local trips. Union-by-id/pickup, then push
  * the combined set. Deletes sync via nickeyDeletedRecordIds tombstones.
  *
+ * Immutable Drive snapshots: each successful saved-records push also POSTs a
+ * new file nickey-backup-YYYY-MM-DDTHHMMSSZ.json in Nickey Dispatch Data.
+ * Those files are never PATCHed. Retention (see NickeyPersist): keep the 30
+ * newest OR anything newer than 14 days OR the largest-ever snapshot.
+ * Before overwriting the live file, a shrink (>10% or >5 trips) snapshots
+ * the current remote and requires an explicit confirm.
+ *
  * Google Identity Services (browser token client) only issues ~1 hour access
  * tokens — no refresh token without a server. We keep the stored token and
  * restore it on return. GIS cannot mint a new token in the background (it
@@ -23,6 +30,7 @@
   const SCOPES        = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email';
   const FOLDER_NAME   = 'Nickey Dispatch Data';
   const DATA_FILE     = 'nickey-dispatch-data.json';
+  const BACKUP_PREFIX = 'nickey-backup-';
   const PUSH_DEBOUNCE = 30000;   // ms between auto-pushes
   const TOKEN_BUFFER  = 120000;  // warn this long before hard expiry (GIS has no refresh token)
 
@@ -50,6 +58,8 @@
   let silentRefreshPending = false;
   let reconnectNeeded = false;
   let refreshTimer = null;
+  let pendingShrink = null;   // { remoteCount, localCount } when overwrite is blocked
+  let initialRemoteSnapDone = false;
 
   function safeGet(key){
     try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -236,6 +246,14 @@
       .ndsync-action.primary{background:#ffd700;color:#000;}
       .ndsync-action.danger{background:#1a1a1a;color:#cc6666;border:1px solid #cc6666;}
       .ndsync-action.cancel{background:#1a1a1a;color:#aaa;border:1px solid #444;}
+      .ndsync-warn{background:#2a0a0a;border:1px solid #cc0000;border-radius:8px;
+        padding:10px;margin-bottom:14px;font-size:13px;color:#ffb0b0;line-height:1.5;text-align:left;}
+      .ndsync-backup-list{max-height:46vh;overflow-y:auto;text-align:left;margin-bottom:12px;}
+      .ndsync-backup-item{display:block;width:100%;background:#1a1a1a;border:1px solid #444;
+        color:#ddd;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;
+        font-size:13px;text-align:left;font-family:'Source Sans 3',sans-serif;}
+      .ndsync-backup-item:hover{border-color:#ffd700;}
+      .ndsync-backup-item .meta{color:#888;font-size:11px;margin-top:3px;}
     `;
     document.head.appendChild(s);
   }
@@ -294,7 +312,55 @@
       window.NDSync.openModal();
     });
     menu.insertBefore(item, menu.firstChild);
+    injectBackupMenuItems(menu, item);
     refreshMenuLabel();
+  }
+
+  function injectBackupMenuItems(menu, afterNode) {
+    if (document.getElementById('ndsyncExportMenuItem') || document.getElementById('nickeyExportMenuItem')) return;
+    function addItem(id, html, handler) {
+      const el = document.createElement('div');
+      el.className = 'menu-item';
+      el.id = id;
+      el.style.cursor = 'pointer';
+      el.innerHTML = html;
+      el.addEventListener('click', handler);
+      if (afterNode && afterNode.nextSibling) menu.insertBefore(el, afterNode.nextSibling);
+      else menu.appendChild(el);
+      afterNode = el;
+    }
+    addItem('ndsyncExportMenuItem',
+      '📦 Export backup<span style="font-size:11px;color:#888;display:block;margin-top:3px;font-weight:400;">Download Saved Records JSON to this phone</span>',
+      () => { closeMenuIfOpen(); persistExport(); });
+    addItem('ndsyncImportMenuItem',
+      '📥 Import backup<span style="font-size:11px;color:#888;display:block;margin-top:3px;font-weight:400;">Merge a JSON backup — never wipes trips</span>',
+      () => { closeMenuIfOpen(); persistImport(); });
+    addItem('ndsyncRestoreMenuItem',
+      '☁️ Restore from Drive backup<span style="font-size:11px;color:#888;display:block;margin-top:3px;font-weight:400;">List nickey-backup-*.json and merge one</span>',
+      () => { closeMenuIfOpen(); openBackupRestore(); });
+  }
+
+  function closeMenuIfOpen() {
+    const overlay = document.getElementById('menuOverlay');
+    if (!overlay) return;
+    if (typeof window.toggleMenu === 'function' && overlay.style.display === 'flex') {
+      window.toggleMenu();
+    } else {
+      overlay.style.display = 'none';
+      document.body.classList.remove('nd-menu-open');
+    }
+  }
+
+  function persistExport() {
+    if (window.NickeyPersist && NickeyPersist.exportBackupDownload) {
+      NickeyPersist.exportBackupDownload();
+    }
+  }
+
+  function persistImport() {
+    if (window.NickeyPersist && NickeyPersist.pickImportFile) {
+      NickeyPersist.pickImportFile();
+    }
   }
 
   function refreshMenuLabel(){
@@ -337,18 +403,34 @@
     const syncStr  = lastSync ? new Date(lastSync).toLocaleString() : 'Never';
 
     if (isSignedIn && tokenUsable()){
+      const shrinkHtml = pendingShrink ? `
+        <div class="ndsync-warn">
+          <strong>⚠ Sync paused — remote would shrink</strong><br>
+          Remote has ${pendingShrink.remoteCount} trips, local has ${pendingShrink.localCount}.
+          A snapshot of the remote file was saved first. Continue only if you really want the live file to match this phone.
+        </div>` : '';
+      const lastBak = localStorage.getItem('ndsync_lastBackupAt');
+      const bakStr = lastBak ? new Date(lastBak).toLocaleString() : 'None yet';
       body.innerHTML = `
         <div class="ndsync-info">
           <strong>✓ Signed in</strong><br>
           <span class="ndsync-email">${userEmail || 'your account'}</span>
         </div>
+        ${shrinkHtml}
         <div class="ndsync-info">
           Last sync: ${syncStr}
+          <br>Last Drive snapshot: ${bakStr}
           ${lastError ? '<br><span style="color:#ff8888;">⚠ ' + lastError + '</span>' : ''}
           <br><span style="color:#888;">Google keeps this phone's Drive token for about 1 hour. Leaving and coming back within that hour stays signed in.</span>
         </div>
         <div class="ndsync-btn-row">
-          <button class="ndsync-action primary" onclick="window.NDSync.syncNow()">⟳ Sync Now</button>
+          ${pendingShrink
+            ? '<button class="ndsync-action danger" onclick="window.NDSync.confirmShrinkPush()">Overwrite live file (' + pendingShrink.localCount + ' trips)</button>'
+            : '<button class="ndsync-action primary" onclick="window.NDSync.syncNow()">⟳ Sync Now</button>'}
+          <button class="ndsync-action cancel" onclick="window.NDSync.backupNow()">📦 Backup to Drive now</button>
+          <button class="ndsync-action cancel" onclick="window.NDSync.openBackupRestore()">☁️ Restore from Drive backup</button>
+          <button class="ndsync-action cancel" onclick="window.NDSync.exportBackup()">📦 Export backup</button>
+          <button class="ndsync-action cancel" onclick="window.NDSync.importBackup()">📥 Import backup</button>
           <button class="ndsync-action cancel" onclick="window.NickeyBotDrive&&NickeyBotDrive.pullNow()">⬇ Pull bot trips</button>
           <button class="ndsync-action danger"  onclick="window.NDSync.signOut()">Sign Out</button>
           <button class="ndsync-action cancel"  onclick="document.getElementById('ndsyncModalBg').classList.remove('show')">Close</button>
@@ -364,6 +446,8 @@
         <div class="ndsync-btn-row">
           <button class="ndsync-action primary" onclick="window.NDSync.signIn()">🔐 Reconnect</button>
           <button class="ndsync-action cancel" onclick="window.NDSync.signIn(true)">Use a different account</button>
+          <button class="ndsync-action cancel" onclick="window.NDSync.exportBackup()">📦 Export backup</button>
+          <button class="ndsync-action cancel" onclick="window.NDSync.importBackup()">📥 Import backup</button>
           <button class="ndsync-action cancel"  onclick="document.getElementById('ndsyncModalBg').classList.remove('show')">Cancel</button>
         </div>` : `
         <p>Sign in with Google to sync your dispatch data across all devices automatically.</p>
@@ -375,6 +459,8 @@
         </div>
         <div class="ndsync-btn-row">
           <button class="ndsync-action primary" onclick="window.NDSync.signIn()">🔐 Sign in with Google</button>
+          <button class="ndsync-action cancel" onclick="window.NDSync.exportBackup()">📦 Export backup</button>
+          <button class="ndsync-action cancel" onclick="window.NDSync.importBackup()">📥 Import backup</button>
           <button class="ndsync-action cancel"  onclick="document.getElementById('ndsyncModalBg').classList.remove('show')">Cancel</button>
         </div>`;
     }
@@ -630,12 +716,17 @@
   }
 
   // ── FILE UPLOAD (multipart) ───────────────────────────────────────────────────
-  function uploadFile(fileId, data){
+  // fileId set → PATCH that file (live nickey-dispatch-data.json only).
+  // fileId null → POST a brand-new file. Snapshots always POST so they are
+  // never overwritten.
+  function uploadFile(fileId, data, opts){
+    opts = opts || {};
     const json     = JSON.stringify(data, null, 2);
     const boundary = 'ndsync_' + Date.now();
     const meta     = JSON.stringify({
-      name: DATA_FILE,
+      name: opts.name || DATA_FILE,
       mimeType: 'application/json',
+      ...(opts.description ? { description: opts.description } : {}),
       ...(folderId && !fileId ? { parents: [folderId] } : {})
     });
     const body = [
@@ -657,13 +748,9 @@
     return driveReq(method, url, body, `multipart/related; boundary="${boundary}"`);
   }
 
-  // ── PULL & PUSH ───────────────────────────────────────────────────────────────
-  function pullFromDrive(){
-    if (!tokenUsable()) return Promise.resolve(0);
-    return ensureDataFile().then(fileId => {
-      return fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: { Authorization: 'Bearer ' + accessToken }
-      });
+  function downloadFileJson(fileId){
+    return fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: 'Bearer ' + accessToken }
     }).then(r => {
       if (r.status === 401) {
         markNeedsReconnect('Drive 401');
@@ -671,42 +758,309 @@
       }
       if (!r.ok) throw new Error('Fetch file failed: ' + r.status);
       return r.json();
+    });
+  }
+
+  function persistApi(){
+    return window.NickeyPersist || null;
+  }
+
+  function tripCountOf(payload){
+    const P = persistApi();
+    return P && typeof P.countTripsInPayload === 'function' ? P.countTripsInPayload(payload) : 0;
+  }
+
+  function wrapSnapshotPayload(payload, reason, count){
+    const copy = payload && typeof payload === 'object' ? payload : { version: 1, keys: {} };
+    return Object.assign({}, copy, {
+      kind: 'nickey-snapshot',
+      snapshotAt: new Date().toISOString(),
+      snapshotReason: reason || 'push',
+      tripCount: count
+    });
+  }
+
+  function createSnapshot(payload, opts){
+    opts = opts || {};
+    const P = persistApi();
+    const count = tripCountOf(payload);
+    const fp = P && P.recordsFingerprint ? P.recordsFingerprint(payload) : '';
+    if (opts.skipIfUnchanged && fp && fp === safeGet('ndsync_lastBackupHash')) {
+      log('Snapshot skipped — saved records unchanged');
+      return Promise.resolve(null);
+    }
+    const name = (P && P.backupFileName) ? P.backupFileName() : (BACKUP_PREFIX + Date.now() + 'Z.json');
+    const snap = wrapSnapshotPayload(payload, opts.reason, count);
+    return ensureFolder().then(() => uploadFile(null, snap, {
+      name: name,
+      description: 'nickey-snapshot trips:' + count
+    })).then(f => {
+      if (fp) _rawSet('ndsync_lastBackupHash', fp);
+      _rawSet('ndsync_lastBackupAt', new Date().toISOString());
+      log('Snapshot created', name, f && f.id);
+      return f;
+    });
+  }
+
+  function listBackupFiles(){
+    return ensureFolder().then(fid => {
+      const q = encodeURIComponent(
+        `name contains '${BACKUP_PREFIX}' and '${fid}' in parents and trashed=false`
+      );
+      return driveReq('GET',
+        `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime,modifiedTime,size,description)&orderBy=createdTime desc&pageSize=100`);
     }).then(data => {
+      const P = persistApi();
+      const files = (data && data.files) || [];
+      return files.filter(f => !P || !P.isBackupFileName || P.isBackupFileName(f.name));
+    });
+  }
+
+  function pruneSnapshots(){
+    const P = persistApi();
+    if (!P || typeof P.selectSnapshotsToKeep !== 'function') return Promise.resolve();
+    return listBackupFiles().then(files => {
+      const plan = P.selectSnapshotsToKeep(files, Date.now());
+      if (!plan.trash || !plan.trash.length) return;
+      log('Pruning', plan.trash.length, 'old snapshots; keeping', plan.keep.length);
+      const jobs = plan.trash.map(f => {
+        if (!f.id || (P.isBackupFileName && !P.isBackupFileName(f.name))) return Promise.resolve();
+        return driveReq('PATCH',
+          'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(f.id),
+          JSON.stringify({ trashed: true }),
+          'application/json'
+        ).catch(err => logError('Could not trash snapshot ' + f.name, err));
+      });
+      return Promise.all(jobs);
+    }).catch(err => {
+      logError('Snapshot prune failed', err);
+    });
+  }
+
+  function formatBackupLabel(file){
+    const when = file.createdTime ? new Date(file.createdTime).toLocaleString() : '';
+    const P = persistApi();
+    const trips = P && P.parseSnapshotTripCount ? P.parseSnapshotTripCount(file) : 0;
+    const kb = file.size ? (Math.round(parseInt(file.size, 10) / 102) / 10) + ' KB' : '';
+    const bits = [when, trips ? trips + ' trips' : '', kb].filter(Boolean);
+    return bits.join(' · ');
+  }
+
+  function openBackupRestore(){
+    if (!tokenUsable()) {
+      openModal();
+      return;
+    }
+    const bg   = document.getElementById('ndsyncModalBg');
+    const body = document.getElementById('ndsyncModalBody');
+    if (!bg || !body) return;
+    body.innerHTML = `
+      <div class="ndsync-info">Loading Drive snapshots…</div>
+      <div class="ndsync-btn-row">
+        <button class="ndsync-action cancel" onclick="window.NDSync.openModal()">Back</button>
+      </div>`;
+    bg.classList.add('show');
+    listBackupFiles().then(files => {
+      if (!files.length) {
+        body.innerHTML = `
+          <div class="ndsync-info">No <strong>nickey-backup-*.json</strong> files in Nickey Dispatch Data yet. Sync or tap Backup to Drive now to create the first snapshot.</div>
+          <div class="ndsync-btn-row">
+            <button class="ndsync-action primary" onclick="window.NDSync.backupNow()">📦 Backup to Drive now</button>
+            <button class="ndsync-action cancel" onclick="window.NDSync.openModal()">Back</button>
+          </div>`;
+        return;
+      }
+      const items = files.map(f => {
+        const id = String(f.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        const name = String(f.name || '').replace(/[<>&]/g, '');
+        return `<button type="button" class="ndsync-backup-item" data-id="${id}">
+          ${name}<div class="meta">${formatBackupLabel(f)}</div></button>`;
+      }).join('');
+      body.innerHTML = `
+        <p>Tap a snapshot to <strong>merge</strong> it into Saved Records (never wipes current trips).</p>
+        <div class="ndsync-backup-list">${items}</div>
+        <div class="ndsync-btn-row">
+          <button class="ndsync-action cancel" onclick="window.NDSync.openModal()">Back</button>
+        </div>`;
+      body.querySelectorAll('.ndsync-backup-item').forEach(btn => {
+        btn.addEventListener('click', () => restoreBackup(btn.getAttribute('data-id')));
+      });
+    }).catch(err => {
+      logError('List backups failed', err);
+      body.innerHTML = `
+        <div class="ndsync-warn">Could not list Drive backups: ${lastError || err.message}</div>
+        <div class="ndsync-btn-row">
+          <button class="ndsync-action cancel" onclick="window.NDSync.openModal()">Back</button>
+        </div>`;
+    });
+  }
+
+  function restoreBackup(fileId){
+    if (!fileId || !tokenUsable()) return;
+    const body = document.getElementById('ndsyncModalBody');
+    if (body) body.innerHTML = '<div class="ndsync-info">Downloading snapshot…</div>';
+    downloadFileJson(fileId).then(data => {
+      const P = persistApi();
+      if (!P || typeof P.importBackupMerge !== 'function') {
+        throw new Error('Backup import is not available');
+      }
+      const parsed = P.parseBackupFile(data);
+      if (!parsed.ok) throw new Error(parsed.error);
+      const when = parsed.exportedAt ? new Date(parsed.exportedAt).toLocaleString() : 'this snapshot';
+      const ok = confirm('Restore from Drive backup (' + when + ')?\n\n' +
+        parsed.tripCount + ' trip(s) in this file.\n\n' +
+        'This MERGES into Saved Records — existing trips are not wiped.');
+      if (!ok) {
+        openBackupRestore();
+        return null;
+      }
+      const wr = P.importBackupMerge(data);
+      if (!wr.ok) throw new Error(wr.error || 'Merge failed');
+      notifyPageOfPull();
+      closeModal();
+      showPill('signed-in', '✓ Restored ' + wr.count + ' trips', 4000);
+      if (P.showToast) P.showToast('Merged Drive backup — ' + wr.count + ' trip(s) saved', false);
+      pendingShrink = null;
+      return pushToDrive();
+    }).catch(err => {
+      if (!err) return;
+      logError('Restore failed', err);
+      if (body) {
+        body.innerHTML = `
+          <div class="ndsync-warn">Restore failed: ${lastError || err.message}</div>
+          <div class="ndsync-btn-row">
+            <button class="ndsync-action cancel" onclick="window.NDSync.openBackupRestore()">Back</button>
+          </div>`;
+      }
+    });
+  }
+
+  // ── PULL & PUSH ───────────────────────────────────────────────────────────────
+  function pullFromDrive(){
+    if (!tokenUsable()) return Promise.resolve(0);
+    return ensureDataFile().then(fileId => downloadFileJson(fileId)).then(data => {
+      const firstSnap = (!initialRemoteSnapDone && !safeGet('ndsync_didInitialSnapshot') && data)
+        ? createSnapshot(data, { reason: 'initial-remote', skipIfUnchanged: false })
+            .then(() => {
+              initialRemoteSnapDone = true;
+              _rawSet('ndsync_didInitialSnapshot', '1');
+            })
+            .catch(err => logError('Initial remote snapshot failed', err))
+        : Promise.resolve();
       const changed = applyPayload(data);
       _rawSet('ndsync_lastSync', new Date().toISOString());
       // Merged records were written with _rawSet (no intercept). Push the
       // union so a smaller remote file cannot stay canonical on Drive.
       if (changed > 0 && initialPullDone) debouncedPush();
-      return changed;
+      return firstSnap.then(() => changed);
     });
   }
 
-  function pushToDrive(){
-    if (!tokenUsable() || !initialPullDone || isSyncing) return;
-    if (!navigator.onLine){ showPill('offline', 'Offline — queued', 3000); return; }
+  function pushToDrive(opts){
+    opts = opts || {};
+    if (!tokenUsable() || !initialPullDone) return Promise.resolve();
+    if (isSyncing) return Promise.resolve();
+    if (!navigator.onLine){ showPill('offline', 'Offline — queued', 3000); return Promise.resolve(); }
+    if (pendingShrink && !opts.confirmShrink){
+      showPill('error', '⚠ Shrink blocked — tap Cloud Sync');
+      return Promise.resolve({ blocked: true });
+    }
     isSyncing = true;
     showPill('syncing', 'Syncing...', 0);
 
-    ensureDataFile().then(fileId => uploadFile(fileId, buildPayload()))
-      .then(() => {
-        lastError = null;
+    const payload = buildPayload();
+    const P = persistApi();
+
+    return ensureDataFile()
+      .then(fileId => downloadFileJson(fileId).catch(() => null).then(remote => ({ fileId, remote })))
+      .then(({ fileId, remote }) => {
+        const localCount = tripCountOf(payload);
+        const remoteCount = tripCountOf(remote);
+        const shrink = !!(P && typeof P.shouldWarnShrink === 'function' &&
+          P.shouldWarnShrink(localCount, remoteCount));
+
+        const preSnap = (shrink && remote)
+          ? createSnapshot(remote, { reason: 'pre-shrink', skipIfUnchanged: false })
+          : Promise.resolve(null);
+
+        return preSnap.then(() => {
+          if (shrink && !opts.confirmShrink){
+            pendingShrink = { remoteCount: remoteCount, localCount: localCount };
+            lastError = 'Remote has ' + remoteCount + ' trips, local has ' + localCount + ' — continue?';
+            log('Push blocked to protect remote history', pendingShrink);
+            return { blocked: true };
+          }
+          return uploadFile(fileId, payload).then(() => {
+            pendingShrink = null;
+            return createSnapshot(payload, {
+              reason: opts.reason || 'post-push',
+              skipIfUnchanged: !opts.forceBackup
+            }).then(() => pruneSnapshots()).catch(err => {
+              logError('Snapshot failed after live push', err);
+            });
+          });
+        });
+      })
+      .then(result => {
         isSyncing = false;
+        if (result && result.blocked){
+          showPill('error', '⚠ Shrink blocked — tap Cloud Sync');
+          return result;
+        }
+        lastError = null;
         _rawSet('ndsync_lastSync', new Date().toISOString());
         showPill('signed-in', '✓ Synced', 3000);
         log('Push complete');
+        return result;
       })
       .catch(err => {
         isSyncing = false;
         logError('Push failed', err);
         showPill('error', 'Sync failed — will retry', 5000);
-        // retry once after 60s
-        setTimeout(() => { if (isSignedIn && initialPullDone) pushToDrive(); }, 60000);
+        setTimeout(() => {
+          if (isSignedIn && initialPullDone && !pendingShrink) pushToDrive();
+        }, 60000);
       });
+  }
+
+  function backupNow(){
+    if (!tokenUsable()){
+      openModal();
+      return Promise.resolve();
+    }
+    closeModal();
+    showPill('syncing', 'Saving Drive snapshot...', 0);
+    return ensureFolder()
+      .then(() => createSnapshot(buildPayload(), { reason: 'manual', skipIfUnchanged: false }))
+      .then(f => {
+        lastError = null;
+        showPill('signed-in', '✓ Snapshot saved', 4000);
+        log('Manual snapshot', f && f.id);
+        return pruneSnapshots();
+      })
+      .catch(err => {
+        logError('Manual snapshot failed', err);
+        showPill('error', 'Snapshot failed', 5000);
+      });
+  }
+
+  function confirmShrinkPush(){
+    const p = pendingShrink;
+    if (!p){
+      closeModal();
+      return pushToDrive();
+    }
+    const ok = confirm('Remote has ' + p.remoteCount + ' trips, local has ' + p.localCount +
+      ' — continue?\n\nA snapshot of the remote file was already saved in Drive. Overwrite the live sync file with this phone\'s ' +
+      p.localCount + ' trip(s)?');
+    if (!ok) return;
+    closeModal();
+    return pushToDrive({ confirmShrink: true });
   }
 
   function debouncedPush(){
     if (pushTimer) clearTimeout(pushTimer);
-    pushTimer = setTimeout(pushToDrive, PUSH_DEBOUNCE);
+    pushTimer = setTimeout(() => pushToDrive(), PUSH_DEBOUNCE);
   }
 
   // ── FULL SETUP AFTER SIGN-IN ──────────────────────────────────────────────────
@@ -803,6 +1157,7 @@
         try { window.google.accounts.oauth2.revoke(accessToken, () => {}); } catch(e){}
       }
       if (refreshTimer){ clearTimeout(refreshTimer); refreshTimer = null; }
+      pendingShrink = null;
       clearToken();
       if (pushTimer){ clearTimeout(pushTimer); pushTimer = null; }
       refreshMenuLabel();
@@ -813,6 +1168,10 @@
 
     syncNow(){
       if (!isSignedIn) return;
+      if (pendingShrink){
+        openModal();
+        return;
+      }
       closeModal();
       showPill('syncing', 'Syncing...', 0);
       pullFromDrive()
@@ -820,6 +1179,13 @@
         .catch(() => {})
         .finally(() => pushToDrive());
     },
+
+    backupNow,
+    openBackupRestore,
+    restoreBackup,
+    confirmShrinkPush,
+    exportBackup: persistExport,
+    importBackup: persistImport,
 
     openModal, closeModal,
     isSignedIn: () => !!(isSignedIn && tokenUsable()),

@@ -78,7 +78,7 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   const rosaHtml = read('rosas-ledger/index.html');
 
   it('bumps Nickey cache when the manifest/icons change', () => {
-    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.3'/);
+    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v8\.4'/);
   });
 
   it('still precaches Nickey BOL scan after the PWA split', () => {
@@ -110,5 +110,33 @@ describe('upgrade-safe persist is wired into the PWA shell', () => {
     const ndsyncAt = html.indexOf('ndsync.js');
     assert.ok(persistAt > 0);
     assert.ok(ndsyncAt > persistAt);
+  });
+
+  it('exposes Export / Import / Drive restore in the dispatch menu', () => {
+    const html = read('index.html');
+    assert.match(html, /exportNickeyBackup\(\)/);
+    assert.match(html, /importNickeyBackup\(\)/);
+    assert.match(html, /restoreNickeyDriveBackup\(\)/);
+    assert.match(html, /Export backup/);
+    assert.match(html, /Import backup/);
+    assert.match(html, /Restore from Drive backup/);
+  });
+});
+
+describe('Drive snapshots are append-only', () => {
+  it('POSTs nickey-backup-* as new files and never PATCHes them', () => {
+    const src = read('ndsync.js');
+    assert.match(src, /BACKUP_PREFIX = 'nickey-backup-'/);
+    assert.match(src, /uploadFile\(null, snap/);
+    assert.match(src, /shouldWarnShrink/);
+    assert.match(src, /pre-shrink/);
+    assert.match(src, /confirmShrinkPush/);
+    assert.doesNotMatch(src, /uploadFile\(driveFileId, snap/);
+  });
+
+  it('earnings import no longer replace-wipes saved records', () => {
+    const html = read('earnings.html');
+    assert.doesNotMatch(html, /This will REPLACE all current data/);
+    assert.match(html, /importBackupFile|MERGES into current data/);
   });
 });

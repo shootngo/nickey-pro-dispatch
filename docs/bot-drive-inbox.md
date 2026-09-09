@@ -10,10 +10,21 @@ Folder (same as Cloud Sync): **`Nickey Dispatch Data`**
 
 | File | Who writes it | Purpose |
 | --- | --- | --- |
-| `nickey-dispatch-data.json` | Phone **ndsync only** | Full localStorage backup |
+| `nickey-dispatch-data.json` | Phone **ndsync only** | Live sync file (merge-safe). Never written by bots. |
+| `nickey-backup-YYYY-MM-DDTHHMMSSZ.json` | Phone **ndsync** (POST only, never overwritten) | Immutable snapshot of saved records after each successful push, plus manual **Backup to Drive now**. |
 | `nickey-bot-inbox.json` | **Grok** creates/updates; phone clears applied trips | Pending trips for the phone |
 
-**Safety:** bots must never overwrite `nickey-dispatch-data.json`. The phone inbox client never reads or writes that file.
+**Safety:** bots must never overwrite `nickey-dispatch-data.json` or snapshot files. The phone inbox client never reads or writes those files.
+
+### Snapshot retention
+
+Snapshots live in **Nickey Dispatch Data** next to the live file. Each one is a **new** Drive file (never PATCHed). The phone trashes extras using this union:
+
+- keep the **30 newest**, **or**
+- keep anything **newer than 14 days**, **or**
+- always keep the **largest-ever** snapshot (by trip count, then file size)
+
+A shrink of the live file (local trip count drops the remote by more than 10% or more than 5 trips) first snapshots the current remote, then **refuses to overwrite** until you confirm in Cloud Sync (“Remote has N trips, local has M — continue?”).
 
 ## Main sync file (`nickey-dispatch-data.json`)
 
