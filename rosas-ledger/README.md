@@ -16,7 +16,7 @@ Nickey and Rosa's Ledger share the GitHub Pages origin, so Chrome can collapse t
 
 1. Long-press the confused shortcut (the one that sometimes opens the wrong app) → **Remove** / **Delete**. Also remove any extra Nickey or Rosa icon left on the home screen or in the app drawer.
 2. Chrome → menu (⋮) → **Settings** → **Site settings** (or **Privacy** → **Clear browsing data**) for `shootngo.github.io` if an old WebAPK still hijacks opens — optional but helps if step 1 is not enough.
-3. Open **Nickey** at `https://shootngo.github.io/nickey-pro-dispatch/` → ⋮ → **Add to Home screen** / **Install app**. Confirm the name is Nickey Dispatch and the icon is the green Nickey trucks.
+3. Open **Nickey** at `https://shootngo.github.io/nickey-pro-dispatch/` → ⋮ → **Add to Home screen** / **Install app**. Confirm the name is Nickey Dispatch and the icon is the Night run navy highway truck.
 4. Open **Rosa's Ledger** at `https://shootngo.github.io/nickey-pro-dispatch/rosas-ledger/` → ⋮ → **Add to Home screen** / **Install app**. Confirm the name is Rosa's Ledger and the icon is the rose + eighteen-wheeler.
 5. Voice / home should now open each icon's own app. Do not install Rosa from inside the Nickey window; use the Rosa URL in a Chrome tab.
 
