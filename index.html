@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Professional Dispatch V 8.4</title>
+<title>Nickey Professional Dispatch V 8.6</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-512-2.png">
+<link rel="icon" href="favicon.ico" sizes="48x48">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512-2.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nickey Dispatch">
 <link rel="stylesheet" href="nickey-shared.css">
@@ -136,7 +137,7 @@ body.nd-menu-open{overflow:hidden}
 </head>
 <body>
 <div class="splash-overlay" id="splashOverlay">
-  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 8.4</div></div>
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 8.6</div></div>
   <div class="splash-truck-wrap">
     <img class="splash-truck-img" id="splashTruckImg" alt="">
     <div class="splash-flames"></div>
@@ -145,7 +146,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="splash-loading"><span></span><span></span><span></span></div>
 </div>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 8.4</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 8.6</span></div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="driver-badge" id="driverBadge">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -321,6 +322,9 @@ body.nd-menu-open{overflow:hidden}
     <div class="menu-item" onclick="sendEmail()">✉️ Email Dispatch Report</div>
     <div class="menu-item" onclick="pushToRosaManual()" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">📤 Push to Rosa</div>
     <div class="menu-item" onclick="viewSavedRecords()">📋 View Saved Records</div>
+    <div class="menu-item" id="nickeyExportMenuItem" onclick="exportNickeyBackup()">📦 Export backup</div>
+    <div class="menu-item" id="nickeyImportMenuItem" onclick="importNickeyBackup()">📥 Import backup</div>
+    <div class="menu-item" id="nickeyRestoreMenuItem" onclick="restoreNickeyDriveBackup()">☁️ Restore from Drive backup</div>
     <div class="menu-item" onclick="viewSavedRecords()" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">📤 Push Saved to Rosa</div>
     <div class="menu-item" onclick="openPayAnalyzer()" style="background:linear-gradient(135deg,#1e3a8a 0%,#2d4fbd 100%);color:#ffd700;border:2px solid #ffd700;">📊 Pay Analyzer</div>
     <a href="earnings.html" class="menu-item" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">💰 Earnings & Expenses</a>
@@ -1559,6 +1563,21 @@ function setDateTimeNow(d,t){const n=new Date();document.getElementById(d).value
 function upPk(){const v=document.getElementById('pki').value;const d=document.getElementById('pkd');if(!v){d.innerHTML='PICKUP #';return}if(v.length<=4)d.innerHTML='<span class="pr">'+v+'</span>';else d.innerHTML='<span class="pb">'+v.slice(0,v.length-4)+'</span><span class="pr">'+v.slice(-4)+'</span>'}
 function clearForm(){if(editingRecordIdx!==-1){if(confirm("Exit edit mode and clear the form?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}return}if(confirm("Clear this form?")){clearAllFormFields();setTdy()}}
 function clearAllFormFields(){["pki","customerSelect","bpay","thl","tki","arrivalDate","arrivalTime","departureDate","departureTime","tw","atl","liveGauge","departureLoad","nts","odoIn","odoOut"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});document.getElementById("pkd").innerHTML="PICKUP #";document.getElementById("ttval").textContent="— GAL TOTAL";document.getElementById("ttval").dataset.tankerGal="0";const b=document.getElementById("tankWarnBox");if(b){b.className="tankwarn-box";document.getElementById("tankStatusTxt").textContent="ENTER WEIGHT ABOVE"}updateRemaining();document.getElementById("reimbContainer").innerHTML="";addReimbRow();updateReimbTotal();document.getElementById("fuelContainer").innerHTML="";addFuelEntry();localStorage.removeItem(FORM_STORAGE_KEY);calculateDetention();updateOdometerMiles()}
+function exportNickeyBackup(){
+  toggleMenu();
+  if (window.NickeyPersist && NickeyPersist.exportBackupDownload) NickeyPersist.exportBackupDownload();
+  else alert('Backup export is not available.');
+}
+function importNickeyBackup(){
+  toggleMenu();
+  if (window.NickeyPersist && NickeyPersist.pickImportFile) NickeyPersist.pickImportFile();
+  else alert('Backup import is not available.');
+}
+function restoreNickeyDriveBackup(){
+  toggleMenu();
+  if (window.NDSync && NDSync.openBackupRestore) NDSync.openBackupRestore();
+  else alert('Sign in to Cloud Sync to restore from Drive backups.');
+}
 function loadSavedRecords(){
   if (window.NickeyPersist) {
     var loaded = NickeyPersist.loadRecords();
@@ -2003,7 +2022,7 @@ function sendEmail() {
     if (insp.remarks) body += `\n  REMARKS:\n  ${insp.remarks}\n`;
   });
 
-  body += `\n\nSent from Nickey Dispatch V 8.4`;
+  body += `\n\nSent from Nickey Dispatch V 8.6`;
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 

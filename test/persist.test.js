@@ -210,3 +210,154 @@ describe('service worker does not touch trip storage', () => {
   });
 });
 
+describe('backup file names', () => {
+  it('formats nickey-backup-YYYY-MM-DDTHHMMSSZ.json', () => {
+    const name = P.backupFileName(new Date('2026-09-09T14:32:01.123Z'));
+    assert.equal(name, 'nickey-backup-2026-09-09T143201123Z.json');
+    assert.equal(P.isBackupFileName(name), true);
+    assert.equal(P.isBackupFileName('nickey-dispatch-data.json'), false);
+    assert.equal(P.isBackupFileName('nickey-backup-2026-09-09T143201Z.json'), true);
+  });
+});
+
+describe('shouldWarnShrink', () => {
+  it('warns when remote would drop by more than 10% or more than 5 trips', () => {
+    assert.equal(P.shouldWarnShrink(23, 200), true);
+    assert.equal(P.shouldWarnShrink(89, 100), true);
+    assert.equal(P.shouldWarnShrink(96, 100), false);
+    assert.equal(P.shouldWarnShrink(100, 100), false);
+    assert.equal(P.shouldWarnShrink(200, 23), false);
+    assert.equal(P.shouldWarnShrink(0, 0), false);
+  });
+});
+
+describe('shouldOfferLocalRestore', () => {
+  it('offers when local looks tiny compared with IndexedDB/.bak', () => {
+    assert.equal(P.shouldOfferLocalRestore(23, 200), true);
+    assert.equal(P.shouldOfferLocalRestore(0, 10), true);
+    assert.equal(P.shouldOfferLocalRestore(50, 51), false);
+  });
+});
+
+describe('selectSnapshotsToKeep — retention union', () => {
+  it('keeps last 30 OR last 14 days OR the largest-ever snapshot', () => {
+    const now = Date.parse('2026-09-09T12:00:00.000Z');
+    const files = [];
+    let i;
+    for (i = 0; i < 5; i++) {
+      files.push({
+        id: 'old-' + i,
+        name: P.backupFileName(new Date('2026-08-01T0' + i + ':00:00.000Z')),
+        createdTime: '2026-08-01T0' + i + ':00:00.000Z',
+        size: String(1000 + i),
+        description: 'nickey-snapshot trips:' + (10 + i)
+      });
+    }
+    files.push({
+      id: 'largest-old',
+      name: P.backupFileName(new Date('2026-08-01T12:00:00.000Z')),
+      createdTime: '2026-08-01T12:00:00.000Z',
+      size: '999999',
+      description: 'nickey-snapshot trips:400'
+    });
+    for (i = 0; i < 10; i++) {
+      files.push({
+        id: 'new-' + i,
+        name: P.backupFileName(new Date('2026-09-09T0' + i + ':00:00.000Z')),
+        createdTime: '2026-09-09T0' + i + ':00:00.000Z',
+        size: '2000',
+        description: 'nickey-snapshot trips:50'
+      });
+    }
+    const plan = P.selectSnapshotsToKeep(files, now, { maxCount: 5, maxAgeMs: 14 * 86400000 });
+    const keepIds = plan.keep.map((f) => f.id);
+    assert.ok(keepIds.includes('largest-old'), 'largest-ever snapshot must be kept');
+    assert.equal(keepIds.filter((id) => id.startsWith('new-')).length, 10, 'all files from last 14 days kept');
+    assert.ok(plan.trash.every((f) => f.id.startsWith('old-')), 'only small old files are trashed');
+    assert.equal(plan.trash.length, 5);
+  });
+});
+
+describe('countTripsInPayload', () => {
+  it('reads Drive keys payload and export arrays', () => {
+    const recs = [rec({ id: 'REC-1' }), rec({ id: 'REC-2', pickup: '222' })];
+    assert.equal(P.countTripsInPayload({ nickeySavedRecords: recs }), 2);
+    assert.equal(P.countTripsInPayload({
+      keys: { nickeySavedRecords: { value: JSON.stringify(recs), updatedAt: 'x' } }
+    }), 2);
+  });
+});
+
+describe('export / import backup — merge-union, never replace-wipe', () => {
+  it('recovers an empty canonical key from .bak', () => {
+    const good = [rec({ id: 'REC-bak', pickup: '222' })];
+    const store = P.memoryStorage({
+      nickeySavedRecords: '[]',
+      'nickeySavedRecords.bak': JSON.stringify(good)
+    });
+    const loaded = P.loadRecords({ storage: store });
+    assert.equal(loaded.recovered, true);
+    assert.equal(loaded.records[0].id, 'REC-bak');
+  });
+
+  it('parses Drive snapshot files and earnings v2 exports', () => {
+    const recs = [rec({ id: 'REC-d', pickup: '111' })];
+    const drive = P.parseBackupFile({
+      kind: 'nickey-snapshot',
+      keys: {
+        nickeySavedRecords: { value: JSON.stringify(recs), updatedAt: '2026-09-09T00:00:00.000Z' }
+      }
+    });
+    assert.equal(drive.ok, true);
+    assert.equal(drive.tripCount, 1);
+    const v2 = P.parseBackupFile({
+      version: 2,
+      exportedAt: '2026-09-01T00:00:00.000Z',
+      nickeySavedRecords: recs,
+      weeklyDeductions: { '2026-W01': { ifta: 10 } }
+    });
+    assert.equal(v2.ok, true);
+    assert.equal(v2.tripCount, 1);
+    assert.ok(v2.keys.weeklyDeductions);
+  });
+
+  it('merges an imported backup into existing trips instead of replacing', () => {
+    const store = P.memoryStorage({
+      nickeySavedRecords: JSON.stringify([
+        rec({ id: 'REC-local', pickup: '111' }),
+        rec({ id: 'REC-keep', pickup: '222' })
+      ])
+    });
+    const backup = {
+      version: 3,
+      kind: 'nickey-backup',
+      exportedAt: '2026-09-09T00:00:00.000Z',
+      nickeySavedRecords: [
+        rec({ id: 'REC-backup', pickup: '333' }),
+        rec({ id: 'REC-local', pickup: '111', notes: 'from backup', updatedAt: '2026-09-09T12:00:00.000Z' })
+      ]
+    };
+    const wr = P.importBackupMerge(backup, { storage: store });
+    assert.equal(wr.ok, true);
+    assert.equal(wr.records.length, 3);
+    assert.ok(wr.records.some((r) => r.id === 'REC-keep'));
+    assert.ok(wr.records.some((r) => r.id === 'REC-backup'));
+    const local = wr.records.find((r) => r.id === 'REC-local');
+    assert.match(local.notes, /from backup/);
+  });
+
+  it('buildExportPayload includes saved records and related sync keys', () => {
+    const store = P.memoryStorage({
+      nickeySavedRecords: JSON.stringify([rec({ id: 'REC-x', pickup: '111' })]),
+      weeklyDeductions: JSON.stringify({ '2026-W01': { ifta: 5 } }),
+      currentDriver: 'Frank Mulkey'
+    });
+    const payload = P.buildExportPayload({ storage: store });
+    assert.equal(payload.kind, 'nickey-backup');
+    assert.equal(payload.tripCount, 1);
+    assert.equal(payload.nickeySavedRecords[0].id, 'REC-x');
+    assert.ok(payload.keys.weeklyDeductions);
+    assert.equal(payload.currentDriver, 'Frank Mulkey');
+  });
+});
+

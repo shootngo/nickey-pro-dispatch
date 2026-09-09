@@ -12,7 +12,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'nickey-v8.4';
+const CACHE_VERSION = 'nickey-v8.6';
 const CACHE_NAME    = 'nickey-shell-' + CACHE_VERSION;
 const FONT_CACHE    = 'nickey-fonts-' + CACHE_VERSION;
 
@@ -34,7 +34,10 @@ const PRECACHE_URLS = [
   './nickey-bol-scan.js',
   './manifest.json',
   './icon-192.png',
-  './icon-512-2.png'
+  './icon-512-2.png',
+  './icon-maskable-512.png',
+  './apple-touch-icon.png',
+  './favicon.ico'
 ];
 
 // API origins that must NEVER be served from cache
