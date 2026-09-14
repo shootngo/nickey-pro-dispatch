@@ -361,3 +361,111 @@ describe('export / import backup — merge-union, never replace-wipe', () => {
   });
 });
 
+describe('master lists — customers, trailers, contacts, SDS', () => {
+  it('exports nickeyTrailers alongside nickeyCustomers', () => {
+    assert.ok(P.EXPORT_KEYS.includes('nickeyCustomers'));
+    assert.ok(P.EXPORT_KEYS.includes('nickeyTrailers'));
+    assert.ok(P.MASTER_LIST_KEYS.includes('nickeyCustomers'));
+    assert.ok(P.MASTER_LIST_KEYS.includes('nickeyTrailers'));
+    assert.ok(P.MASTER_LIST_KEYS.includes('nickeyContacts'));
+    assert.ok(P.MASTER_LIST_KEYS.includes('nickeyCustomSDS'));
+  });
+
+  it('writeMasterList persists and loadMasterList reads back a new customer', () => {
+    const store = P.memoryStorage({
+      nickeyCustomers: JSON.stringify([{ name: 'Hydrox Elgin Illinois', pay: 2256, limit: 0 }])
+    });
+    const wr = P.writeMasterList('nickeyCustomers', [
+      { name: 'Hydrox Elgin Illinois', pay: 2256, limit: 0 },
+      { name: 'New Customer LLC', pay: 900, limit: 5400, address: '' }
+    ], { storage: store });
+    assert.equal(wr.ok, true);
+    const loaded = P.loadMasterList('nickeyCustomers', { storage: store });
+    assert.equal(loaded.list.length, 2);
+    assert.ok(loaded.list.some((c) => c.name === 'New Customer LLC'));
+    assert.ok(store.getItem('nickeyCustomers.bak'));
+  });
+
+  it('writeMasterList persists a new trailer string', () => {
+    const store = P.memoryStorage({
+      nickeyTrailers: JSON.stringify(['SD 94', 'SD 55-20'])
+    });
+    const wr = P.writeMasterList('nickeyTrailers', ['SD 94', 'SD 55-20', 'SD 99'], { storage: store });
+    assert.equal(wr.ok, true);
+    const loaded = P.loadMasterList('nickeyTrailers', { storage: store });
+    assert.deepEqual(loaded.list, ['SD 94', 'SD 55-20', 'SD 99']);
+  });
+
+  it('refuses to overwrite a saved customer list with []', () => {
+    const store = P.memoryStorage({
+      nickeyCustomers: JSON.stringify([{ name: 'Keep Me', pay: 1, limit: 0 }])
+    });
+    const wr = P.writeMasterList('nickeyCustomers', [], { storage: store });
+    assert.equal(wr.ok, false);
+    assert.equal(wr.blockedEmpty, true);
+    assert.equal(JSON.parse(store.getItem('nickeyCustomers'))[0].name, 'Keep Me');
+  });
+
+  it('recovers a corrupt nickeyTrailers key from .bak', () => {
+    const store = P.memoryStorage({
+      nickeyTrailers: '{not-json',
+      'nickeyTrailers.bak': JSON.stringify(['SD 94', 'NEW 1'])
+    });
+    const loaded = P.loadMasterList('nickeyTrailers', { storage: store });
+    assert.equal(loaded.parseFailed, true);
+    assert.equal(loaded.recovered, true);
+    assert.deepEqual(loaded.list, ['SD 94', 'NEW 1']);
+    assert.deepEqual(JSON.parse(store.getItem('nickeyTrailers')), ['SD 94', 'NEW 1']);
+  });
+
+  it('Drive merge unions a new local customer into an older remote list', () => {
+    const local = JSON.stringify([
+      { name: 'Hydrox Elgin Illinois', pay: 2256, limit: 0 },
+      { name: 'Brand New Shipper', pay: 500, limit: 0 }
+    ]);
+    const remote = JSON.stringify([
+      { name: 'Hydrox Elgin Illinois', pay: 2256, limit: 0 },
+      { name: 'Maxson', pay: 388.80, limit: 0 }
+    ]);
+    const out = P.mergeSyncKey(
+      'nickeyCustomers',
+      local,
+      '2026-09-14T08:00:00.000Z',
+      remote,
+      '2026-09-01T00:00:00.000Z'
+    );
+    const list = JSON.parse(out.value);
+    assert.ok(list.some((c) => c.name === 'Brand New Shipper'));
+    assert.ok(list.some((c) => c.name === 'Maxson'));
+    assert.ok(list.some((c) => c.name === 'Hydrox Elgin Illinois'));
+  });
+
+  it('Drive merge unions a new local trailer even when remote is newer', () => {
+    const local = JSON.stringify(['SD 94', 'SD 99']);
+    const remote = JSON.stringify(['SD 94', 'SD 55-20']);
+    const out = P.mergeSyncKey(
+      'nickeyTrailers',
+      local,
+      '2026-09-14T08:00:00.000Z',
+      remote,
+      '2026-09-20T00:00:00.000Z'
+    );
+    const list = JSON.parse(out.value);
+    assert.ok(list.includes('SD 99'));
+    assert.ok(list.includes('SD 55-20'));
+    assert.ok(list.includes('SD 94'));
+  });
+
+  it('backup export includes trailers', () => {
+    const store = P.memoryStorage({
+      nickeySavedRecords: JSON.stringify([rec({ id: 'REC-x', pickup: '111' })]),
+      nickeyTrailers: JSON.stringify(['SD 94', 'NEW TANK']),
+      nickeyCustomers: JSON.stringify([{ name: 'New Co', pay: 1, limit: 0 }])
+    });
+    const payload = P.buildExportPayload({ storage: store });
+    assert.ok(payload.keys.nickeyTrailers);
+    assert.deepEqual(payload.nickeyTrailers, ['SD 94', 'NEW TANK']);
+    assert.equal(payload.nickeyCustomers[0].name, 'New Co');
+  });
+});
+

@@ -7,6 +7,10 @@
  * Drive sync (ndsync) must MERGE record lists — never replace the whole array
  * with a smaller remote copy. Deletes sync via nickeyDeletedRecordIds tombstones.
  *
+ * Hamburger Settings master lists (customers, trailers, contacts, custom SDS)
+ * use the same durable path: canonical key + .bak + IndexedDB, and Drive merge
+ * is union (never last-write-wins replace). Trailers were previously local-only.
+ *
  * Drive snapshot retention (nickey-backup-*.json, never overwritten):
  *   Keep a file if it is (a) among the 30 newest, OR (b) newer than 14 days,
  *   OR (c) the single largest snapshot by trip count (then file size).
@@ -40,9 +44,19 @@
     'nickeySavedRecords', 'nickeyDeletedRecordIds', 'weeklyDeductions', 'fuelStations', 'currentDriver',
     'nickeyInspectionHistory', 'nickeyLatestInspection', 'nickeyIntermodalHistory',
     'nickeyDraftLoad', 'nickeyTrailerInspectionDraft', 'nickeyIntermodalDraft',
-    'exportFormat', 'nickeyCustomers', 'geminiApiKey', 'nickeyDispatchFormState',
+    'exportFormat', 'nickeyCustomers', 'nickeyTrailers', 'geminiApiKey', 'nickeyDispatchFormState',
     'nickeyContacts', 'nickeyCustomSDS'
   ];
+
+  // Hamburger Settings lists — durable local + Drive union-merge.
+  var MASTER_LIST_KEYS = [
+    'nickeyCustomers',
+    'nickeyTrailers',
+    'nickeyContacts',
+    'nickeyCustomSDS'
+  ];
+  var MASTER_LIST_KEY_SET = {};
+  MASTER_LIST_KEYS.forEach(function (k) { MASTER_LIST_KEY_SET[k] = true; });
 
   // Historical / alias keys that may still hold trips after a version bump.
   var LEGACY_RECORD_KEYS = [
@@ -424,7 +438,8 @@
     nickeyInspectionHistory: true,
     nickeyIntermodalHistory: true,
     nickeyCustomSDS: true,
-    nickeyContacts: true
+    nickeyContacts: true,
+    nickeyTrailers: true
   };
   var NAMED_ARRAY_KEYS = {
     nickeyCustomers: 'name'
@@ -523,7 +538,7 @@
     return !!(w && w.indexedDB);
   }
 
-  function idbPut(payload) {
+  function idbPutKey(id, payload) {
     if (!idbAvailable()) return;
     try {
       var req = w.indexedDB.open(IDB_NAME, 1);
@@ -535,14 +550,14 @@
         var db = e.target.result;
         try {
           var tx = db.transaction(IDB_STORE, 'readwrite');
-          tx.objectStore(IDB_STORE).put(payload, 'records');
+          tx.objectStore(IDB_STORE).put(payload, id);
         } catch (err) { /* ignore */ }
       };
       req.onerror = function () { /* ignore */ };
     } catch (e) { /* ignore */ }
   }
 
-  function idbGet(cb) {
+  function idbGetKey(id, cb) {
     if (!idbAvailable()) {
       cb(null);
       return;
@@ -557,13 +572,21 @@
         var db = e.target.result;
         try {
           var tx = db.transaction(IDB_STORE, 'readonly');
-          var get = tx.objectStore(IDB_STORE).get('records');
+          var get = tx.objectStore(IDB_STORE).get(id);
           get.onsuccess = function () { cb(get.result || null); };
           get.onerror = function () { cb(null); };
         } catch (err) { cb(null); }
       };
       req.onerror = function () { cb(null); };
     } catch (e) { cb(null); }
+  }
+
+  function idbPut(payload) {
+    idbPutKey('records', payload);
+  }
+
+  function idbGet(cb) {
+    idbGetKey('records', cb);
   }
 
   function snapshotIdb(records, tombs) {
@@ -574,6 +597,167 @@
       schema: SCHEMA_VERSION
     });
   }
+
+  function snapshotMasterIdb(storage) {
+    storage = getStorage(storage);
+    var payload = { savedAt: isoNow(), schema: SCHEMA_VERSION, keys: {} };
+    var i, key, raw;
+    for (i = 0; i < MASTER_LIST_KEYS.length; i++) {
+      key = MASTER_LIST_KEYS[i];
+      raw = storage ? safeGet(storage, key) : null;
+      if (raw != null) payload.keys[key] = raw;
+    }
+    idbPutKey('master', payload);
+  }
+
+  function bakKeyFor(key) {
+    return key + '.bak';
+  }
+
+  function mergeMasterValues(key, localRaw, otherRaw) {
+    return mergeSyncKey(key, localRaw, '', otherRaw, '', {});
+  }
+
+  function writeMasterList(key, list, opts) {
+    opts = opts || {};
+    if (!MASTER_LIST_KEY_SET[key]) {
+      return { ok: false, error: 'Unknown master list: ' + key };
+    }
+    var storage = getStorage(opts.storage);
+    if (!storage) return { ok: false, error: 'localStorage is not available' };
+    var next = Array.isArray(list) ? list : [];
+    var existingRaw = safeGet(storage, key);
+    var existing = parseArray(existingRaw);
+    if (existing == null) existing = [];
+
+    if (!next.length && existing.length && !opts.allowEmpty) {
+      var err = 'Refusing to overwrite ' + existing.length + ' saved ' + key + ' item(s) with an empty list.';
+      lastWriteError = err;
+      showToast(err, true);
+      return { ok: false, error: err, list: existing, blockedEmpty: true };
+    }
+
+    var json = JSON.stringify(next);
+    try {
+      if (existingRaw && existingRaw !== json) {
+        try { safeSet(storage, bakKeyFor(key), existingRaw); } catch (bakErr) { /* quota on bak is non-fatal */ }
+      }
+      safeSet(storage, key, json);
+    } catch (e) {
+      return { ok: false, error: reportWriteError(key, e), list: next };
+    }
+    lastWriteError = null;
+    snapshotMasterIdb(storage);
+    return { ok: true, list: next, count: next.length };
+  }
+
+  function loadMasterList(key, opts) {
+    opts = opts || {};
+    var storage = getStorage(opts.storage);
+    var empty = { list: [], parseFailed: false, recovered: false, key: key };
+    if (!MASTER_LIST_KEY_SET[key] || !storage) return empty;
+
+    var raw = safeGet(storage, key);
+    var parsed = parseArray(raw);
+    var parseFailed = parsed === null;
+    var fromMain = parseFailed ? [] : parsed;
+    var recovered = false;
+
+    var bakParsed = parseArray(safeGet(storage, bakKeyFor(key)));
+    if (parseFailed || (!fromMain.length && bakParsed && bakParsed.length)) {
+      if (bakParsed && bakParsed.length) {
+        fromMain = bakParsed;
+        recovered = true;
+      }
+    }
+
+    if (recovered && fromMain.length) {
+      writeMasterList(key, fromMain, { storage: storage, replace: true });
+    }
+
+    return {
+      list: fromMain,
+      parseFailed: parseFailed,
+      recovered: recovered,
+      key: key
+    };
+  }
+
+  function loadAllMasterLists(opts) {
+    var out = {};
+    MASTER_LIST_KEYS.forEach(function (k) {
+      out[k] = loadMasterList(k, opts).list;
+    });
+    return out;
+  }
+
+  function hydrateMasterLists(cb) {
+    cb = cb || function () {};
+    idbGetKey('master', function (snap) {
+      var storage = getStorage();
+      if (!storage) {
+        cb({ merged: false, lists: loadAllMasterLists() });
+        return;
+      }
+      var changed = [];
+      var i, key, localRaw, localArr, bakArr, idbRaw, idbArr, bestRaw, merged;
+      for (i = 0; i < MASTER_LIST_KEYS.length; i++) {
+        key = MASTER_LIST_KEYS[i];
+        localRaw = safeGet(storage, key);
+        localArr = parseArray(localRaw) || [];
+        bakArr = parseArray(safeGet(storage, bakKeyFor(key))) || [];
+        idbRaw = snap && snap.keys ? snap.keys[key] : null;
+        idbArr = parseArray(idbRaw) || [];
+        bestRaw = localRaw;
+        if (bakArr.length > localArr.length) {
+          merged = mergeMasterValues(key, bestRaw, safeGet(storage, bakKeyFor(key)));
+          bestRaw = merged.value;
+        }
+        if (idbArr.length > (parseArray(bestRaw) || []).length ||
+            (idbArr.length && !(parseArray(bestRaw) || []).length)) {
+          merged = mergeMasterValues(key, bestRaw, idbRaw);
+          bestRaw = merged.value;
+        }
+        if (bestRaw && bestRaw !== (localRaw || '') && (parseArray(bestRaw) || []).length) {
+          try {
+            if (localRaw && localRaw !== bestRaw) {
+              try { safeSet(storage, bakKeyFor(key), localRaw); } catch (bakErr) {}
+            }
+            safeSet(storage, key, bestRaw);
+            changed.push(key);
+          } catch (e) {
+            reportWriteError(key, e);
+          }
+        }
+      }
+      if (changed.length) snapshotMasterIdb(storage);
+      cb({
+        merged: changed.length > 0,
+        changed: changed,
+        lists: loadAllMasterLists({ storage: storage })
+      });
+    });
+  }
+
+  var flushListenersAttached = false;
+  function attachFlushListeners() {
+    if (flushListenersAttached || !w || typeof w.addEventListener !== 'function') return;
+    flushListenersAttached = true;
+    function flushLocal() {
+      var storage = getStorage();
+      if (!storage) return;
+      snapshotMasterIdb(storage);
+      var recs = parseRecordsValue(safeGet(storage, RECORDS_KEY));
+      if (recs && recs.length) snapshotIdb(recs, loadTombstones(storage));
+    }
+    w.addEventListener('pagehide', flushLocal);
+    if (w.document) {
+      w.document.addEventListener('visibilitychange', function () {
+        if (w.document.visibilityState === 'hidden') flushLocal();
+      });
+    }
+  }
+  attachFlushListeners();
 
   function writeRecords(records, opts) {
     opts = opts || {};
@@ -1060,6 +1244,12 @@
 
   function hydrateFromIndexedDB(cb) {
     cb = cb || function () {};
+    function finish(result) {
+      hydrateMasterLists(function (master) {
+        result.master = master || { merged: false, lists: {} };
+        cb(result);
+      });
+    }
     idbGet(function (snap) {
       var storage = getStorage();
       var loaded = loadRecords({ storage: storage });
@@ -1071,7 +1261,7 @@
       var bestCount = Math.max(bakCount, idbCount);
 
       if (bestCount <= localCount) {
-        cb({ merged: false, records: loaded.records || [] });
+        finish({ merged: false, records: loaded.records || [] });
         return;
       }
 
@@ -1084,7 +1274,7 @@
           '(Does not delete trips that are already here.)'
         );
         if (!ok) {
-          cb({ merged: false, records: loaded.records, declined: true });
+          finish({ merged: false, records: loaded.records, declined: true });
           return;
         }
       }
@@ -1096,10 +1286,10 @@
         saveTombstones(tombs, storage);
         writeRecords(merged, { storage: storage, tombstones: tombs });
         showToast('Restored ' + (merged.length - localCount) + ' trip(s) from local backup', false);
-        cb({ merged: true, records: merged });
+        finish({ merged: true, records: merged });
         return;
       }
-      cb({ merged: false, records: loaded.records || [] });
+      finish({ merged: false, records: loaded.records || [] });
     });
   }
 
@@ -1125,6 +1315,12 @@
     deleteRecordAt: deleteRecordAt,
     loadTombstones: loadTombstones,
     hydrateFromIndexedDB: hydrateFromIndexedDB,
+    hydrateMasterLists: hydrateMasterLists,
+    writeMasterList: writeMasterList,
+    loadMasterList: loadMasterList,
+    loadAllMasterLists: loadAllMasterLists,
+    snapshotMasterIdb: snapshotMasterIdb,
+    MASTER_LIST_KEYS: MASTER_LIST_KEYS,
     reportWriteError: reportWriteError,
     showToast: showToast,
     getLastWriteError: function () { return lastWriteError; },

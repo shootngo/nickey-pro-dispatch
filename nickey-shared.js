@@ -25,6 +25,26 @@
     }
   };
 
+  function persistMasterWrite(key, arr) {
+    if (w.NickeyPersist && typeof w.NickeyPersist.writeMasterList === 'function') {
+      var wr = w.NickeyPersist.writeMasterList(key, arr);
+      return !!(wr && wr.ok);
+    }
+    return w.ndSet(key, arr);
+  }
+
+  function persistMasterLoad(key) {
+    if (w.NickeyPersist && typeof w.NickeyPersist.loadMasterList === 'function') {
+      var loaded = w.NickeyPersist.loadMasterList(key);
+      if (loaded && Array.isArray(loaded.list) && loaded.list.length) return loaded.list;
+    }
+    try {
+      var saved = JSON.parse(localStorage.getItem(key) || 'null');
+      if (saved && Array.isArray(saved) && saved.length > 0) return saved;
+    } catch (e) {}
+    return null;
+  }
+
   w.ndGetRaw = function(key, fallback) {
     return localStorage.getItem(key) || (fallback !== undefined ? fallback : '');
   };
@@ -59,15 +79,13 @@
   ];
 
   w.ndLoadCustomers = function() {
-    try {
-      var saved = JSON.parse(localStorage.getItem('nickeyCustomers') || 'null');
-      if (saved && Array.isArray(saved) && saved.length > 0) return saved;
-    } catch(e) {}
+    var saved = persistMasterLoad('nickeyCustomers');
+    if (saved) return saved;
     return ND_DEFAULT_CUSTOMERS.map(function(c) { return Object.assign({}, c); });
   };
 
   w.ndSaveCustomers = function(arr) {
-    localStorage.setItem('nickeyCustomers', JSON.stringify(arr));
+    return persistMasterWrite('nickeyCustomers', arr);
   };
 
   // ── Trailers ──────────────────────────────────────────────────────────────
@@ -79,15 +97,13 @@
   ];
 
   w.ndLoadTrailers = function() {
-    try {
-      var saved = JSON.parse(localStorage.getItem('nickeyTrailers') || 'null');
-      if (saved && Array.isArray(saved) && saved.length > 0) return saved;
-    } catch(e) {}
+    var saved = persistMasterLoad('nickeyTrailers');
+    if (saved) return saved;
     return ND_DEFAULT_TRAILERS.slice();
   };
 
   w.ndSaveTrailers = function(arr) {
-    localStorage.setItem('nickeyTrailers', JSON.stringify(arr));
+    return persistMasterWrite('nickeyTrailers', arr);
   };
 
   // ── Date Helpers ──────────────────────────────────────────────────────────

@@ -38,7 +38,7 @@
     'nickeySavedRecords', 'nickeyDeletedRecordIds', 'weeklyDeductions', 'fuelStations', 'currentDriver',
     'nickeyInspectionHistory', 'nickeyLatestInspection', 'nickeyIntermodalHistory',
     'nickeyDraftLoad', 'nickeyTrailerInspectionDraft', 'nickeyIntermodalDraft',
-    'exportFormat', 'nickeyCustomers', 'geminiApiKey', 'nickeyDispatchFormState',
+    'exportFormat', 'nickeyCustomers', 'nickeyTrailers', 'geminiApiKey', 'nickeyDispatchFormState',
     'nickeyContacts', 'nickeyCustomSDS'
   ];
   const SYNC_KEY_SET = new Set(SYNC_KEYS);
@@ -1082,6 +1082,7 @@
     // Soft-reload page data without a full page refresh so in-memory
     // savedRecords cannot overwrite a merged Drive pull on the next save.
     if (typeof loadSavedRecords === 'function') try { loadSavedRecords(); } catch(e){}
+    if (typeof reloadHamburgerLists === 'function') try { reloadHamburgerLists(); } catch(e){}
     if (typeof renderSavedRecordsBody === 'function') {
       try {
         var ov = document.getElementById('savedRecordsOverlay');
@@ -1094,6 +1095,13 @@
   }
 
   // ── EVENT LISTENERS ───────────────────────────────────────────────────────────
+  function flushPendingPush(){
+    if (!pushTimer) return;
+    clearTimeout(pushTimer);
+    pushTimer = null;
+    if (isSignedIn && initialPullDone && tokenUsable()) pushToDrive();
+  }
+
   function onAppVisible(){
     if (!navigator.onLine) return;
     if (tokenUsable() && initialPullDone) {
@@ -1111,8 +1119,10 @@
 
   window.addEventListener('focus', onAppVisible);
   document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPendingPush();
     if (document.visibilityState === 'visible') onAppVisible();
   });
+  window.addEventListener('pagehide', flushPendingPush);
   window.addEventListener('pageshow', onAppVisible);
 
   window.addEventListener('online', () => {
