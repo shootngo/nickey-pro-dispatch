@@ -28,7 +28,7 @@ A shrink of the live file (local trip count drops the remote by more than 10% or
 
 ## Main sync file (`nickey-dispatch-data.json`)
 
-The phone is the only writer. On pull it **merges** `nickeySavedRecords` by trip id / pickup number (union). A newer Drive copy with fewer trips cannot wipe trips that still exist on the phone. After a merge the phone pushes the combined set back. Deletes sync via `nickeyDeletedRecordIds` so a deleted trip is not resurrected. Weekly deductions and similar maps are union-merged; simple scalars (driver name, API key) stay last-write-wins.
+The phone is the only writer. On pull it **merges** `nickeySavedRecords` by trip id / pickup number (union). A newer Drive copy with fewer trips cannot wipe trips that still exist on the phone. After a merge the phone pushes the combined set back. Deletes sync via `nickeyDeletedRecordIds` so a deleted trip is not resurrected. Weekly deductions and similar maps are union-merged; hamburger Settings lists (`nickeyCustomers`, `nickeyTrailers`, contacts, custom SDS) are union-merged so a newer Drive copy cannot drop a customer or trailer that still exists on the phone. Simple scalars (driver name, API key) stay last-write-wins.
 
 On app update the service worker only refreshes cached HTML/JS. It does not clear `localStorage` or IndexedDB. Opening a new version migrates older record shapes (`fuel` → `fuelEntries`, `pickupNumber` → `pickup`, missing `id`) and legacy keys such as `nickeyDraftLoad`.
 

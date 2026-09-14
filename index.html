@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Professional Dispatch V 8.6</title>
+<title>Nickey Professional Dispatch V 8.7</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico" sizes="48x48">
@@ -137,7 +137,7 @@ body.nd-menu-open{overflow:hidden}
 </head>
 <body>
 <div class="splash-overlay" id="splashOverlay">
-  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 8.6</div></div>
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 8.7</div></div>
   <div class="splash-truck-wrap">
     <img class="splash-truck-img" id="splashTruckImg" alt="">
     <div class="splash-flames"></div>
@@ -146,7 +146,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="splash-loading"><span></span><span></span><span></span></div>
 </div>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 8.6</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 8.7</span></div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="driver-badge" id="driverBadge">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -654,8 +654,21 @@ function setupFormPersistence() {
 }
 
 function setupDriverName(){let s=localStorage.getItem("currentDriver");if(!s){s=prompt("Enter your full name:","Frank Mulkey");if(!s||!s.trim())s="Unknown Driver";s=s.trim();localStorage.setItem("currentDriver",s)}currentDriver=s;document.getElementById("driverBadge").textContent="👤 "+currentDriver}
-function populateCustomerDropdown(){const s=document.getElementById("customerSelect");s.innerHTML='<option value="">— Select Customer —</option>';customers.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=c.name;s.appendChild(o)})}
-function populateTrailerDropdown(){const s=document.getElementById("tki");s.innerHTML='<option value="">— Select Trailer —</option>';allTrailers.forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=t;s.appendChild(o)})}
+function trailerLabel(t){if(t==null)return '';if(typeof t==='string')return t;if(t&&typeof t==='object'&&t.name)return String(t.name);return String(t)}
+function populateCustomerDropdown(){const s=document.getElementById("customerSelect");if(!s)return;const prev=s.value;s.innerHTML='<option value="">— Select Customer —</option>';customers.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=c.name;s.appendChild(o)});if(prev)s.value=prev}
+function populateTrailerDropdown(){const s=document.getElementById("tki");if(!s)return;const prev=s.value;s.innerHTML='<option value="">— Select Trailer —</option>';allTrailers.forEach(t=>{const name=trailerLabel(t);const o=document.createElement("option");o.value=name;o.textContent=name;s.appendChild(o)});if(prev)s.value=prev}
+function reloadHamburgerLists(){
+  customers = ndLoadCustomers();
+  allTrailers = ndLoadTrailers();
+  populateCustomerDropdown();
+  populateTrailerDropdown();
+  var ov=document.getElementById('settingsOverlay');
+  if(!ov||ov.style.display!=='flex')return;
+  if(document.getElementById('settingsCustomers')&&document.getElementById('settingsCustomers').style.display!=='none') renderCustomerList();
+  if(document.getElementById('settingsTrailers')&&document.getElementById('settingsTrailers').style.display!=='none') renderTrailerList();
+  if(document.getElementById('settingsContacts')&&document.getElementById('settingsContacts').style.display!=='none') renderContactList();
+  if(document.getElementById('settingsChemicals')&&document.getElementById('settingsChemicals').style.display!=='none') renderChemicalList();
+}
 function loadCustomerData(){const s=document.getElementById("customerSelect").value;const c=customers.find(x=>x.name===s);if(c){document.getElementById("thl").value=c.limit||"";document.getElementById("bpay").value=c.pay||"";updateWarning();updateOdometerMiles()}}
 function getTotalGallons(){const tg=parseFloat(document.getElementById('ttval').dataset.tankerGal)||0;const ag=parseFloat(document.getElementById('atl').value)||0;return tg+ag}
 function updateWarning(){const t=getTotalGallons();const l=parseFloat(document.getElementById('thl').value)||999999;const b=document.getElementById("tankWarnBox");const txt=document.getElementById("tankStatusTxt");const v=document.getElementById("ttval");if(t===0){b.className="tankwarn-box";txt.textContent="ENTER WEIGHT ABOVE";v.style.color="#ffd700";return}v.textContent=t.toFixed(1)+" GAL TOTAL";if(t>l){b.className="tankwarn-box danger";txt.innerHTML="⚠️ WARNING — TANK OVERFILL";txt.style.color="#ff6666";v.style.color="#ff6666"}else if(t>=l-200){b.className="tankwarn-box caution";txt.textContent="CAUTION — NEAR HIGH LIMIT";txt.style.color="#ffd700";v.style.color="#ffd700"}else{b.className="tankwarn-box safe";txt.textContent="SAFE TO PUMP";txt.style.color="#28a745";v.style.color="#ffd700"}}
@@ -1027,7 +1040,7 @@ function openTrailerDetail(idx){const u=roadsideData.superD.items[idx];let m=doc
 function closeTrailerDetail(){const m=document.getElementById('trailerDetailOverlay');if(m)m.style.display='none';}
 function toggleTrailerCard(card){const d=card.querySelector('.trailer-details');const a=card.querySelector('.expand-arrow');if(d.style.display==='none'){d.style.display='block';a.textContent='▲';}else{d.style.display='none';a.textContent='▼';}}
 function closeEmergency(){document.getElementById("emergencyOverlay").style.display="none"}
-function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex";renderCustomerList()}
+function openSettings(){toggleMenu();document.getElementById("settingsOverlay").style.display="flex";renderCustomerList();renderTrailerList()}
 function closeSettings(){document.getElementById("settingsOverlay").style.display="none"}
 function switchSettingsTab(tab){
   [0,1,2,3,4,5].forEach(function(i){var b=document.getElementById("tab"+i);if(b){b.style.background=tab===i?"#1e3a8a":"#333";b.style.color=tab===i?"#ffd700":"#ddd";}});
@@ -1037,6 +1050,8 @@ function switchSettingsTab(tab){
   document.getElementById("settingsChemicals").style.display=tab===3?"block":"none";
   var bot=document.getElementById("settingsBot");if(bot)bot.style.display=tab===4?"block":"none";
   var rosa=document.getElementById("settingsRosa");if(rosa)rosa.style.display=tab===5?"block":"none";
+  if(tab===0) renderCustomerList();
+  if(tab===1) renderTrailerList();
   if(tab===2) renderContactList();
   if(tab===3) renderChemicalList();
   if(tab===4){
@@ -1053,12 +1068,22 @@ var DEFAULT_CONTACTS = [
   {label:'Bookkeeper', email:'Cummins0524@outlook.com', purpose:'bookkeeper'}
 ];
 function getOrInitContacts(){
+  if(window.NickeyPersist&&typeof NickeyPersist.loadMasterList==='function'){
+    var loaded=NickeyPersist.loadMasterList('nickeyContacts');
+    if(loaded&&loaded.list&&loaded.list.length)return loaded.list;
+  }
   try{var s=localStorage.getItem('nickeyContacts');if(s)return JSON.parse(s);}catch(e){}
   var d=JSON.parse(JSON.stringify(DEFAULT_CONTACTS));
-  localStorage.setItem('nickeyContacts',JSON.stringify(d));
+  saveContactsStore(d);
   return d;
 }
-function saveContactsStore(contacts){localStorage.setItem('nickeyContacts',JSON.stringify(contacts));}
+function saveContactsStore(contacts){
+  if(window.NickeyPersist&&typeof NickeyPersist.writeMasterList==='function'){
+    NickeyPersist.writeMasterList('nickeyContacts', contacts, { allowEmpty: true });
+    return;
+  }
+  localStorage.setItem('nickeyContacts',JSON.stringify(contacts));
+}
 function renderContactList(){
   var contacts=getOrInitContacts();
   var list=document.getElementById('contactList');
@@ -1099,8 +1124,20 @@ function addNewContact(){
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // ── Custom SDS management ─────────────────────────────────────────────────────
-function getCustomSDS(){try{return JSON.parse(localStorage.getItem('nickeyCustomSDS')||'[]');}catch(e){return[];}}
-function saveCustomSDSStore(arr){localStorage.setItem('nickeyCustomSDS',JSON.stringify(arr));}
+function getCustomSDS(){
+  if(window.NickeyPersist&&typeof NickeyPersist.loadMasterList==='function'){
+    var loaded=NickeyPersist.loadMasterList('nickeyCustomSDS');
+    if(loaded&&Array.isArray(loaded.list))return loaded.list;
+  }
+  try{return JSON.parse(localStorage.getItem('nickeyCustomSDS')||'[]');}catch(e){return[];}
+}
+function saveCustomSDSStore(arr){
+  if(window.NickeyPersist&&typeof NickeyPersist.writeMasterList==='function'){
+    NickeyPersist.writeMasterList('nickeyCustomSDS', arr||[], { allowEmpty: true });
+    return;
+  }
+  localStorage.setItem('nickeyCustomSDS',JSON.stringify(arr||[]));
+}
 
 function renderChemicalList(){
   var arr=getCustomSDS();
@@ -1161,8 +1198,9 @@ function renderCustomSDSCards(){
   });
 }
 function changeDriverName(){const name=prompt("Enter driver name:",currentDriver);if(name&&name.trim()){currentDriver=name.trim();localStorage.setItem("currentDriver",currentDriver);document.getElementById("driverBadge").textContent="👤 "+currentDriver;toggleMenu()}}
-function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();ndSaveCustomers(customers);alert("Customer added!")}}
-function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());ndSaveTrailers(allTrailers);populateTrailerDropdown();alert("Trailer added!")}}
+function addNewCustomer(){const name=prompt("Enter customer name:");if(name&&name.trim()){const pay=prompt("Enter base pay:","0.00");const limit=prompt("Enter high limit (gallons):","0");customers.push({name:name.trim(),limit:parseFloat(limit)||0,pay:parseFloat(pay)||0,address:""});populateCustomerDropdown();var ok=ndSaveCustomers(customers);renderCustomerList();if(ok===false){alert("Could not save customer. Storage may be full — free space and try again.");return}alert("Customer added!")}}
+function addNewTrailer(){const name=prompt("Enter trailer number:");if(name&&name.trim()){allTrailers.push(name.trim());populateTrailerDropdown();var ok=ndSaveTrailers(allTrailers);renderTrailerList();if(ok===false){alert("Could not save trailer. Storage may be full — free space and try again.");return}alert("Trailer added!")}}
+function deleteTrailer(index){if(!confirm('Remove this trailer from the list?'))return;allTrailers.splice(index,1);var ok=ndSaveTrailers(allTrailers);populateTrailerDropdown();renderTrailerList();if(ok===false)alert('Could not save trailer list. Storage may be full.')}
 function exitEditMode(){if(confirm("Exit edit mode and return to new record?")){editingRecordIdx=-1;document.getElementById("editBanner").classList.remove("active");clearAllFormFields();setTdy()}}
 function pasteDispatchText(){
   document.getElementById('pasteDispatchOverlay').style.display='flex';
@@ -1703,8 +1741,27 @@ function updateCustomerField(index, field, value) {
   } else {
     customers[index][field] = value;
   }
-  localStorage.setItem("nickeyCustomers", JSON.stringify(customers));
+  ndSaveCustomers(customers);
   populateCustomerDropdown();
+}
+
+function renderTrailerList() {
+  const container = document.getElementById("trailerList");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!allTrailers.length) {
+    container.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:14px;">No trailers saved yet.</div>';
+    return;
+  }
+  allTrailers.forEach((t, index) => {
+    const name = trailerLabel(t);
+    const div = document.createElement("div");
+    div.style.cssText = "background:#252525;border:1px solid #444;border-radius:8px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;";
+    div.innerHTML =
+      '<div style="font-weight:700;color:#ffd700;font-size:16px;">'+escHtml(name)+'</div>'+
+      '<button type="button" onclick="deleteTrailer('+index+')" style="background:#8a0000;color:#fff;border:none;border-radius:6px;padding:8px 10px;cursor:pointer;font-size:16px;flex-shrink:0;">🗑</button>';
+    container.appendChild(div);
+  });
 }
 
 /* loadSavedCustomers() replaced by ndLoadCustomers() in nickey-shared.js */
@@ -2022,7 +2079,7 @@ function sendEmail() {
     if (insp.remarks) body += `\n  REMARKS:\n  ${insp.remarks}\n`;
   });
 
-  body += `\n\nSent from Nickey Dispatch V 8.6`;
+  body += `\n\nSent from Nickey Dispatch V 8.7`;
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 
@@ -2081,6 +2138,7 @@ loadSavedRecords();
 if (window.NickeyPersist) {
   NickeyPersist.hydrateFromIndexedDB(function (result) {
     if (result && result.records) savedRecords = result.records;
+    reloadHamburgerLists();
     var ov = document.getElementById('savedRecordsOverlay');
     if (ov && ov.style.display === 'flex') renderSavedRecordsBody();
   });
@@ -2089,8 +2147,8 @@ setTdy();
 addReimbRow();
 addFuelEntry();
 setupFormPersistence();
-window.addEventListener('pageshow', function () { loadSavedRecords(); });
-document.addEventListener('ndsync:pulled', function () { loadSavedRecords(); });
+window.addEventListener('pageshow', function () { loadSavedRecords(); reloadHamburgerLists(); });
+document.addEventListener('ndsync:pulled', function () { loadSavedRecords(); reloadHamburgerLists(); });
 document.addEventListener('nickeybot:pulled', function () { loadSavedRecords(); });
 
 // Voice inputs — static fields
