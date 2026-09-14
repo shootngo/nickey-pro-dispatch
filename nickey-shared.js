@@ -260,4 +260,234 @@
     return fallback;
   };
 
+  // ── App version / service worker updates ──────────────────────────────────
+  w.ND_APP_VERSION = 'V 8.8';
+  w.ND_SW_CHECK_SETTLE_MS = 500;
+  w.ND_SW_RELOAD_MS = 1800;
+
+  w.ndSwRegisterOpts = function() {
+    return { scope: './', updateViaCache: 'none' };
+  };
+
+  function ndSetCheckStatus(text) {
+    if (typeof document === 'undefined' || !document.body) return;
+    var el = document.getElementById('ndUpdateCheckStatus');
+    if (!text) {
+      if (el && el.parentNode && typeof el.parentNode.removeChild === 'function') {
+        el.parentNode.removeChild(el);
+      } else if (el && typeof el.remove === 'function') {
+        el.remove();
+      }
+      return;
+    }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ndUpdateCheckStatus';
+      el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#111;color:#ffd700;padding:14px 16px;text-align:center;font-size:14px;font-weight:700;z-index:99998;letter-spacing:0.5px;';
+      document.body.appendChild(el);
+    }
+    el.textContent = text;
+  }
+
+  w.ndShowUpdateBanner = function() {
+    if (typeof document === 'undefined' || !document.body) return;
+    if (document.getElementById('ndUpdateBanner')) return;
+    var b = document.createElement('div');
+    b.id = 'ndUpdateBanner';
+    b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1e3a8a;color:#fff;padding:14px 16px;text-align:center;font-size:14px;font-weight:700;z-index:99999;cursor:pointer;letter-spacing:0.5px;';
+    b.textContent = '🔄 New version available — tap to update';
+    b.addEventListener('click', function() {
+      b.textContent = 'Updating...';
+      if (!navigator.serviceWorker || typeof navigator.serviceWorker.getRegistration !== 'function') {
+        window.location.reload();
+        return;
+      }
+      navigator.serviceWorker.getRegistration('./').then(function(reg) {
+        w.ndActivateWaitingWorker(reg);
+      });
+    });
+    document.body.appendChild(b);
+  };
+
+  w.ndWatchServiceWorker = function(reg) {
+    if (!reg || typeof reg.addEventListener !== 'function') return;
+    reg.addEventListener('updatefound', function() {
+      var nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', function() {
+        if (nw.state === 'installed' && navigator.serviceWorker && navigator.serviceWorker.controller) {
+          w.ndShowUpdateBanner();
+        }
+      });
+    });
+  };
+
+  w.ndActivateWaitingWorker = function(reg) {
+    var reloading = false;
+    function reload() {
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    }
+    if (navigator.serviceWorker && typeof navigator.serviceWorker.addEventListener === 'function') {
+      navigator.serviceWorker.addEventListener('controllerchange', reload);
+    }
+    var waiting = null;
+    if (reg) {
+      waiting = reg.waiting || null;
+      if (!waiting && reg.installing && reg.installing.state === 'installed') waiting = reg.installing;
+    }
+    if (waiting && typeof waiting.postMessage === 'function') {
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      reload();
+      return 'reloaded';
+    }
+    setTimeout(reload, w.ND_SW_RELOAD_MS || 1800);
+    return 'activating';
+  };
+
+  function ndCloseHamburger() {
+    if (typeof w.toggleMenu !== 'function') return;
+    var ov = typeof document !== 'undefined' ? document.getElementById('menuOverlay') : null;
+    if (ov && ov.style && ov.style.display === 'flex') w.toggleMenu();
+  }
+
+  function ndAlertLatest() {
+    alert("You're on " + w.ND_APP_VERSION + " — already latest.");
+  }
+
+  function ndAlertOffline() {
+    alert("Couldn't check for an update right now. Try again when you have a signal.\n\nYou're on " + w.ND_APP_VERSION + ".");
+  }
+
+  function ndWaitForInstalled(worker) {
+    return new Promise(function(resolve) {
+      if (!worker) {
+        resolve(null);
+        return;
+      }
+      if (worker.state === 'installed' || worker.state === 'activated') {
+        resolve(worker);
+        return;
+      }
+      if (worker.state === 'redundant') {
+        resolve(null);
+        return;
+      }
+      worker.addEventListener('statechange', function onState() {
+        if (worker.state === 'installed' || worker.state === 'activated') {
+          worker.removeEventListener('statechange', onState);
+          resolve(worker);
+        } else if (worker.state === 'redundant') {
+          worker.removeEventListener('statechange', onState);
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  function ndFinishFound(reg) {
+    ndSetCheckStatus('');
+    var ok = true;
+    try { ok = confirm('New version found. Update now?\n\nCurrently running ' + w.ND_APP_VERSION + '.'); }
+    catch (e) {}
+    if (!ok) {
+      w.ndShowUpdateBanner();
+      return 'deferred';
+    }
+    w.ndActivateWaitingWorker(reg);
+    return 'updating';
+  }
+
+  function ndSettleAfterUpdate(reg) {
+    if (reg.waiting) return Promise.resolve(ndFinishFound(reg));
+    if (reg.installing) {
+      return ndWaitForInstalled(reg.installing).then(function(worker) {
+        if (worker || reg.waiting) return ndFinishFound(reg);
+        ndSetCheckStatus('');
+        ndAlertLatest();
+        return 'latest';
+      });
+    }
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        if (reg.waiting) {
+          resolve(ndFinishFound(reg));
+        } else if (reg.installing) {
+          ndWaitForInstalled(reg.installing).then(function(worker) {
+            if (worker || reg.waiting) resolve(ndFinishFound(reg));
+            else {
+              ndSetCheckStatus('');
+              ndAlertLatest();
+              resolve('latest');
+            }
+          });
+        } else {
+          ndSetCheckStatus('');
+          ndAlertLatest();
+          resolve('latest');
+        }
+      }, w.ND_SW_CHECK_SETTLE_MS || 0);
+    });
+  }
+
+  w.ndCheckForUpdate = function() {
+    ndCloseHamburger();
+    if (!navigator.serviceWorker) {
+      ndAlertLatest();
+      return Promise.resolve('unsupported');
+    }
+
+    ndSetCheckStatus('Checking for update…');
+
+    return navigator.serviceWorker.getRegistration('./').then(function(existing) {
+      var ready = existing
+        ? Promise.resolve(existing)
+        : navigator.serviceWorker.register('./sw.js', w.ndSwRegisterOpts());
+      return ready.then(function(reg) {
+        if (!reg) {
+          ndSetCheckStatus('');
+          ndAlertLatest();
+          return 'latest';
+        }
+        if (reg.waiting) return ndFinishFound(reg);
+        if (reg.installing) {
+          return ndWaitForInstalled(reg.installing).then(function(worker) {
+            if (worker || reg.waiting) return ndFinishFound(reg);
+            ndSetCheckStatus('');
+            ndAlertLatest();
+            return 'latest';
+          });
+        }
+
+        var bust = './sw.js?check=' + Date.now();
+        var ping = (typeof fetch === 'function')
+          ? fetch(bust, { cache: 'no-store' }).then(function(resp) { return resp; }).catch(function() { return null; })
+          : Promise.resolve({ ok: true });
+
+        return ping.then(function(resp) {
+          var reached = !!(resp && resp.ok);
+          var updatePromise = (reg.update && typeof reg.update === 'function')
+            ? Promise.resolve(reg.update()).catch(function() { return null; })
+            : Promise.resolve(null);
+          return updatePromise.then(function(updated) {
+            if (!reached && !updated && !reg.waiting && !reg.installing) {
+              ndSetCheckStatus('');
+              ndAlertOffline();
+              return 'offline';
+            }
+            return ndSettleAfterUpdate(reg);
+          });
+        });
+      });
+    }).catch(function() {
+      ndSetCheckStatus('');
+      ndAlertOffline();
+      return 'offline';
+    });
+  };
+
 }(window));
