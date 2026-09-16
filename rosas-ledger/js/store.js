@@ -1,6 +1,6 @@
-import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, DEFAULT_TOLERANCE } from "./config.js?v=20260908d";
-import { applyVariance, normalizeTrip, num } from "./core.js?v=20260908d";
-import { DEMO_SEED_VERSION, getDemoTrips } from "./demo-data.js?v=20260908d";
+import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, DEFAULT_TOLERANCE } from "./config.js?v=20260916a";
+import { applyVariance, hasActuals, normalizeTrip, num } from "./core.js?v=20260916a";
+import { DEMO_SEED_VERSION, getDemoTrips } from "./demo-data.js?v=20260916a";
 
 const LS_TRIPS = "rosasLedger.trips";
 const LS_SETTINGS = "rosasLedger.settings";
@@ -260,6 +260,41 @@ export async function saveTrip(next) {
   }
   emit();
   return t;
+}
+
+/** Shared localStorage key Nickey reads (see nickey-rosa-baseline.js / docs/rosa-nickey-baseline.md). */
+export function publishedBaseline() {
+  try {
+    if (typeof window !== "undefined" && window.NickeyRosaBaseline) {
+      return window.NickeyRosaBaseline.read();
+    }
+    const raw = JSON.parse(localStorage.getItem("nickeyRosa.baseline") || "null");
+    return raw && typeof raw === "object" ? raw : { amount: null };
+  } catch {
+    return { amount: null };
+  }
+}
+
+export function publishTripBaseline(trip) {
+  if (!trip || !hasActuals(trip)) return publishedBaseline();
+  if (typeof window !== "undefined" && window.NickeyRosaBaseline) {
+    return window.NickeyRosaBaseline.publishFromTrip(trip);
+  }
+  return publishedBaseline();
+}
+
+export function publishWeekBaseline(trips, sundayISO) {
+  if (typeof window !== "undefined" && window.NickeyRosaBaseline) {
+    return window.NickeyRosaBaseline.publishFromWeek(trips, sundayISO);
+  }
+  return publishedBaseline();
+}
+
+export function publishManualBaseline(input) {
+  if (typeof window !== "undefined" && window.NickeyRosaBaseline) {
+    return window.NickeyRosaBaseline.publishManual(input);
+  }
+  return publishedBaseline();
 }
 
 export async function saveTolerance(value) {

@@ -29,9 +29,12 @@ Open `rosas-ledger/` and tap **Continue in demo mode**. Sample trips load from `
 1. Land on the **month calendar** (Sun–Sat pay weeks, alternate-week shading, trip dots, flagged days).
 2. Tap a day → **whole pay week**, with that day highlighted and a running weekly total. Scroll **older weeks**.
 3. Open a trip → Frank's estimates vs Rosa's actuals + deductions. Lease and truck wash **prefill from the last entry** and show an **Edited** chip when changed.
-4. **Save actuals** — variance and flag recompute against the tolerance band.
-5. **Budget / P&L** charts (money in vs out) and **year CSV / XLSX** export.
-6. **SimplyWise** is a stub: it accepts a file and does not parse it yet.
+4. **Save actuals** — variance and flag recompute against the tolerance band. Check **Set as Frank's baseline** (on for this week / last week) so Nickey Dispatch picks up **Current Baseline: $X**.
+5. On **Week**, confirm the booked-actual total and tap **Set as Frank's baseline**. **More** also has a typed period amount.
+6. **Budget / P&L** charts (money in vs out) and **year CSV / XLSX** export.
+7. **SimplyWise** is a stub: it accepts a file and does not parse it yet.
+
+Same-origin `localStorage` key `nickeyRosa.baseline` (see `docs/rosa-nickey-baseline.md`). Open Nickey on this phone after saving — Frank should see the new baseline, not a leftover $900.
 
 Reset sample trips from **More**.
 

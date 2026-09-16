@@ -39,7 +39,7 @@
     'nickeyInspectionHistory', 'nickeyLatestInspection', 'nickeyIntermodalHistory',
     'nickeyDraftLoad', 'nickeyTrailerInspectionDraft', 'nickeyIntermodalDraft',
     'exportFormat', 'nickeyCustomers', 'nickeyTrailers', 'geminiApiKey', 'nickeyDispatchFormState',
-    'nickeyContacts', 'nickeyCustomSDS'
+    'nickeyContacts', 'nickeyCustomSDS', 'nickeyRosa.baseline'
   ];
   const SYNC_KEY_SET = new Set(SYNC_KEYS);
 

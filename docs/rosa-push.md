@@ -80,3 +80,5 @@ Do not enable Google as a sign-in provider for this Nickey client.
 | `nickey-rosa-push.js` | Mapping + email/password write |
 | Settings → **Rosa** | Paste config, sign in |
 | `sw.js` | Precaches `nickey-rosa-push.js`; Firebase hosts stay network-only |
+
+Actuals Rosa books can become Frank's **Current Baseline** via the shared `nickeyRosa.baseline` key — see `docs/rosa-nickey-baseline.md`. That MVP is localStorage + Drive, not a Firestore reverse-read.
