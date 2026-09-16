@@ -4,6 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const baseline = require('../nickey-rosa-baseline.js');
 
 function memoryStorage(seed) {
@@ -148,6 +149,16 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     assert.match(html, /Current Baseline/);
     assert.doesNotMatch(html, /Current Baseline: \$900/);
     assert.match(html, /id="payCompareBox"/);
+  });
+
+  it('keeps the dispatch inline script parseable (splash + baseline UI)', () => {
+    const html = read('index.html');
+    const start = html.indexOf('const TRUCK_IMG=');
+    const end = html.indexOf('</script>', start);
+    assert.ok(start > 0 && end > start);
+    const inline = html.slice(start, end);
+    assert.doesNotThrow(() => new vm.Script(inline, { filename: 'index-inline.js' }));
+    assert.match(inline, /function refreshAllBaselineUI/);
   });
 
   it('Rosa saves actuals onto the shared key', () => {

@@ -1848,15 +1848,6 @@ function updatePayAnalyzer() {
     if (resultBox) { resultBox.style.background = "#0f2a0f"; resultBox.style.borderColor = "#4caf50"; }
     return;
   }
-    const odo = calcTripMiles();
-    hint.textContent = (odo > 0 && miles === odo) ? "  •  from odometer" : "";
-  }
-  if (miles <= 0) {
-    resultEl.textContent = "—";
-    resultEl.style.color = "#4caf50";
-    if (resultBox) { resultBox.style.background = "#0f2a0f"; resultBox.style.borderColor = "#4caf50"; }
-    return;
-  }
   const dollarsPerMile = basePay / miles;
   resultEl.textContent = "$" + dollarsPerMile.toFixed(2);
   if (dollarsPerMile >= 2.00) {
