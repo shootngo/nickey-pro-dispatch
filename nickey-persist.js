@@ -45,7 +45,7 @@
     'nickeyInspectionHistory', 'nickeyLatestInspection', 'nickeyIntermodalHistory',
     'nickeyDraftLoad', 'nickeyTrailerInspectionDraft', 'nickeyIntermodalDraft',
     'exportFormat', 'nickeyCustomers', 'nickeyTrailers', 'geminiApiKey', 'nickeyDispatchFormState',
-    'nickeyContacts', 'nickeyCustomSDS'
+    'nickeyContacts', 'nickeyCustomSDS', 'nickeyRosa.baseline'
   ];
 
   // Hamburger Settings lists — durable local + Drive union-merge.

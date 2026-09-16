@@ -5,12 +5,13 @@ import {
   pnlForYear, shortMonth, startOfPayWeek, toCsv, toISODate, todayISO,
   tripsInMonth, tripsInWeek, tripsInYear, tripsOnDay, varianceOf, weekdayShort,
   weekRunningTotal, weekShade
-} from "./core.js?v=20260908d";
-import { buildXlsx } from "./xlsx-lite.js?v=20260908d";
+} from "./core.js?v=20260916a";
+import { buildXlsx } from "./xlsx-lite.js?v=20260916a";
 import {
   currentAuthor, enterDemo, getSettings, getState, initStore, isFirebaseConfigured,
+  publishedBaseline, publishManualBaseline, publishTripBaseline, publishWeekBaseline,
   readSession, resetDemoData, saveTolerance, saveTrip, signIn, signOutUser, subscribe
-} from "./store.js?v=20260908d";
+} from "./store.js?v=20260916a";
 
 const appEl = document.getElementById("app");
 const toastEl = document.getElementById("toast");
@@ -156,6 +157,25 @@ function modePill() {
   return `<span class="live-pill">Live</span>`;
 }
 
+function baselineApi() {
+  return (typeof window !== "undefined" && window.NickeyRosaBaseline) || null;
+}
+
+function baselineCard({ compact } = {}) {
+  const rec = publishedBaseline();
+  const api = baselineApi();
+  const has = rec && rec.amount != null;
+  const amt = has ? (api ? api.formatMoney(rec.amount) : money(rec.amount)) : "—";
+  const sub = has
+    ? `${esc(rec.label || rec.kind || "Actual pay")}${rec.savedAt ? " · sent to Nickey" : ""}`
+    : "Nickey still has no baseline until you save an actual";
+  return `<div class="baseline-card${compact ? " compact" : ""}">
+    <div class="k">Frank's Current Baseline</div>
+    <div class="v tabular">${amt}</div>
+    <div class="sub">${sub}</div>
+  </div>`;
+}
+
 function listenBanner() {
   const err = getState().listenError;
   if (!err) return "";
@@ -289,6 +309,7 @@ function renderCalendar() {
     ${header("Rosa's Ledger", "Bookkeeper companion", { right: modePill() })}
     ${switcher}
     ${listenBanner()}
+    ${baselineCard({ compact: true })}
     ${body}
     ${nav("calendar")}
   </div>`;
@@ -333,6 +354,17 @@ function renderWeek() {
       <div class="range">${esc(formatWeekRange(sunday))}</div>
       <div class="tot tabular"><b>${money(shown)}</b> ${run.actualCount === run.tripCount && run.tripCount ? "actuals" : run.actualCount ? "mixed actuals + estimates" : "estimated"} · ${run.tripCount} trip${run.tripCount === 1 ? "" : "s"}</div>
     </div>
+    ${baselineCard({ compact: true })}
+    ${run.actualCount ? `<div class="week-send">
+      <div class="k">Send this week's booked actuals to Nickey</div>
+      <p class="hint">Prefills with ${money(run.actual)} across ${run.actualCount} booked trip${run.actualCount === 1 ? "" : "s"}. Frank will see this as Current Baseline.</p>
+      <div class="fld money-fld">
+        <label for="weekBaselineAmt">Confirm actual pay</label>
+        <span class="pre">$</span>
+        <input id="weekBaselineAmt" name="weekBaselineAmt" inputmode="decimal" type="number" step="0.01" value="${esc(String(run.actual))}">
+      </div>
+      <button class="btn btn-gold" type="button" data-act="send-week-baseline">Set as Frank's baseline</button>
+    </div>` : `<p class="hint" style="margin:0 14px 12px">Book at least one trip actual this week, then you can send the total to Nickey as Frank's baseline.</p>`}
     ${days.map((iso) => {
       const list = tripsOnDay(trips, iso);
       const hi = iso === ui.selectedDay ? " hi" : "";
@@ -455,7 +487,9 @@ function renderTrip() {
         <div class="kv"><div class="k">Odo in / out</div><div class="v">${trip.odometerIn ?? "—"} → ${trip.odometerOut ?? "—"}</div></div>
         <div class="kv"><div class="k">Est total</div><div class="v">${money(estTotal(trip))}</div></div>
       </div>
+      ${baselineCard({ compact: true })}
       <div class="sec-title">Rosa's actuals</div>
+      <p class="hint" style="margin-top:0">Enter the pay-sheet actuals. Saving can also push the total to Nickey as Frank's Current Baseline.</p>
       <div class="form-grid">
         ${moneyField("actualPay", "Actual pay", draft.actualPay)}
         ${moneyField("actualDetention", "Actual detention", draft.actualDetention)}
@@ -489,6 +523,10 @@ function renderTrip() {
         <textarea id="noteText" name="noteText" rows="3" placeholder="Pay-sheet discrepancy, dispatcher call, …">${esc(draft.noteText || "")}</textarea>
       </div>
       <button class="btn btn-ghost" type="button" data-act="add-note" style="margin-bottom:10px">Add note</button>
+      <label class="check-row">
+        <input id="setNickeyBaseline" type="checkbox" ${baselineApi() && baselineApi().isRecentPayWeek(trip.tripDate) ? "checked" : ""}>
+        <span>Set as Frank's baseline in Nickey Dispatch</span>
+      </label>
       <div class="sticky-save">
         <button class="btn btn-gold" data-act="save-actuals">Save actuals</button>
       </div>
@@ -567,6 +605,17 @@ function renderSettings() {
   return `<div class="app-shell">
     ${header("More", mode === "demo" ? "Demo / offline" : (session?.email || "Signed in"), { right: modePill() })}
     <div class="settings">
+      ${baselineCard()}
+      <div class="card">
+        <div class="sec-title" style="margin-top:0">Send a period total to Nickey</div>
+        <p class="hint" style="margin-top:0">Type the pay-sheet actual (load or week). Nickey will show this as Current Baseline — not a leftover $900 default.</p>
+        <div class="fld money-fld">
+          <label for="manualBaselineAmt">Actual pay</label>
+          <span class="pre">$</span>
+          <input id="manualBaselineAmt" name="manualBaselineAmt" inputmode="decimal" type="number" step="0.01" placeholder="1200.00" value="${publishedBaseline().amount != null ? esc(String(publishedBaseline().amount)) : ""}">
+        </div>
+        <button class="btn btn-gold" type="button" data-act="send-manual-baseline">Set as Frank's baseline</button>
+      </div>
       <div class="card">
         <div class="sec-title" style="margin-top:0">Tolerance band</div>
         <p class="hint" style="margin-top:0">Flag a trip only when |actual − estimate| is greater than this dollar band. Small variances stay quiet.</p>
@@ -726,12 +775,43 @@ async function onClick(e) {
   }
   if (act === "save-actuals") {
     captureDraftFromForm();
+    const setBaselineEl = document.getElementById("setNickeyBaseline");
+    const wantBaseline = setBaselineEl ? setBaselineEl.checked : false;
     const trip = getState().trips.find((t) => t.id === ui.tripId);
     if (!trip) return;
     const next = draftAsTrip(trip);
     await saveTrip(next);
+    if (wantBaseline && hasActuals(next)) {
+      const rec = publishTripBaseline(next);
+      toast(next.flagged ? "Saved — flagged, baseline sent to Nickey" : "Actuals saved · Nickey baseline " + money(rec.amount));
+    } else {
+      toast(next.flagged ? "Saved — flagged outside band" : "Actuals saved");
+    }
     ui.draft = null;
-    toast(next.flagged ? "Saved — flagged outside band" : "Actuals saved");
+    render();
+    return;
+  }
+  if (act === "send-week-baseline") {
+    const amtEl = document.getElementById("weekBaselineAmt");
+    const typed = amtEl && amtEl.value !== "" ? num(amtEl.value) : null;
+    const rec = typed != null
+      ? publishManualBaseline({ amount: typed, payWeek: ui.weekSunday, label: formatWeekRange(ui.weekSunday) + " · confirmed" })
+      : publishWeekBaseline(getState().trips, ui.weekSunday);
+    if (rec && rec.amount != null) toast("Nickey baseline set to " + money(rec.amount));
+    else toast("Enter a booked actual first");
+    render();
+    return;
+  }
+  if (act === "send-manual-baseline") {
+    const amtEl = document.getElementById("manualBaselineAmt");
+    const typed = amtEl && amtEl.value !== "" ? num(amtEl.value) : null;
+    if (typed == null) { toast("Enter an actual pay amount"); return; }
+    const rec = publishManualBaseline({
+      amount: typed,
+      payWeek: startOfPayWeek(todayISO()),
+      label: "Rosa confirmed"
+    });
+    toast("Nickey baseline set to " + money(rec.amount));
     render();
     return;
   }

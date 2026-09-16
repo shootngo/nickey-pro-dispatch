@@ -261,7 +261,7 @@
   };
 
   // ── App version / service worker updates ──────────────────────────────────
-  w.ND_APP_VERSION = 'V 8.9';
+  w.ND_APP_VERSION = 'V 9.0';
   w.ND_SW_CHECK_SETTLE_MS = 500;
   w.ND_SW_RELOAD_MS = 1800;
 

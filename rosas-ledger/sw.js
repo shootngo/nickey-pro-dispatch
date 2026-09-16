@@ -7,7 +7,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'rosa-v1';
+const CACHE_VERSION = 'rosa-v2';
 const CACHE_NAME = 'rosa-shell-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [
@@ -21,6 +21,7 @@ const PRECACHE_URLS = [
   './js/config.js',
   './js/demo-data.js',
   './js/xlsx-lite.js',
+  '../nickey-rosa-baseline.js',
   './assets/icon-192.png',
   './assets/icon-512.png',
   './assets/apple-touch-icon.png',

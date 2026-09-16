@@ -445,6 +445,35 @@ label { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform:
 .live-pill { color: #7dcaa0; border-color: #7dcaa0; }
 .listen-banner { padding: 0 16px 8px; }
 
+.baseline-card {
+  margin: 10px 14px 12px;
+  background: linear-gradient(135deg, rgba(212,175,122,0.16), rgba(196,92,120,0.08));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--rad);
+  padding: 14px 16px;
+}
+.baseline-card.compact { margin: 8px 14px 10px; padding: 12px 14px; }
+.trip .baseline-card { margin: 0 0 12px; }
+.settings .baseline-card { margin: 0 0 12px; }
+.baseline-card .k { font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.baseline-card .v { font-family: var(--font-display); font-size: 2rem; color: var(--gold-2); line-height: 1.1; }
+.baseline-card .sub { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+.week-send {
+  margin: 0 14px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--rad);
+  padding: 14px;
+}
+.week-send .k { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); font-weight: 700; margin-bottom: 6px; }
+.week-send .hint { margin: 0 0 10px; }
+.check-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 12px 2px 8px; font-size: 0.92rem; color: var(--ink);
+  text-transform: none; letter-spacing: 0; font-weight: 500;
+}
+.check-row input { width: 22px; height: 22px; margin-top: 1px; flex-shrink: 0; accent-color: var(--gold); }
+
 @media (min-width: 500px) {
   .nav { border-radius: 16px 16px 0 0; }
   .app-shell { box-shadow: var(--shadow); }
