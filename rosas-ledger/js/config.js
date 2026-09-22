@@ -15,8 +15,14 @@ export const firebaseConfig = {
 };
 
 export const COLLECTION_TRIPS = "trips";
+export const COLLECTION_WEEKLY = "weeklyTotals";
+export const COLLECTION_BACKUPS = "backups";
 export const COLLECTION_SETTINGS = "settings";
 export const SETTINGS_DOC = "rosa";
+export const BACKUP_DOC = "preWeeklyTotals";
+
+/** Rosa's Ledger version. Nickey Dispatch stays on its own version string. */
+export const ROSA_APP_VERSION = "V 1.1";
 
 export const DEFAULT_TOLERANCE = 25;
 

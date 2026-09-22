@@ -1,17 +1,18 @@
 import {
-  addDays, actualTotal, applyVariance, deductTotal, downloadBlob, endOfPayWeek,
-  estTotal, exportRows, formatLongDate, formatWeekRange, hasActuals, isFlagged,
-  lane, lastDeduction, money, monthLabel, num, parseISODate, payWeekDays,
-  pnlForYear, shortMonth, startOfPayWeek, toCsv, toISODate, todayISO,
-  tripsInMonth, tripsInWeek, tripsInYear, tripsOnDay, varianceOf, weekdayShort,
-  weekRunningTotal, weekShade
-} from "./core.js?v=20260916a";
-import { buildXlsx } from "./xlsx-lite.js?v=20260916a";
+  addDays, actualTotal, applyVariance, downloadBlob,
+  estTotal, exportRows, findWeeklyTotals, formatLongDate, formatWeekRange, hasActuals, isFlagged,
+  lane, money, monthLabel, num, parseISODate, payWeekDays,
+  pnlForYear, prefillWeeklyDraft, shortMonth, startOfPayWeek, toCsv, toISODate, todayISO,
+  tripsInMonth, tripsInWeek, tripsInYear, tripsOnDay, varianceOf, weekdayShort, weeklyExportRows,
+  weeklyFieldEdited, weeklyTotalsInYear, weekPaySheet, weekRunningTotal, weekShade
+} from "./core.js?v=20260922a";
+import { buildXlsx } from "./xlsx-lite.js?v=20260922a";
+import { ROSA_APP_VERSION } from "./config.js?v=20260922a";
 import {
   currentAuthor, enterDemo, getSettings, getState, initStore, isFirebaseConfigured,
   publishedBaseline, publishManualBaseline, publishTripBaseline, publishWeekBaseline,
-  readSession, resetDemoData, saveTolerance, saveTrip, signIn, signOutUser, subscribe
-} from "./store.js?v=20260916a";
+  readSession, resetDemoData, saveTolerance, saveTrip, saveWeeklyTotals, signIn, signOutUser, subscribe
+} from "./store.js?v=20260922a";
 
 const appEl = document.getElementById("app");
 const toastEl = document.getElementById("toast");
@@ -29,7 +30,8 @@ const ui = {
   loginBusy: false,
   modal: null,
   pnlYear: new Date().getFullYear(),
-  exporting: false
+  exporting: false,
+  totalsDraft: null
 };
 
 let toastTimer = 0;
@@ -106,6 +108,14 @@ function applyHash() {
     ui.screen = "week";
     ui.weekSunday = startOfPayWeek(parts[1]) || parts[1];
     ui.selectedDay = parts[2] || ui.weekSunday;
+    render();
+    return;
+  }
+  if (top === "totals" && parts[1]) {
+    ui.screen = "totals";
+    const sunday = startOfPayWeek(parts[1]) || parts[1];
+    if (ui.weekSunday !== sunday) ui.totalsDraft = null;
+    ui.weekSunday = sunday;
     render();
     return;
   }
@@ -186,7 +196,7 @@ function renderSplash() {
   return `<section class="splash">
     <div class="splash-mark"><img src="./assets/icon.jpg" alt="Rosa's Ledger rose and eighteen-wheeler"></div>
     <h1>Rosa's Ledger<span>Pay verification</span></h1>
-    <p class="tag">Estimate vs. actuals · Sun–Sat pay weeks</p>
+    <p class="tag">${esc(ROSA_APP_VERSION)} · Sun–Sat pay weeks · weekly deductions</p>
     <div class="splash-dots" aria-hidden="true"><i></i><i></i><i></i></div>
   </section>`;
 }
@@ -210,7 +220,16 @@ function renderLogin() {
   </section>`;
 }
 
-function monthGrid(year, monthIndex, trips) {
+function pendingWeekSet(trips, weeklyTotals) {
+  const set = new Set();
+  const sundays = new Set((trips || []).map((t) => t.payWeek || startOfPayWeek(t.tripDate)).filter(Boolean));
+  for (const sunday of sundays) {
+    if (weekPaySheet(trips, weeklyTotals, sunday).pending) set.add(sunday);
+  }
+  return set;
+}
+
+function monthGrid(year, monthIndex, trips, pendingWeeks) {
   const first = new Date(year, monthIndex, 1);
   const start = new Date(first);
   start.setDate(1 - first.getDay());
@@ -223,18 +242,20 @@ function monthGrid(year, monthIndex, trips) {
     const onMonth = d.getMonth() === monthIndex;
     const dayTrips = tripsOnDay(trips, iso);
     const flagged = dayTrips.some((t) => t.flagged);
+    const pending = pendingWeeks && pendingWeeks.has(sunday);
     const cls = [
       "cell",
       onMonth ? "" : "out",
       weekShade(sunday) ? "shade-b" : "shade-a",
       dayTrips.length ? "has" : "",
       flagged ? "flagged" : "",
+      pending ? "pending" : "",
       iso === today ? "today" : "",
       iso === ui.selectedDay ? "selected" : ""
     ].filter(Boolean).join(" ");
-    html += `<button type="button" class="${cls}" data-act="open-day" data-day="${iso}" aria-label="${iso}${dayTrips.length ? `, ${dayTrips.length} trip(s)` : ""}${flagged ? ", flagged" : ""}">
+    html += `<button type="button" class="${cls}" data-act="open-day" data-day="${iso}" aria-label="${iso}${dayTrips.length ? `, ${dayTrips.length} trip(s)` : ""}${flagged ? ", flagged" : ""}${pending ? ", pending deductions" : ""}">
       <span class="n">${d.getDate()}</span>
-      <span class="marks">${dayTrips.length ? '<i class="dot"></i>' : ""}${flagged ? '<i class="flag-pip"></i>' : ""}</span>
+      <span class="marks">${dayTrips.length ? '<i class="dot"></i>' : ""}${pending ? '<i class="pend-pip"></i>' : ""}${flagged ? '<i class="flag-pip"></i>' : ""}</span>
     </button>`;
   }
   html += "</div>";
@@ -242,12 +263,14 @@ function monthGrid(year, monthIndex, trips) {
 }
 
 function renderCalendar() {
-  const { trips, settings } = getState();
+  const { trips, weeklyTotals, settings } = getState();
   const y = ui.cursor.getFullYear();
   const m = ui.cursor.getMonth();
   const sunday = startOfPayWeek(ui.selectedDay);
   const run = weekRunningTotal(trips, sunday);
   const displayTotal = run.running;
+  const pendingWeeks = pendingWeekSet(trips, weeklyTotals);
+  const weekPending = pendingWeeks.has(sunday);
   const switcher = `<div class="view-switch">
     <button class="${ui.calMode === "month" ? "on" : ""}" data-act="cal-mode" data-mode="month">Month</button>
     <button class="${ui.calMode === "year" ? "on" : ""}" data-act="cal-mode" data-mode="year">Year</button>
@@ -256,7 +279,7 @@ function renderCalendar() {
 
   let body = "";
   if (ui.calMode === "year") {
-    const pnl = pnlForYear(trips, y);
+    const pnl = pnlForYear(trips, y, weeklyTotals);
     body = `<div class="period-nav">
       <button class="icon-btn" data-act="shift-year" data-dir="-1" aria-label="Previous year">${icon("back")}</button>
       <div class="label"><div class="main">${y}</div><div class="sub">Sun–Sat pay weeks · band ${money(settings.tolerance)}</div></div>
@@ -264,7 +287,8 @@ function renderCalendar() {
     </div>
     <div class="year-grid">${pnl.months.map((row, i) => {
       const monthTrips = tripsInMonth(trips, y, i);
-      const cls = ["month-card", i === new Date().getMonth() && y === new Date().getFullYear() ? "on" : "", row.flagged ? "flagged" : ""].filter(Boolean).join(" ");
+      const monthPending = monthTrips.some((t) => pendingWeeks.has(t.payWeek || startOfPayWeek(t.tripDate)));
+      const cls = ["month-card", i === new Date().getMonth() && y === new Date().getFullYear() ? "on" : "", row.flagged ? "flagged" : "", monthPending ? "pending" : ""].filter(Boolean).join(" ");
       return `<button class="${cls}" data-act="open-month" data-year="${y}" data-month="${i+1}">
         <div class="mn">${shortMonth(y, i)}</div>
         <div class="st">${row.trips} trip${row.trips === 1 ? "" : "s"}</div>
@@ -284,6 +308,7 @@ function renderCalendar() {
       <div class="big">${d ? d.getDate() : ""}</div>
       <div class="my">${d ? d.toLocaleDateString("en-US", { month: "long", year: "numeric" }) : ""}</div>
     </div>
+    ${weekPending ? `<div class="pending-banner">Pending deductions.</div>` : ""}
     <div>${list.length ? list.map(tripRow).join("") : `<p class="empty" style="padding:18px 16px">No trips this day.</p>`}</div>
     <div style="padding:8px 14px 20px"><button class="btn btn-ghost" data-act="open-week" data-sunday="${sunday}" data-day="${ui.selectedDay}">Open full pay week</button></div>`;
   } else {
@@ -292,21 +317,22 @@ function renderCalendar() {
       <div class="label"><div class="main">${monthLabel(y, m)}</div><div class="sub">Sun–Sat weeks · alt shading</div></div>
       <button class="icon-btn" data-act="shift-month" data-dir="1" aria-label="Next month" style="transform:scaleX(-1)">${icon("back")}</button>
     </div>
-    <div class="cal">${monthGrid(y, m, trips)}</div>
+    <div class="cal">${monthGrid(y, m, trips, pendingWeeks)}</div>
     <div class="legend">
       <span><i class="dot"></i> Trip day</span>
+      <span><i class="pend-pip"></i> Pending deductions</span>
       <span><i class="flag-pip"></i> Flagged (&gt; ${money(settings.tolerance)})</span>
       <span>Shaded = pay week</span>
     </div>
     <button class="week-summary" data-act="open-week" data-sunday="${sunday}" data-day="${ui.selectedDay}">
-      <div class="k">Pay week ${esc(formatWeekRange(sunday))}</div>
+      <div class="k">Pay week ${esc(formatWeekRange(sunday))}${weekPending ? " · Pending deductions" : ""}</div>
       <div class="v tabular">${money(displayTotal)}</div>
       <div class="meta">${run.tripCount} trip${run.tripCount === 1 ? "" : "s"} · ${run.actualCount === run.tripCount && run.tripCount ? "all actuals" : run.actualCount ? run.actualCount + " booked, rest estimated" : "estimates"} · tap a day for the whole week</div>
     </button>`;
   }
 
   return `<div class="app-shell">
-    ${header("Rosa's Ledger", "Bookkeeper companion", { right: modePill() })}
+    ${header("Rosa's Ledger", ROSA_APP_VERSION, { right: modePill() })}
     ${switcher}
     ${listenBanner()}
     ${baselineCard({ compact: true })}
@@ -334,30 +360,54 @@ function tripRow(t) {
   </button>`;
 }
 
+function weekMathBlock(sheet) {
+  if (sheet.pending) {
+    return `<section class="week-math pending">
+      <div class="row gross"><span>Gross</span><b class="tabular">${money(sheet.gross)}</b></div>
+      <div class="pending-flag">Pending deductions.</div>
+      <p class="hint">Gross only until weekly totals are entered. No net yet.</p>
+    </section>`;
+  }
+  if (!sheet.tripCount && !sheet.entered) {
+    return `<section class="week-math">
+      <div class="row gross"><span>Gross</span><b class="tabular">—</b></div>
+      <p class="hint">No trips this week. You can still enter weekly totals.</p>
+    </section>`;
+  }
+  return `<section class="week-math">
+    <div class="row gross"><span>Gross</span><b class="tabular">${money(sheet.gross)}</b></div>
+    <div class="row deduct"><span>Deductions</span><b class="tabular">${money(sheet.deductions)}</b></div>
+    <div class="row net"><span>Net</span><b class="tabular">${money(sheet.net)}</b></div>
+  </section>`;
+}
+
 function renderWeek() {
-  const { trips } = getState();
+  const { trips, weeklyTotals } = getState();
   const sunday = ui.weekSunday || startOfPayWeek(ui.selectedDay);
   const days = payWeekDays(sunday);
   const run = weekRunningTotal(trips, sunday);
-  const shown = run.running;
+  const sheet = weekPaySheet(trips, weeklyTotals, sunday);
   const older = [];
   let cursor = addDays(sunday, -7);
   for (let i = 0; i < ui.olderCount; i++) {
     older.push(cursor);
     cursor = addDays(cursor, -7);
   }
+  const status = sheet.pending
+    ? "Pending deductions"
+    : (run.actualCount === run.tripCount && run.tripCount ? "actuals" : run.actualCount ? "mixed actuals + estimates" : "estimated");
   return `<div class="app-shell">
     ${header("Pay week", formatWeekRange(sunday), { back: true, right: modePill() })}
     ${listenBanner()}
     <div class="week-head">
-      <div class="k">Running weekly total</div>
+      <div class="k">${sheet.pending ? "Pay week · pending deductions" : "Pay week"}</div>
       <div class="range">${esc(formatWeekRange(sunday))}</div>
-      <div class="tot tabular"><b>${money(shown)}</b> ${run.actualCount === run.tripCount && run.tripCount ? "actuals" : run.actualCount ? "mixed actuals + estimates" : "estimated"} · ${run.tripCount} trip${run.tripCount === 1 ? "" : "s"}</div>
+      <div class="tot tabular">${run.tripCount} trip${run.tripCount === 1 ? "" : "s"} · ${esc(status)}</div>
     </div>
     ${baselineCard({ compact: true })}
     ${run.actualCount ? `<div class="week-send">
       <div class="k">Send this week's booked actuals to Nickey</div>
-      <p class="hint">Prefills with ${money(run.actual)} across ${run.actualCount} booked trip${run.actualCount === 1 ? "" : "s"}. Frank will see this as Current Baseline.</p>
+      <p class="hint">Prefills with ${money(run.actual)} across ${run.actualCount} booked trip${run.actualCount === 1 ? "" : "s"}. Frank will see this as Current Baseline. This is trip pay only — weekly deductions stay on the pay sheet.</p>
       <div class="fld money-fld">
         <label for="weekBaselineAmt">Confirm actual pay</label>
         <span class="pre">$</span>
@@ -374,15 +424,28 @@ function renderWeek() {
         ${list.length ? list.map(tripRow).join("") : `<div class="empty">No trips</div>`}
       </section>`;
     }).join("")}
+    ${weekMathBlock(sheet)}
+    <div class="totals-cta">
+      <button class="btn btn-gold" type="button" data-act="open-totals" data-sunday="${sunday}">Enter Weekly Totals</button>
+    </div>
     <div class="older">
       <h3>Older weeks</h3>
       ${older.map((sun) => {
-        const r = weekRunningTotal(trips, sun);
-        const tot = r.running;
-        const flag = tripsInWeek(trips, sun).some((t) => t.flagged);
-        return `<button class="week-card" data-act="open-week" data-sunday="${sun}" data-day="${sun}">
-          <div><div class="r">${esc(formatWeekRange(sun))}</div><div class="m">${r.tripCount} trip${r.tripCount === 1 ? "" : "s"}${flag ? " · flagged" : ""}</div></div>
-          <div class="tabular">${r.tripCount ? money(tot) : "—"}</div>
+        const olderSheet = weekPaySheet(trips, weeklyTotals, sun);
+        const flag = !olderSheet.pending && tripsInWeek(trips, sun).some((t) => t.flagged);
+        const meta = olderSheet.pending
+          ? `${olderSheet.tripCount} trip${olderSheet.tripCount === 1 ? "" : "s"} · Pending deductions`
+          : `${olderSheet.tripCount} trip${olderSheet.tripCount === 1 ? "" : "s"}${flag ? " · flagged" : ""}${olderSheet.entered ? " · net" : ""}`;
+        const amt = !olderSheet.tripCount && !olderSheet.entered
+          ? "—"
+          : olderSheet.pending
+            ? money(olderSheet.gross)
+            : olderSheet.entered
+              ? money(olderSheet.net)
+              : money(olderSheet.gross);
+        return `<button class="week-card${olderSheet.pending ? " pending" : ""}" data-act="open-week" data-sunday="${sun}" data-day="${sun}">
+          <div><div class="r">${esc(formatWeekRange(sun))}</div><div class="m">${meta}</div></div>
+          <div class="tabular">${amt}</div>
         </button>`;
       }).join("")}
       <button class="btn btn-ghost" data-act="more-weeks">Scroll older weeks</button>
@@ -400,27 +463,15 @@ function moneyField(id, label, value, extraClass = "", chip = "") {
   </div>`;
 }
 
-function ensureDraft(trip, allTrips) {
+function ensureDraft(trip) {
   if (ui.draft && ui.draft.id === trip.id) return ui.draft;
-  const leaseSaved = trip.deductLease != null && trip.deductLease !== "";
-  const washSaved = trip.deductTruckWash != null && trip.deductTruckWash !== "";
-  const leasePref = leaseSaved ? null : lastDeduction(allTrips, "deductLease", trip.tripDate, trip.id);
-  const washPref = washSaved ? null : lastDeduction(allTrips, "deductTruckWash", trip.tripDate, trip.id);
   ui.draft = {
     id: trip.id,
     actualPay: trip.actualPay,
     actualDetention: trip.actualDetention,
     actualExtra: trip.actualExtra,
     actualReefer: trip.actualReefer,
-    deductFuel: trip.deductFuel,
-    deductInsurance: trip.deductInsurance,
-    deductLease: leaseSaved ? trip.deductLease : leasePref.value,
-    deductTruckWash: washSaved ? trip.deductTruckWash : washPref.value,
-    noteText: "",
-    leasePrefill: leasePref.value,
-    washPrefill: washPref.value,
-    leaseFrom: leasePref.fromTripId,
-    washFrom: washPref.fromTripId
+    noteText: ""
   };
   return ui.draft;
 }
@@ -432,11 +483,7 @@ function draftAsTrip(trip) {
     actualPay: d.actualPay === "" || d.actualPay == null ? null : num(d.actualPay),
     actualDetention: d.actualDetention === "" || d.actualDetention == null ? null : num(d.actualDetention),
     actualExtra: d.actualExtra === "" || d.actualExtra == null ? null : num(d.actualExtra),
-    actualReefer: d.actualReefer === "" || d.actualReefer == null ? null : num(d.actualReefer),
-    deductFuel: d.deductFuel === "" || d.deductFuel == null ? null : num(d.deductFuel),
-    deductInsurance: d.deductInsurance === "" || d.deductInsurance == null ? null : num(d.deductInsurance),
-    deductLease: d.deductLease === "" || d.deductLease == null ? null : num(d.deductLease),
-    deductTruckWash: d.deductTruckWash === "" || d.deductTruckWash == null ? null : num(d.deductTruckWash)
+    actualReefer: d.actualReefer === "" || d.actualReefer == null ? null : num(d.actualReefer)
   };
   return applyVariance(next, getSettings().tolerance);
 }
@@ -447,7 +494,7 @@ function renderTrip() {
   if (!trip) {
     return `<div class="app-shell no-nav">${header("Missing trip", "", { back: true })}<p class="empty">That trip is not on the ledger.</p></div>`;
   }
-  const draft = ensureDraft(trip, trips);
+  const draft = ensureDraft(trip);
   const live = draftAsTrip(trip);
   const ln = lane(trip);
   const v = varianceOf(live);
@@ -455,26 +502,25 @@ function renderTrip() {
   const wait = !hasActuals(live);
   const varClass = wait ? "wait" : flagged ? "bad" : "ok";
   const varLabel = wait ? "Waiting on actuals" : flagged ? "Flagged — outside band" : "Within tolerance";
-  const leaseEdited = draft.leasePrefill != null && num(draft.deductLease) !== num(draft.leasePrefill);
-  const washEdited = draft.washPrefill != null && num(draft.deductTruckWash) !== num(draft.washPrefill);
-  const leaseChip = draft.leasePrefill != null
-    ? (leaseEdited ? '<span class="chip ed">Edited</span>' : '<span class="chip pre">Prefill</span>')
-    : "";
-  const washChip = draft.washPrefill != null
-    ? (washEdited ? '<span class="chip ed">Edited</span>' : '<span class="chip pre">Prefill</span>')
-    : "";
+  const city = ln.cities || trip.destCity || trip.originCity || "—";
 
   return `<div class="app-shell no-nav">
-    ${header(ln.parties || "Trip", formatLongDate(trip.tripDate), { back: true })}
+    ${header(trip.shipper || "Trip", formatLongDate(trip.tripDate), { back: true })}
     <div class="trip">
       <div class="trip-hero">
-        <div class="lane">${esc(ln.parties || trip.id)}</div>
-        <div class="cities">${esc(ln.cities)}</div>
+        <div class="lane">${esc(trip.shipper || ln.parties || trip.id)}</div>
+        <div class="cities">${esc(city)}</div>
         <div class="meta">
+          <span>${esc(formatLongDate(trip.tripDate))}</span>
           <span>Pay week ${esc(formatWeekRange(trip.payWeek))}</span>
-          <span>${trip.miles || "—"} mi</span>
-          <span>${trip.costPerMile ? money(trip.costPerMile) + "/mi" : ""}</span>
         </div>
+      </div>
+      <div class="sec-title">This trip</div>
+      <div class="est-grid">
+        <div class="kv"><div class="k">Date</div><div class="v">${esc(formatLongDate(trip.tripDate))}</div></div>
+        <div class="kv"><div class="k">Shipper</div><div class="v">${esc(trip.shipper || "—")}</div></div>
+        <div class="kv"><div class="k">City</div><div class="v">${esc(city)}</div></div>
+        <div class="kv"><div class="k">Consignee</div><div class="v">${esc(trip.consignee || "—")}</div></div>
       </div>
       <div class="sec-title">Frank's estimate</div>
       <div class="est-grid">
@@ -484,30 +530,23 @@ function renderTrip() {
         <div class="kv"><div class="k">Reefer fuel</div><div class="v">${money(trip.estReeferFuel)}</div></div>
       </div>
       <div class="est-grid" style="margin-top:8px">
-        <div class="kv"><div class="k">Odo in / out</div><div class="v">${trip.odometerIn ?? "—"} → ${trip.odometerOut ?? "—"}</div></div>
         <div class="kv"><div class="k">Est total</div><div class="v">${money(estTotal(trip))}</div></div>
+        <div class="kv"><div class="k">Miles</div><div class="v">${trip.miles || "—"}</div></div>
       </div>
       ${baselineCard({ compact: true })}
-      <div class="sec-title">Rosa's actuals</div>
-      <p class="hint" style="margin-top:0">Enter the pay-sheet actuals. Saving can also push the total to Nickey as Frank's Current Baseline.</p>
+      <div class="sec-title">Pay for this trip</div>
+      <p class="hint" style="margin-top:0">Trip data only. Truck lease, insurance, IFTA, fuel, and truck wash are entered once on the pay week.</p>
       <div class="form-grid">
-        ${moneyField("actualPay", "Actual pay", draft.actualPay)}
-        ${moneyField("actualDetention", "Actual detention", draft.actualDetention)}
-        ${moneyField("actualExtra", "Actual extra", draft.actualExtra)}
-        ${moneyField("actualReefer", "Actual reefer", draft.actualReefer)}
-      </div>
-      <div class="sec-title">Deductions</div>
-      <div class="form-grid">
-        ${moneyField("deductFuel", "Fuel", draft.deductFuel)}
-        ${moneyField("deductInsurance", "Insurance", draft.deductInsurance)}
-        ${moneyField("deductLease", "Lease", draft.deductLease, leaseEdited ? "edited" : (draft.leasePrefill != null ? "prefilled" : ""), leaseChip)}
-        ${moneyField("deductTruckWash", "Truck wash", draft.deductTruckWash, washEdited ? "edited" : (draft.washPrefill != null ? "prefilled" : ""), washChip)}
+        ${moneyField("actualPay", "Pay amount", draft.actualPay)}
+        ${moneyField("actualDetention", "Detention", draft.actualDetention)}
+        ${moneyField("actualExtra", "Extra pay", draft.actualExtra)}
+        ${moneyField("actualReefer", "Reefer fuel", draft.actualReefer)}
       </div>
       <div class="var-card ${varClass}">
         <div class="k" style="font-size:0.68rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted)">${esc(varLabel)}</div>
         <div class="big tabular">${v == null ? "—" : money(v, { signed: true })}</div>
         <div class="meta" style="color:var(--muted);font-size:0.8rem;margin-top:4px">
-          Actual ${hasActuals(live) ? money(actualTotal(live)) : "—"} vs est ${money(estTotal(trip))} · deductions ${money(deductTotal(live))} · band ${money(settings.tolerance)}
+          Trip pay ${hasActuals(live) ? money(actualTotal(live)) : "—"} vs Frank ${money(estTotal(trip))} · band ${money(settings.tolerance)}
         </div>
       </div>
       <div class="sec-title">Notes</div>
@@ -534,10 +573,93 @@ function renderTrip() {
   </div>`;
 }
 
+const TOTAL_FIELDS = [
+  ["truckLease", "Truck lease"],
+  ["insurance", "Insurance"],
+  ["ifta", "IFTA"],
+  ["fuel", "Fuel"],
+  ["truckWash", "Truck wash"],
+  ["otherDeduction", "Other deduction"]
+];
+
+function blankToNull(v) {
+  if (v == null || v === "") return null;
+  return num(v);
+}
+
+function ensureTotalsDraft(weeklyTotals, sunday) {
+  if (ui.totalsDraft && ui.totalsDraft.payWeek === sunday) return ui.totalsDraft;
+  const existing = findWeeklyTotals(weeklyTotals, sunday);
+  if (existing && existing.entered) {
+    ui.totalsDraft = {
+      payWeek: sunday,
+      truckLease: existing.truckLease,
+      insurance: existing.insurance,
+      ifta: existing.ifta,
+      fuel: existing.fuel,
+      truckWash: existing.truckWash,
+      otherDeduction: existing.otherDeduction,
+      otherLabel: existing.otherLabel || "",
+      prefilledFrom: existing.prefilledFrom || "",
+      prefill: existing.prefill || null
+    };
+    return ui.totalsDraft;
+  }
+  const seeded = prefillWeeklyDraft(weeklyTotals, sunday);
+  ui.totalsDraft = {
+    payWeek: sunday,
+    truckLease: seeded.truckLease,
+    insurance: seeded.insurance,
+    ifta: seeded.ifta,
+    fuel: seeded.fuel,
+    truckWash: seeded.truckWash,
+    otherDeduction: seeded.otherDeduction,
+    otherLabel: seeded.otherLabel || "",
+    prefilledFrom: seeded.prefilledFrom || "",
+    prefill: seeded.prefill
+  };
+  return ui.totalsDraft;
+}
+
+function totalsChip(draft, key) {
+  if (!draft.prefill) return { cls: "", chip: "" };
+  const edited = weeklyFieldEdited(draft[key], draft.prefill, key);
+  if (edited) return { cls: "edited", chip: '<span class="chip ed">Edited</span>' };
+  return { cls: "prefilled", chip: '<span class="chip pre">Prefill</span>' };
+}
+
+function renderTotals() {
+  const { weeklyTotals } = getState();
+  const sunday = ui.weekSunday;
+  const draft = ensureTotalsDraft(weeklyTotals, sunday);
+  const from = draft.prefilledFrom ? formatWeekRange(draft.prefilledFrom) : "";
+  const fields = TOTAL_FIELDS.map(([key, label]) => {
+    const chip = totalsChip(draft, key);
+    return moneyField(key, label, draft[key], chip.cls, chip.chip);
+  }).join("");
+  const labelChip = totalsChip(draft, "otherLabel");
+  return `<div class="app-shell no-nav">
+    ${header("Weekly totals", formatWeekRange(sunday), { back: true })}
+    <div class="trip">
+      <p class="hint" style="margin-top:12px">One pay sheet for ${esc(formatWeekRange(sunday))} (Sunday–Saturday). ${from ? `Started from ${esc(from)}. Change only what is different — edited numbers are highlighted.` : "No earlier week to copy, so these start blank."}</p>
+      <div class="totals-form">
+        ${fields}
+        <div class="fld ${labelChip.cls}">
+          <label for="otherLabel">Other deduction label${labelChip.chip}</label>
+          <input id="otherLabel" name="otherLabel" type="text" maxlength="80" placeholder="Label" value="${esc(draft.otherLabel || "")}">
+        </div>
+      </div>
+      <div class="sticky-save">
+        <button class="btn btn-gold" data-act="save-totals">Save weekly totals</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderPnl() {
-  const { trips } = getState();
+  const { trips, weeklyTotals } = getState();
   const year = ui.pnlYear;
-  const pnl = pnlForYear(trips, year);
+  const pnl = pnlForYear(trips, year, weeklyTotals);
   const max = Math.max(1, ...pnl.months.map((m) => Math.max(m.moneyIn, m.moneyOut, m.estIn)));
   const months = ["J","F","M","A","M","J","J","A","S","O","N","D"];
   return `<div class="app-shell">
@@ -545,7 +667,7 @@ function renderPnl() {
     ${listenBanner()}
     <div class="period-nav">
       <button class="icon-btn" data-act="shift-pnl-year" data-dir="-1" aria-label="Previous year">${icon("back")}</button>
-      <div class="label"><div class="main">${year}</div><div class="sub">Money in vs out · booked actuals</div></div>
+      <div class="label"><div class="main">${year}</div><div class="sub">Money in vs out · out is weekly totals</div></div>
       <button class="icon-btn" data-act="shift-pnl-year" data-dir="1" aria-label="Next year" style="transform:scaleX(-1)">${icon("back")}</button>
     </div>
     <div class="pnl">
@@ -569,7 +691,7 @@ function renderPnl() {
             </div>`;
           }).join("")}
         </div>
-        <div class="legend-row"><span><i class="swatch" style="background:#7dcaa0"></i>Actual in</span><span><i class="swatch" style="background:#c45c78"></i>Deductions</span></div>
+        <div class="legend-row"><span><i class="swatch" style="background:#7dcaa0"></i>Trip pay in</span><span><i class="swatch" style="background:#c45c78"></i>Weekly totals out</span></div>
       </div>
       <div class="chart-card">
         <h3>Estimate still on the books</h3>
@@ -624,7 +746,7 @@ function renderSettings() {
       </div>
       <div class="card">
         <div class="sec-title" style="margin-top:0">Year export</div>
-        <p class="hint" style="margin-top:0">Spreadsheet of the trip contract for ${ui.pnlYear} — CSV or XLSX, no extra library.</p>
+        <p class="hint" style="margin-top:0">One row per trip for ${ui.pnlYear}, plus a weekly totals section. CSV or XLSX.</p>
         <div class="export-stack">
           <button class="btn btn-gold" data-act="export-xlsx">Download XLSX</button>
           <button class="btn btn-ghost" data-act="export-csv">Download CSV</button>
@@ -658,6 +780,7 @@ function render() {
   if (ui.screen === "splash") html = renderSplash();
   else if (ui.screen === "login") html = renderLogin();
   else if (ui.screen === "week") html = renderWeek();
+  else if (ui.screen === "totals") html = renderTotals();
   else if (ui.screen === "trip") html = renderTrip();
   else if (ui.screen === "pnl") html = renderPnl();
   else if (ui.screen === "settings") html = renderSettings();
@@ -671,13 +794,23 @@ function render() {
 
 function captureDraftFromForm() {
   if (!ui.draft) return;
-  const ids = ["actualPay","actualDetention","actualExtra","actualReefer","deductFuel","deductInsurance","deductLease","deductTruckWash"];
+  const ids = ["actualPay","actualDetention","actualExtra","actualReefer"];
   for (const id of ids) {
     const el = document.getElementById(id);
     if (el) ui.draft[id] = el.value === "" ? "" : el.value;
   }
   const note = document.getElementById("noteText");
   if (note) ui.draft.noteText = note.value;
+}
+
+function captureTotalsDraft() {
+  if (!ui.totalsDraft) return;
+  for (const [key] of TOTAL_FIELDS) {
+    const el = document.getElementById(key);
+    if (el) ui.totalsDraft[key] = el.value === "" ? "" : el.value;
+  }
+  const label = document.getElementById("otherLabel");
+  if (label) ui.totalsDraft.otherLabel = label.value;
 }
 
 function shiftMonth(dir) {
@@ -709,7 +842,7 @@ async function onClick(e) {
   }
   if (act === "nav") { go(el.dataset.href); return; }
   if (act === "back") {
-    if (ui.screen === "trip") go(`#/week/${ui.weekSunday}/${ui.selectedDay}`);
+    if (ui.screen === "trip" || ui.screen === "totals") go(`#/week/${ui.weekSunday}/${ui.selectedDay}`);
     else history.length > 1 ? history.back() : go("#/calendar");
     return;
   }
@@ -757,6 +890,12 @@ async function onClick(e) {
     go(`#/week/${ui.weekSunday}/${ui.selectedDay}`);
     return;
   }
+  if (act === "open-totals") {
+    ui.weekSunday = el.dataset.sunday || ui.weekSunday;
+    ui.totalsDraft = null;
+    go(`#/totals/${ui.weekSunday}`);
+    return;
+  }
   if (act === "open-trip") {
     ui.tripId = el.dataset.id;
     ui.draft = null;
@@ -771,6 +910,29 @@ async function onClick(e) {
   if (act === "more-weeks") {
     ui.olderCount += 8;
     render();
+    return;
+  }
+  if (act === "save-totals") {
+    captureTotalsDraft();
+    const d = ui.totalsDraft;
+    if (!d) return;
+    await saveWeeklyTotals({
+      payWeek: ui.weekSunday,
+      truckLease: blankToNull(d.truckLease),
+      insurance: blankToNull(d.insurance),
+      ifta: blankToNull(d.ifta),
+      fuel: blankToNull(d.fuel),
+      truckWash: blankToNull(d.truckWash),
+      otherDeduction: blankToNull(d.otherDeduction),
+      otherLabel: (d.otherLabel || "").trim(),
+      prefilledFrom: d.prefilledFrom || "",
+      prefill: d.prefill || null,
+      entered: true,
+      updatedAt: new Date().toISOString()
+    });
+    ui.totalsDraft = null;
+    toast("Weekly totals saved");
+    go(`#/week/${ui.weekSunday}/${ui.selectedDay}`);
     return;
   }
   if (act === "save-actuals") {
@@ -848,6 +1010,7 @@ async function onClick(e) {
   if (act === "reset-demo") {
     resetDemoData();
     ui.draft = null;
+    ui.totalsDraft = null;
     toast("Sample trips restored");
     render();
     return;
@@ -901,8 +1064,15 @@ function onInput(e) {
     if (status && f) status.textContent = `Received ${f.name} (${Math.round(f.size / 1024)} KB) — parser not connected yet.`;
     return;
   }
+  if (ui.screen === "totals") {
+    const ids = TOTAL_FIELDS.map(([key]) => key).concat(["otherLabel"]);
+    if (!ids.includes(e.target.id)) return;
+    captureTotalsDraft();
+    paintTotalsLive();
+    return;
+  }
   if (ui.screen !== "trip") return;
-  const ids = ["actualPay","actualDetention","actualExtra","actualReefer","deductFuel","deductInsurance","deductLease","deductTruckWash","noteText"];
+  const ids = ["actualPay","actualDetention","actualExtra","actualReefer","noteText"];
   if (!ids.includes(e.target.id)) return;
   captureDraftFromForm();
   paintTripLive();
@@ -924,34 +1094,40 @@ function paintTripLive() {
     const meta = card.querySelector(".meta");
     if (label) label.textContent = wait ? "Waiting on actuals" : flagged ? "Flagged — outside band" : "Within tolerance";
     if (big) big.textContent = v == null ? "—" : money(v, { signed: true });
-    if (meta) meta.textContent = `Actual ${hasActuals(live) ? money(actualTotal(live)) : "—"} vs est ${money(estTotal(trip))} · deductions ${money(deductTotal(live))} · band ${money(settings.tolerance)}`;
+    if (meta) meta.textContent = `Trip pay ${hasActuals(live) ? money(actualTotal(live)) : "—"} vs Frank ${money(estTotal(trip))} · band ${money(settings.tolerance)}`;
   }
-  const leaseEdited = ui.draft.leasePrefill != null && num(ui.draft.deductLease) !== num(ui.draft.leasePrefill);
-  const washEdited = ui.draft.washPrefill != null && num(ui.draft.deductTruckWash) !== num(ui.draft.washPrefill);
-  paintDeductField("deductLease", ui.draft.leasePrefill != null, leaseEdited);
-  paintDeductField("deductTruckWash", ui.draft.washPrefill != null, washEdited);
 }
 
-function paintDeductField(id, hasPrefill, edited) {
-  const input = document.getElementById(id);
-  if (!input) return;
-  const fld = input.closest(".fld");
-  if (!fld) return;
-  fld.classList.toggle("prefilled", hasPrefill && !edited);
-  fld.classList.toggle("edited", Boolean(edited));
-  const label = fld.querySelector("label");
-  if (!label) return;
-  const name = id === "deductLease" ? "Lease" : "Truck wash";
-  const chip = !hasPrefill ? "" : edited
-    ? '<span class="chip ed">Edited</span>'
-    : '<span class="chip pre">Prefill</span>';
-  label.innerHTML = `${name}${chip}`;
+function paintTotalsLive() {
+  if (!ui.totalsDraft) return;
+  const keys = TOTAL_FIELDS.map(([key]) => key).concat(["otherLabel"]);
+  for (const key of keys) {
+    const input = document.getElementById(key);
+    if (!input) continue;
+    const fld = input.closest(".fld");
+    if (!fld) continue;
+    const hasPrefill = Boolean(ui.totalsDraft.prefill);
+    const edited = hasPrefill && weeklyFieldEdited(ui.totalsDraft[key], ui.totalsDraft.prefill, key);
+    fld.classList.toggle("prefilled", hasPrefill && !edited);
+    fld.classList.toggle("edited", edited);
+    const label = fld.querySelector("label");
+    if (!label) continue;
+    const name = key === "otherLabel"
+      ? "Other deduction label"
+      : (TOTAL_FIELDS.find(([id]) => id === key) || ["", key])[1];
+    const chip = !hasPrefill ? "" : edited
+      ? '<span class="chip ed">Edited</span>'
+      : '<span class="chip pre">Prefill</span>';
+    label.innerHTML = `${name}${chip}`;
+  }
 }
 
 function exportYear(kind) {
-  const trips = tripsInYear(getState().trips, ui.pnlYear);
-  const rows = exportRows(trips);
-  const pnl = pnlForYear(trips, ui.pnlYear);
+  const state = getState();
+  const trips = tripsInYear(state.trips, ui.pnlYear);
+  const weeks = weeklyTotalsInYear(state.weeklyTotals, ui.pnlYear);
+  const rows = exportRows(trips, weeks);
+  const pnl = pnlForYear(trips, ui.pnlYear, weeks);
   if (kind === "csv") {
     const csv = toCsv(rows);
     downloadBlob(`rosas-ledger-${ui.pnlYear}.csv`, new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -963,7 +1139,8 @@ function exportYear(kind) {
     monthRows.push([shortMonth(ui.pnlYear, i), m.moneyIn, m.moneyOut, m.estIn, m.trips, m.flagged]);
   });
   const blob = buildXlsx([
-    { name: "Trips", rows },
+    { name: "Trips", rows: exportRows(trips) },
+    { name: "Weekly totals", rows: weeklyExportRows(weeks) },
     { name: "P&L", rows: monthRows }
   ]);
   downloadBlob(`rosas-ledger-${ui.pnlYear}.xlsx`, blob);
