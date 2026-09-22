@@ -1,4 +1,6 @@
-import { normalizeTrip, startOfPayWeek } from "./core.js";
+import { normalizeTrip, normalizeWeeklyTotals, startOfPayWeek } from "./core.js";
+
+let demoSourceRows = null;
 
 function note(text, author, timestamp) {
   return { text, author, timestamp };
@@ -327,10 +329,69 @@ export function getDemoTrips(tolerance = 25) {
     }
   ];
 
-  return rows.map((r) => {
-    r.payWeek = startOfPayWeek(r.tripDate);
-    return normalizeTrip(r, tolerance);
-  });
+  demoSourceRows = rows;
+  return rows.map((r) => normalizeTrip({
+    ...r,
+    payWeek: startOfPayWeek(r.tripDate),
+    deductFuel: null,
+    deductInsurance: null,
+    deductLease: null,
+    deductTruckWash: null
+  }, tolerance));
 }
 
-export const DEMO_SEED_VERSION = 1;
+/**
+ * One pay-sheet per week. Lease, insurance, and wash were copied onto every
+ * trip in the old sample, so the weekly record keeps a single copy (the last
+ * trip that week). Fuel varied by trip, so the week's fuel is the sum.
+ * The two newest weeks (Aug 30 and Sep 6) stay open so Pending deductions shows.
+ */
+const DEMO_PENDING_WEEKS = new Set(["2026-08-30", "2026-09-06"]);
+
+function lastFilled(list, field) {
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i][field] != null && list[i][field] !== "") return list[i][field];
+  }
+  return null;
+}
+
+export function getDemoWeeklyTotals() {
+  const groups = new Map();
+  for (const r of getDemoSourceRows()) {
+    const payWeek = startOfPayWeek(r.tripDate);
+    if (!payWeek || DEMO_PENDING_WEEKS.has(payWeek)) continue;
+    if (!groups.has(payWeek)) groups.set(payWeek, []);
+    groups.get(payWeek).push(r);
+  }
+  const totals = [];
+  for (const [payWeek, list] of groups) {
+    list.sort((a, b) => a.tripDate.localeCompare(b.tripDate));
+    let fuel = null;
+    for (const r of list) {
+      if (r.deductFuel == null || r.deductFuel === "") continue;
+      fuel = Math.round(((fuel || 0) + Number(r.deductFuel)) * 100) / 100;
+    }
+    const withOther = payWeek === "2026-08-23";
+    totals.push(normalizeWeeklyTotals({
+      payWeek,
+      truckLease: lastFilled(list, "deductLease"),
+      insurance: lastFilled(list, "deductInsurance"),
+      ifta: 18,
+      fuel,
+      truckWash: lastFilled(list, "deductTruckWash"),
+      otherDeduction: withOther ? 12 : null,
+      otherLabel: withOther ? "Scales" : "",
+      entered: true,
+      updatedAt: "2026-09-01T12:00:00.000Z"
+    }));
+  }
+  totals.sort((a, b) => a.payWeek.localeCompare(b.payWeek));
+  return totals;
+}
+
+function getDemoSourceRows() {
+  if (!demoSourceRows) getDemoTrips();
+  return demoSourceRows;
+}
+
+export const DEMO_SEED_VERSION = 2;

@@ -145,6 +145,227 @@ export function tripNet(t) {
   return round2(inAmt - deductTotal(t));
 }
 
+/** Fixed costs live on the pay week, not on each trip. */
+export const WEEKLY_MONEY_FIELDS = ["truckLease", "insurance", "ifta", "fuel", "truckWash", "otherDeduction"];
+
+const TRIP_DEDUCT_MAP = [
+  ["deductFuel", "fuel"],
+  ["deductInsurance", "insurance"],
+  ["deductLease", "truckLease"],
+  ["deductTruckWash", "truckWash"]
+];
+
+export function emptyWeeklyTotals(payWeek = "") {
+  return {
+    payWeek: payWeek || "",
+    truckLease: null,
+    insurance: null,
+    ifta: null,
+    fuel: null,
+    truckWash: null,
+    otherDeduction: null,
+    otherLabel: "",
+    entered: false,
+    prefilledFrom: "",
+    prefill: null,
+    migratedFromTrips: false,
+    tripDeductionsFolded: false,
+    updatedAt: ""
+  };
+}
+
+function moneyOrNull(v) {
+  if (v == null || v === "") return null;
+  return round2(v);
+}
+
+export function normalizeWeeklyTotals(raw) {
+  const w = { ...emptyWeeklyTotals(), ...(raw || {}) };
+  w.payWeek = String(w.payWeek || "");
+  for (const f of WEEKLY_MONEY_FIELDS) w[f] = moneyOrNull(w[f]);
+  w.otherLabel = String(w.otherLabel || "");
+  w.entered = Boolean(w.entered);
+  w.prefilledFrom = w.prefilledFrom || "";
+  w.migratedFromTrips = Boolean(w.migratedFromTrips);
+  w.tripDeductionsFolded = Boolean(w.tripDeductionsFolded);
+  w.updatedAt = w.updatedAt || "";
+  if (w.prefill && typeof w.prefill === "object") {
+    const p = { otherLabel: String(w.prefill.otherLabel || "") };
+    for (const f of WEEKLY_MONEY_FIELDS) p[f] = moneyOrNull(w.prefill[f]);
+    w.prefill = p;
+  } else {
+    w.prefill = null;
+  }
+  return w;
+}
+
+export function weeklyDeductTotal(w) {
+  if (!w) return 0;
+  return round2(WEEKLY_MONEY_FIELDS.reduce((sum, key) => sum + num(w[key]), 0));
+}
+
+export function findWeeklyTotals(weeklyTotals, sundayISO) {
+  return (weeklyTotals || []).find((w) => w && w.payWeek === sundayISO) || null;
+}
+
+/** Most recent entered pay week strictly before `sundayISO`. */
+export function previousWeeklyTotals(weeklyTotals, sundayISO) {
+  const prior = (weeklyTotals || [])
+    .filter((w) => w && w.entered && w.payWeek && w.payWeek < sundayISO)
+    .sort((a, b) => b.payWeek.localeCompare(a.payWeek));
+  return prior[0] || null;
+}
+
+export function prefillSnapshot(week) {
+  if (!week) return null;
+  const snap = { otherLabel: week.otherLabel || "" };
+  for (const f of WEEKLY_MONEY_FIELDS) snap[f] = week[f] == null || week[f] === "" ? null : round2(week[f]);
+  return snap;
+}
+
+/** New week starts as a copy of the last entered week. Rosa edits what changed. */
+export function prefillWeeklyDraft(weeklyTotals, sundayISO) {
+  const prev = previousWeeklyTotals(weeklyTotals, sundayISO);
+  if (!prev) return normalizeWeeklyTotals({ payWeek: sundayISO, entered: false });
+  const prefill = prefillSnapshot(prev);
+  return normalizeWeeklyTotals({
+    payWeek: sundayISO,
+    ...prefill,
+    entered: false,
+    prefilledFrom: prev.payWeek,
+    prefill
+  });
+}
+
+export function weeklyFieldEdited(current, prefill, key) {
+  if (!prefill) return false;
+  if (key === "otherLabel") return String(current ?? "") !== String(prefill.otherLabel ?? "");
+  const prev = prefill[key];
+  const cur = current == null ? null : current;
+  const prevEmpty = prev == null || prev === "";
+  const curEmpty = cur == null || cur === "";
+  if (prevEmpty && curEmpty) return false;
+  if (prevEmpty || curEmpty) return true;
+  return num(cur) !== num(prev);
+}
+
+/**
+ * Gross = booked trip pay for the week (pay + detention + extra + reefer).
+ * Deductions = the one weekly totals record.
+ * Net = gross − deductions, only after totals are entered.
+ * Trips with no weekly totals yet are pending: gross only, no net.
+ */
+export function weekPaySheet(trips, weeklyTotals, sundayISO) {
+  const list = tripsInWeek(trips, sundayISO);
+  let gross = 0;
+  let booked = 0;
+  for (const t of list) {
+    if (!hasActuals(t)) continue;
+    gross += actualTotal(t);
+    booked += 1;
+  }
+  gross = round2(gross);
+  const totals = findWeeklyTotals(weeklyTotals, sundayISO);
+  const entered = Boolean(totals && totals.entered);
+  const pending = list.length > 0 && !entered;
+  const deductions = entered ? weeklyDeductTotal(totals) : null;
+  const net = entered ? round2(gross - deductions) : null;
+  return {
+    gross,
+    deductions,
+    net,
+    pending,
+    entered,
+    booked,
+    tripCount: list.length,
+    totals: totals || null
+  };
+}
+
+export function tripHasStoredDeductions(t) {
+  if (!t) return false;
+  return TRIP_DEDUCT_MAP.some(([src]) => t[src] != null && t[src] !== "");
+}
+
+function addMoney(current, value) {
+  if (value == null || value === "") return current == null || current === "" ? null : round2(current);
+  return round2(num(current) + num(value));
+}
+
+/**
+ * Move fixed costs off old trips onto one weekly totals record per pay week.
+ * Sums whatever was stored (does not drop a number). Clears the trip fields.
+ * Idempotent once trip deduction fields are null. Returns a backup of the
+ * pre-migration payload when anything moved.
+ */
+export function migrateTripDeductions(trips, weeklyTotals, nowIso = new Date().toISOString()) {
+  const list = Array.isArray(trips) ? trips : [];
+  const needs = list.filter(tripHasStoredDeductions);
+  if (!needs.length) {
+    return { changed: false, trips: list, weeklyTotals: weeklyTotals || [], backup: null };
+  }
+  const backup = {
+    at: nowIso,
+    reason: "Move per-trip fixed deductions onto weekly totals",
+    trips: JSON.parse(JSON.stringify(list)),
+    weeklyTotals: JSON.parse(JSON.stringify(weeklyTotals || []))
+  };
+  const sums = new Map();
+  for (const t of needs) {
+    const week = t.payWeek || startOfPayWeek(t.tripDate);
+    if (!week) continue;
+    if (!sums.has(week)) sums.set(week, { fuel: null, insurance: null, truckLease: null, truckWash: null });
+    const row = sums.get(week);
+    for (const [src, dest] of TRIP_DEDUCT_MAP) {
+      if (t[src] != null && t[src] !== "") row[dest] = addMoney(row[dest], t[src]);
+    }
+  }
+  const byWeek = new Map((weeklyTotals || []).map((w) => [w.payWeek, { ...w }]));
+  for (const [week, sum] of sums) {
+    const existing = byWeek.get(week);
+    if (existing && existing.tripDeductionsFolded) continue;
+    if (existing && existing.entered) {
+      const folded = {
+        ...existing,
+        tripDeductionsFolded: true,
+        updatedAt: nowIso
+      };
+      for (const key of ["fuel", "insurance", "truckLease", "truckWash"]) {
+        if (sum[key] == null) continue;
+        folded[key] = addMoney(existing[key], sum[key]);
+      }
+      byWeek.set(week, folded);
+    } else {
+      byWeek.set(week, {
+        ...emptyWeeklyTotals(week),
+        fuel: sum.fuel,
+        insurance: sum.insurance,
+        truckLease: sum.truckLease,
+        truckWash: sum.truckWash,
+        ifta: existing && existing.ifta != null ? existing.ifta : null,
+        otherDeduction: existing && existing.otherDeduction != null ? existing.otherDeduction : null,
+        otherLabel: existing ? (existing.otherLabel || "") : "",
+        entered: true,
+        migratedFromTrips: true,
+        tripDeductionsFolded: true,
+        updatedAt: nowIso
+      });
+    }
+  }
+  const nextTrips = list.map((t) => {
+    if (!tripHasStoredDeductions(t)) return t;
+    return {
+      ...t,
+      deductFuel: null,
+      deductInsurance: null,
+      deductLease: null,
+      deductTruckWash: null
+    };
+  });
+  const nextWeeks = [...byWeek.values()].sort((a, b) => String(a.payWeek).localeCompare(String(b.payWeek)));
+  return { changed: true, trips: nextTrips, weeklyTotals: nextWeeks, backup };
+}
+
 export function applyVariance(t, tolerance) {
   const variance = varianceOf(t);
   const flagged = isFlagged(t, tolerance);
@@ -291,7 +512,17 @@ export function weekRunningTotal(trips, sundayISO) {
   };
 }
 
-export function pnlForYear(trips, year) {
+/** Weekly totals whose Sunday falls in `year` (money-out is dated by pay week, not trip). */
+export function weeklyTotalsInYear(weeklyTotals, year) {
+  const y = Number(year);
+  return (weeklyTotals || []).filter((w) => {
+    if (!w || !w.payWeek) return false;
+    const d = parseISODate(w.payWeek);
+    return Boolean(d) && d.getFullYear() === y;
+  });
+}
+
+export function pnlForYear(trips, year, weeklyTotals = []) {
   const list = tripsInYear(trips, year);
   const months = Array.from({ length: 12 }, (_, i) => ({
     month: i,
@@ -310,7 +541,12 @@ export function pnlForYear(trips, year) {
     const booked = actualTotal(t);
     row.estIn += estTotal(t);
     row.moneyIn += booked == null ? 0 : booked;
-    row.moneyOut += deductTotal(t);
+  }
+  for (const w of weeklyTotalsInYear(weeklyTotals, year)) {
+    if (!w.entered) continue;
+    const d = parseISODate(w.payWeek);
+    if (!d) continue;
+    months[d.getMonth()].moneyOut += weeklyDeductTotal(w);
   }
   const ytdIn = round2(months.reduce((s, m) => s + m.moneyIn, 0));
   const ytdOut = round2(months.reduce((s, m) => s + m.moneyOut, 0));
@@ -318,7 +554,35 @@ export function pnlForYear(trips, year) {
   return { months, ytdIn, ytdOut, ytdEst, net: round2(ytdIn - ytdOut), tripCount: list.length };
 }
 
-export function exportRows(trips) {
+export function weeklyExportRows(weeklyTotals) {
+  const header = [
+    "payWeek", "weekEnding", "truckLease", "insurance", "ifta", "fuel", "truckWash",
+    "otherLabel", "otherDeduction", "deductions", "entered"
+  ];
+  const rows = [header];
+  const sorted = [...(weeklyTotals || [])]
+    .filter((w) => w && w.payWeek)
+    .sort((a, b) => a.payWeek.localeCompare(b.payWeek));
+  for (const raw of sorted) {
+    const w = normalizeWeeklyTotals(raw);
+    rows.push([
+      w.payWeek,
+      endOfPayWeek(w.payWeek) || "",
+      w.truckLease ?? "",
+      w.insurance ?? "",
+      w.ifta ?? "",
+      w.fuel ?? "",
+      w.truckWash ?? "",
+      w.otherLabel || "",
+      w.otherDeduction ?? "",
+      w.entered ? weeklyDeductTotal(w) : "",
+      w.entered ? "Y" : "N"
+    ]);
+  }
+  return rows;
+}
+
+export function exportRows(trips, weeklyTotals) {
   const header = [
     "id", "tripDate", "payWeek", "pushedAt",
     "shipper", "consignee", "originCity", "destCity",
@@ -340,6 +604,11 @@ export function exportRows(trips) {
       if (typeof v === "boolean") return v ? "Y" : "N";
       return v;
     }));
+  }
+  if (weeklyTotals) {
+    rows.push([]);
+    rows.push(["Weekly totals"]);
+    for (const line of weeklyExportRows(weeklyTotals)) rows.push(line);
   }
   return rows;
 }

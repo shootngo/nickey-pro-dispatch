@@ -28,9 +28,9 @@ Open `rosas-ledger/` and tap **Continue in demo mode**. Sample trips load from `
 
 1. Land on the **month calendar** (Sun–Sat pay weeks, alternate-week shading, trip dots, flagged days).
 2. Tap a day → **whole pay week**, with that day highlighted and a running weekly total. Scroll **older weeks**.
-3. Open a trip → Frank's estimates vs Rosa's actuals + deductions. Lease and truck wash **prefill from the last entry** and show an **Edited** chip when changed.
-4. **Save actuals** — variance and flag recompute against the tolerance band. Check **Set as Frank's baseline** (on for this week / last week) so Nickey Dispatch picks up **Current Baseline: $X**.
-5. On **Week**, confirm the booked-actual total and tap **Set as Frank's baseline**. **More** also has a typed period amount.
+3. Open a trip → date, shipper, city, and **pay for that trip** (pay amount, detention, extra pay, reefer fuel). Truck lease, insurance, IFTA, fuel, and truck wash are **not** on the trip.
+4. **Save actuals** — variance and flag recompute against the tolerance band using **trip pay only**. Check **Set as Frank's baseline** (on for this week / last week) so Nickey Dispatch picks up **Current Baseline: $X**.
+5. On **Week**, the bottom shows **Gross**, **Deductions**, and **Net** once weekly totals exist. A week with trips but no totals yet says **Pending deductions** and shows gross only. Tap **Enter Weekly Totals** — the form copies last week, and an edited number is highlighted. Confirm the booked-actual total and tap **Set as Frank's baseline**. **More** also has a typed period amount.
 6. **Budget / P&L** charts (money in vs out) and **year CSV / XLSX** export.
 7. **SimplyWise** is a stub: it accepts a file and does not parse it yet.
 
@@ -77,17 +77,43 @@ trip {
   estLinehaul, estDetention, estExtraPay, estReeferFuel,
   odometerIn, odometerOut, miles, costPerMile,
   actualPay, actualDetention, actualExtra, actualReefer,
-  deductFuel, deductInsurance, deductLease, deductTruckWash,
+  deductFuel, deductInsurance, deductLease, deductTruckWash,  // legacy; cleared after migration
   flagged, variance,
   notes: [{ text, author: "Frank"|"Rosa", timestamp }]
 }
 ```
 
+Fixed costs are **one record per pay week**, not per trip:
+
+```
+weeklyTotals/{payWeek} {
+  payWeek,                 // Sunday ISO, Sunday–Saturday
+  truckLease, insurance, ifta, fuel, truckWash,
+  otherDeduction, otherLabel,
+  entered,                 // true after Rosa saves
+  prefilledFrom, prefill,  // last week copied in, so edits stay visible
+  updatedAt
+}
+```
+
 - `tripDate` / `payWeek` / `pushedAt` are ISO strings (`YYYY-MM-DD` or full timestamps).
-- Money fields are numbers. Actuals and deductions use `null` until Rosa enters them (`0` is a real zero).
-- `variance` = (actualPay + actualDetention + actualExtra + actualReefer) − (estLinehaul + estDetention + estExtraPay + estReeferFuel).
+- Money fields are numbers. Actuals and weekly totals use `null` until Rosa enters them (`0` is a real zero).
+- **Gross** = sum of booked trip pay for the week (pay + detention + extra + reefer).
+- **Deductions** = truck lease + insurance + IFTA + fuel + truck wash + other.
+- **Net** = Gross − Deductions. A week that has trips but no saved totals is **Pending deductions**: gross only, no net.
+- `variance` = (actualPay + actualDetention + actualExtra + actualReefer) − (estLinehaul + estDetention + estExtraPay + estReeferFuel). Deductions are not part of the comparison.
 - `flagged` is true only when actuals exist **and** `abs(variance) > tolerance` (default **$25**, adjustable in More).
-- Rosa's Ledger never overwrites Frank's estimate fields when she saves actuals. Nickey must not clobber Rosa's actuals / deductions / notes on push (merge estimates only).
+- Rosa's Ledger never overwrites Frank's estimate fields when she saves actuals. Nickey must not clobber Rosa's actuals / notes on push (merge estimates only).
+
+### Moving old per-trip deductions
+
+On first load, if any trip still has `deductFuel` / `deductInsurance` / `deductLease` / `deductTruckWash`, the ledger:
+
+1. Writes a backup (`localStorage` key `rosasLedger.backup.preWeeklyTotals`, and Firestore `backups/preWeeklyTotals` when signed in) **before** clearing anything.
+2. Sums those four fields by pay week into that week's `weeklyTotals` record.
+3. Clears the four fields on the trips.
+
+Running it again does not add the same dollars twice. IFTA and the other-deduction line did not exist on trips, so they stay blank until Rosa fills them. Publish the `weeklyTotals` and `backups` rules in `firestore.rules.example` before relying on the live ledger.
 
 ## Expected Nickey → Rosa push shape
 
@@ -126,7 +152,7 @@ Nickey should **start sending** these estimate fields when Push to Rosa lands (t
 }
 ```
 
-**Merge rule for Nickey:** `set`/`merge` only the estimate + identity fields above. Leave `actual*`, `deduct*`, `flagged`, `variance`, and Rosa's notes untouched. Rosa's Ledger recomputes `flagged` / `variance` when she saves actuals.
+**Merge rule for Nickey:** `set`/`merge` only the estimate + identity fields above. Leave `actual*`, `deduct*`, `flagged`, `variance`, and Rosa's notes untouched. Weekly totals live in `weeklyTotals`, not on the trip. Rosa's Ledger recomputes `flagged` / `variance` when she saves actuals.
 
 Helper: `fromNickeyRecord()` in `js/core.js`.
 
@@ -135,20 +161,26 @@ Helper: `fromNickeyRecord()` in `js/core.js`.
 See `firestore.rules.example`. Paste this into Firebase Console → Firestore → Rules and **Publish**:
 
 ```
-match /trips/{tripId} {
-  allow read, write: if request.auth != null;
-}
+    match /trips/{tripId} {
+      allow read, write: if request.auth != null;
+    }
+    match /weeklyTotals/{weekId} {
+      allow read, write: if request.auth != null;
+    }
+    match /backups/{backupId} {
+      allow read, write: if request.auth != null;
+    }
 ```
 
-Signed-in users may read/write `trips/{id}` and `settings/rosa`. There is no public access. Tighten to Frank/Rosa UIDs before a real payroll dataset lives here.
+Signed-in users may read/write `trips/{id}`, `weeklyTotals/{payWeek}`, `backups/preWeeklyTotals`, and `settings/rosa`. There is no public access. Tighten to Frank/Rosa UIDs before a real payroll dataset lives here.
 
 If the ledger header shows **Live** but a red banner says the listen failed, the rules (or missing Auth) are blocking `list` on `trips`. Auth can succeed while Firestore still denies the snapshot — the app now surfaces that instead of keeping demo rows.
 
 ## Tolerance, P&L, export, SimplyWise
 
 - **Tolerance** lives in `localStorage` (`rosasLedger.settings`) so Rosa can tighten the band on her phone without a deploy.
-- **P&L** money in = booked actual totals; money out = fuel + insurance + lease + truck wash. Charts are monthly bars for the selected year.
-- **Export** writes every contract field for that year. CSV is UTF-8. XLSX is a real Office Open XML zip (no CDN).
+- **P&L** money in = booked trip pay; money out = weekly totals (dated by the Sunday of the pay week). Charts are monthly bars for the selected year.
+- **Export** writes one row per trip for that year, plus a weekly totals section. CSV is UTF-8. XLSX is a real Office Open XML zip (no CDN) with a Trips sheet and a Weekly totals sheet.
 - **SimplyWise** is intentionally a stub — file picker + message only.
 
 ## Icons

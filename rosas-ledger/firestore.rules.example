@@ -18,6 +18,14 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+    match /weeklyTotals/{weekId} {
+      allow read, write: if signedIn();
+    }
+
+    match /backups/{backupId} {
+      allow read, write: if signedIn();
+    }
+
     match /settings/{id} {
       allow read, write: if signedIn();
     }
