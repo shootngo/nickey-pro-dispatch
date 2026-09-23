@@ -11,6 +11,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="stylesheet" href="nickey-shared.css">
 <style>
+html{scroll-padding-top:118px;scroll-padding-bottom:150px}
 body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-height:100vh;font-size:16px;line-height:1.4;padding-bottom:132px}
 .hdr{background:#000}
 .paper-wrap{padding:10px 8px 16px}
@@ -451,7 +452,7 @@ function showNote(ctx, fromDraft) {
   }
   if (ctx.delivery || ctx.trailer || ctx.customer) {
     note.style.display = 'block';
-    note.innerHTML = '📋 <strong>Filled from your current dispatch.</strong> Driver, trailer, delivery #, customer, date, and delivery times can still be edited. Carrier is left blank.';
+    note.innerHTML = '📋 <strong>Filled from your current dispatch.</strong> Driver, trailer, delivery #, customer, date, and delivery times are filled in and can be edited. Carrier is not on the dispatch form.';
   } else {
     note.style.display = 'block';
     note.innerHTML = '⚠️ <strong>No active dispatch on this phone.</strong> Driver name and today’s date are filled in. Trailer, delivery #, and customer are blank until you enter them.';
