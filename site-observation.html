@@ -70,7 +70,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
 }
 @media print{
   body{background:#fff;padding:0}
-  .hdr,.form-link-row,.dispatch-note,.sec-tools,.action-bar,.autosave-pill,.nd-mic-btn{display:none !important}
+  .hdr,.form-link-row,.dispatch-note,.sec-tools,.action-bar,.autosave-pill,.nd-mic-btn,.photos-actions,.photo-remove{display:none !important}
   .paper-wrap{padding:0}
   .paper{box-shadow:none;border:none;max-width:none;padding:0}
   .sheet-page + .sheet-page{border-top:none;margin-top:0;padding-top:0;break-before:page;page-break-before:always}
@@ -80,7 +80,19 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
 /* Off-screen paper used only to rasterize the JPEG Daniel receives. */
 .so-export-host{position:fixed;left:0;top:0;width:880px;background:#fff;z-index:-1;opacity:0;pointer-events:none}
 .so-export-host .paper{box-shadow:none;max-width:none;width:100%;margin:0}
-.so-export-host .sec-tools,.so-export-host .nd-mic-btn{display:none !important}
+.so-export-host .sec-tools,.so-export-host .nd-mic-btn,.so-export-host .site-photos{display:none !important}
+.site-photos{margin:12px 4px 4px;padding-top:8px;border-top:1px solid #ccc}
+.photos-label{font-weight:700;font-size:15px;padding:2px 0 2px}
+.photos-hint{font-size:13px;color:#333;margin:0 0 8px;line-height:1.35}
+.photos-actions{display:flex;gap:8px;flex-wrap:wrap}
+.photos-actions button{flex:1 1 140px;min-height:44px;background:#fff;color:#8C1D42;border:1px solid #8C1D42;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;font-family:'Source Sans 3',sans-serif}
+.photos-actions button:disabled{opacity:.45;cursor:default}
+.photo-count{font-size:12px;font-weight:700;color:#444;margin:8px 0 6px}
+.photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.photo-thumb{margin:0;background:#f6f6f6;border:1px solid #ccc;border-radius:6px;overflow:hidden}
+.photo-thumb img{display:block;width:100%;height:92px;object-fit:cover;background:#eee}
+.photo-remove{display:block;width:100%;border:none;border-top:1px solid #ccc;background:#fff;color:#8C1D42;font-weight:700;font-size:12px;min-height:34px;cursor:pointer;font-family:'Source Sans 3',sans-serif}
+.photo-empty{font-size:13px;color:#555;margin:0}
 .so-export-host .split{flex-direction:row;gap:8px}
 .so-flat{min-height:22px;font-size:16px;line-height:1.35;padding:2px 2px 3px;border-bottom:1px solid #c8c8c8;color:#111;white-space:pre-wrap;word-wrap:break-word}
 .so-flat-comments{min-height:8.6em;line-height:1.7em;border-bottom:none;padding:0 4px}
@@ -235,6 +247,19 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
       <p class="nonconf">Please email all non-conformance issues to , <a href="mailto:jim.dollahan@evonik.com">jim.dollahan@evonik.com</a> , <a href="mailto:Jacob-D.Smith@evonik.com">Jacob-D.Smith@evonik.com</a> , <a href="mailto:bruce.eaton@evonik.com">bruce.eaton@evonik.com</a></p>
       <div class="comments-label">Comments:</div>
       <textarea id="comments" rows="5" aria-label="Comments"></textarea>
+      <section class="site-photos" id="sitePhotos">
+        <div class="photos-label">Photos (what's broken)</div>
+        <p class="photos-hint">Take pictures of what is wrong on site. They are sent with the checklist when you email Daniel. Up to 8 photos.</p>
+        <div class="photos-actions">
+          <button type="button" id="takePhotoBtn">Take photo</button>
+          <button type="button" id="addPhotoBtn">Add from gallery</button>
+        </div>
+        <div class="photo-count" id="photoCount">0 of 8 photos</div>
+        <div class="photo-grid" id="photoGrid"></div>
+        <p class="photo-empty" id="photoEmpty">No photos yet. Add pictures of what is broken.</p>
+        <input type="file" id="takePhotoInput" accept="image/*" capture="environment" hidden>
+        <input type="file" id="addPhotoInput" accept="image/*" multiple hidden>
+      </section>
       <div class="paper-foot"><span>[Internal]</span><span class="pages">2 | Page</span></div>
     </section>
   </article>
@@ -252,6 +277,8 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
 /* Wording matches Frank Mulkey's printed Evonik Customer Site Observation Checklist. Do not rephrase. */
 var DRAFT_KEY = 'nickeySiteObservationDraft';
 var HISTORY_KEY = 'nickeySiteObservationHistory';
+var PHOTO_DB = 'nickey-site-photos';
+var PHOTO_LIMIT = 8;
 
 var PPE = [
   'Hard hat',
@@ -322,7 +349,10 @@ var FIELD_IDS = [
 
 var state = { items: {} };
 var ready = false;
+var photosReady = false;
+var photos = [];
 var autoSaveTimer = null;
+var photoDbPromise = null;
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
@@ -433,6 +463,7 @@ function collect() {
   Object.keys(state.items).forEach(function(k) {
     if (state.items[k]) data.items[k] = state.items[k];
   });
+  data.photoCount = photos.length;
   return data;
 }
 function applyData(data) {
@@ -467,12 +498,202 @@ function autoSave() {
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(collect()));
   } catch (e) {}
+  if (photosReady) savePhotos().catch(function() {});
   var pill = document.getElementById('autosavePill');
   if (pill) {
     pill.classList.add('show');
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(function() { pill.classList.remove('show'); }, 1200);
   }
+}
+function openPhotoDb() {
+  if (photoDbPromise) return photoDbPromise;
+  photoDbPromise = new Promise(function(resolve, reject) {
+    if (!window.indexedDB) {
+      photoDbPromise = null;
+      reject(new Error('no indexedDB'));
+      return;
+    }
+    var req = indexedDB.open(PHOTO_DB, 1);
+    req.onupgradeneeded = function() {
+      var db = req.result;
+      if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'id' });
+    };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { photoDbPromise = null; reject(req.error); };
+  });
+  return photoDbPromise;
+}
+function savePhotoRecords(list) {
+  return openPhotoDb().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var tx = db.transaction('photos', 'readwrite');
+      tx.objectStore('photos').put({
+        id: 'draft',
+        photos: list.map(function(p) { return { id: p.id, blob: p.blob }; })
+      });
+      tx.oncomplete = function() { resolve(list); };
+      tx.onerror = function() { reject(tx.error); };
+      tx.onabort = function() { reject(tx.error || new Error('abort')); };
+    });
+  });
+}
+function savePhotos() {
+  return savePhotoRecords(photos);
+}
+function loadPhotos() {
+  return openPhotoDb().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var req = db.transaction('photos', 'readonly').objectStore('photos').get('draft');
+      req.onsuccess = function() {
+        var rec = req.result;
+        var list = (rec && Array.isArray(rec.photos)) ? rec.photos : [];
+        resolve(list.filter(function(p) { return p && p.blob; }).map(function(p) {
+          return { id: p.id, blob: p.blob, url: URL.createObjectURL(p.blob) };
+        }));
+      };
+      req.onerror = function() { reject(req.error); };
+    });
+  });
+}
+function refreshEmailSub() {
+  var sub = document.getElementById('emailSub');
+  if (!sub || emailBusy) return;
+  var email = (typeof ndGetContactEmail === 'function')
+    ? ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com')
+    : 'DKlein@nickeywarehouse.com';
+  if (photos.length) {
+    sub.textContent = 'JPEG + ' + photos.length + ' photo' + (photos.length === 1 ? '' : 's') + ' to ' + email;
+  } else {
+    sub.textContent = 'JPEG to ' + email;
+  }
+}
+function renderPhotos() {
+  var grid = document.getElementById('photoGrid');
+  var count = document.getElementById('photoCount');
+  var empty = document.getElementById('photoEmpty');
+  if (!grid) return;
+  grid.innerHTML = '';
+  photos.forEach(function(p, i) {
+    var fig = document.createElement('figure');
+    fig.className = 'photo-thumb';
+    var img = document.createElement('img');
+    img.src = p.url;
+    img.alt = 'Site photo ' + (i + 1);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'photo-remove';
+    btn.setAttribute('data-photo-id', p.id);
+    btn.textContent = 'Remove';
+    btn.setAttribute('aria-label', 'Remove photo ' + (i + 1));
+    fig.appendChild(img);
+    fig.appendChild(btn);
+    grid.appendChild(fig);
+  });
+  if (count) count.textContent = photos.length + ' of ' + PHOTO_LIMIT + ' photos';
+  if (empty) empty.style.display = photos.length ? 'none' : 'block';
+  var full = photos.length >= PHOTO_LIMIT;
+  var take = document.getElementById('takePhotoBtn');
+  var add = document.getElementById('addPhotoBtn');
+  if (take) take.disabled = full;
+  if (add) add.disabled = full;
+  refreshEmailSub();
+}
+function replacePhotos(list) {
+  photos.forEach(function(p) { if (p.url) URL.revokeObjectURL(p.url); });
+  photos = list || [];
+  renderPhotos();
+}
+function bitmapFromFile(file) {
+  if (typeof createImageBitmap === 'function') {
+    return createImageBitmap(file, { imageOrientation: 'from-image' }).catch(function() {
+      return createImageBitmap(file);
+    });
+  }
+  return new Promise(function(resolve, reject) {
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function() { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('image')); };
+    img.src = url;
+  });
+}
+function compressImage(file) {
+  return bitmapFromFile(file).then(function(src) {
+    var w = src.naturalWidth || src.width;
+    var h = src.naturalHeight || src.height;
+    if (!w || !h) throw new Error('empty image');
+    var maxEdge = 1600;
+    var scale = Math.min(1, maxEdge / Math.max(w, h));
+    var cw = Math.max(1, Math.round(w * scale));
+    var ch = Math.max(1, Math.round(h * scale));
+    var canvas = document.createElement('canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(src, 0, 0, cw, ch);
+    if (typeof src.close === 'function') src.close();
+    return new Promise(function(resolve, reject) {
+      canvas.toBlob(function(blob) {
+        if (!blob) reject(new Error('jpeg'));
+        else resolve(blob);
+      }, 'image/jpeg', 0.75);
+    });
+  });
+}
+function addPhotoFiles(fileList) {
+  var files = Array.prototype.slice.call(fileList || []).filter(function(f) { return f && f.size; });
+  var room = PHOTO_LIMIT - photos.length;
+  if (!files.length) return Promise.resolve();
+  if (room <= 0) {
+    alert('You can attach up to ' + PHOTO_LIMIT + ' photos.');
+    return Promise.resolve();
+  }
+  if (files.length > room) {
+    alert('Only ' + room + ' more photo' + (room === 1 ? '' : 's') + ' can be added (limit ' + PHOTO_LIMIT + ').');
+    files = files.slice(0, room);
+  }
+  var chain = Promise.resolve();
+  files.forEach(function(file) {
+    chain = chain.then(function() {
+      return compressImage(file).then(function(blob) {
+        photos.push({
+          id: 'ph-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+          blob: blob,
+          url: URL.createObjectURL(blob)
+        });
+      });
+    });
+  });
+  return chain.then(function() {
+    renderPhotos();
+    if (ready) autoSave();
+  }).catch(function() {
+    renderPhotos();
+    alert('Could not add that photo. Try another picture.');
+  });
+}
+function removePhoto(id) {
+  var idx = -1;
+  photos.forEach(function(p, i) { if (p.id === id) idx = i; });
+  if (idx < 0) return;
+  if (photos[idx].url) URL.revokeObjectURL(photos[idx].url);
+  photos.splice(idx, 1);
+  renderPhotos();
+  if (ready) autoSave();
+}
+function startPhotos(useDraft) {
+  var job = useDraft ? loadPhotos() : savePhotoRecords([]);
+  job.then(function(list) {
+    if (!photos.length) replacePhotos(useDraft ? (list || []) : []);
+  }).catch(function() {
+    if (!photos.length) replacePhotos([]);
+  }).then(function() {
+    photosReady = true;
+    if (photos.length) savePhotos().catch(function() {});
+  });
 }
 function formatLongDate(iso) {
   if (!iso) return '';
@@ -521,9 +742,16 @@ function displayValue(el) {
   if (type === 'time') return formatClock(v);
   return v;
 }
+function paperFields(root) {
+  return Array.prototype.filter.call(root.querySelectorAll('input, textarea'), function(el) {
+    if (el.tagName === 'TEXTAREA') return true;
+    var type = (el.getAttribute('type') || 'text').toLowerCase();
+    return type !== 'file' && type !== 'hidden' && type !== 'button' && type !== 'submit';
+  });
+}
 function flattenControls(original, clone) {
-  var src = original.querySelectorAll('input, textarea');
-  var copy = clone.querySelectorAll('input, textarea');
+  var src = paperFields(original);
+  var copy = paperFields(clone);
   var i, el, div, text;
   for (i = copy.length - 1; i >= 0; i--) {
     el = copy[i];
@@ -699,6 +927,10 @@ function renderChecklistJpeg() {
   var original = document.getElementById('paper');
   var clone = original.cloneNode(true);
   clone.removeAttribute('id');
+  var photoUi = clone.querySelectorAll('.site-photos');
+  for (var pi = 0; pi < photoUi.length; pi++) {
+    if (photoUi[pi].parentNode) photoUi[pi].parentNode.removeChild(photoUi[pi]);
+  }
   flattenControls(original, clone);
   host.appendChild(clone);
   document.body.appendChild(host);
@@ -744,12 +976,38 @@ function openChecklistMailto(dispatchEmail, subject, body) {
   var mailUrl = 'mailto:' + dispatchEmail + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   window.location.href = mailUrl;
 }
+function downloadAll(items) {
+  return new Promise(function(resolve) {
+    var i = 0;
+    function next() {
+      if (i >= items.length) { resolve(); return; }
+      downloadBlob(items[i].blob, items[i].name);
+      i += 1;
+      if (i >= items.length) resolve();
+      else setTimeout(next, 350);
+    }
+    next();
+  });
+}
 function fallbackMail(blob, meta, filename, dispatchEmail) {
-  downloadBlob(blob, filename);
+  var items = [{ blob: blob, name: filename }];
+  var photoNames = [];
+  photos.forEach(function(p, i) {
+    var name = 'site-photo-' + (i + 1) + '.jpg';
+    photoNames.push(name);
+    items.push({ blob: p.blob, name: name });
+  });
   var body = 'Site Observation Checklist — ' + meta.place + ' — ' + meta.dateLabel + '.\n\n'
-    + 'The checklist image was saved as ' + filename + '. Please attach the downloaded JPEG.\n';
-  alert('Checklist image saved as ' + filename + '.\n\nAttach that JPEG from Downloads. Mail will open to ' + dispatchEmail + '.');
-  openChecklistMailto(dispatchEmail, meta.subject, body);
+    + 'The checklist image was saved as ' + filename + '.';
+  if (photoNames.length) {
+    body += '\nSite photos were saved as ' + photoNames.join(', ') + '.';
+  }
+  body += '\nPlease attach the downloaded JPEG' + (photoNames.length ? 's' : '') + '.\n';
+  var savedList = [filename].concat(photoNames).join(', ');
+  return downloadAll(items).then(function() {
+    alert('Saved ' + savedList + '.\n\nAttach them from Downloads. Mail will open to ' + dispatchEmail + '.');
+    openChecklistMailto(dispatchEmail, meta.subject, body);
+  });
 }
 function canShareFiles(payload) {
   try {
@@ -770,18 +1028,24 @@ function emailChecklist() {
   var sub = document.getElementById('emailSub');
   var prevSub = sub ? sub.textContent : '';
   if (btn) btn.disabled = true;
-  if (sub) sub.textContent = 'Preparing checklist image…';
+  if (sub) sub.textContent = photos.length ? 'Preparing checklist and photos…' : 'Preparing checklist image…';
   renderChecklistJpeg().then(function(blob) {
-    var file = new File([blob], filename, { type: 'image/jpeg' });
+    var files = [new File([blob], filename, { type: 'image/jpeg' })];
+    photos.forEach(function(p, i) {
+      files.push(new File([p.blob], 'site-photo-' + (i + 1) + '.jpg', { type: 'image/jpeg' }));
+    });
     var text = 'Site Observation Checklist — ' + meta.place + ' — ' + meta.dateLabel + '\nTo: ' + dispatchEmail;
-    var payload = { files: [file], title: meta.subject, text: text };
+    if (photos.length) {
+      text += '\n' + photos.length + ' site photo' + (photos.length === 1 ? '' : 's') + ' attached.';
+    }
+    var payload = { files: files, title: meta.subject, text: text };
     if (canShareFiles(payload)) {
       return navigator.share(payload).catch(function(err) {
         if (err && err.name === 'AbortError') return;
-        fallbackMail(blob, meta, filename, dispatchEmail);
+        return fallbackMail(blob, meta, filename, dispatchEmail);
       });
     }
-    fallbackMail(blob, meta, filename, dispatchEmail);
+    return fallbackMail(blob, meta, filename, dispatchEmail);
   }).catch(function(err) {
     console.warn(err);
     alert('Could not create the checklist image. Use Print / Save as PDF, or try again.');
@@ -813,6 +1077,26 @@ document.getElementById('ppeTable').innerHTML = safeTable('Driver Personal Prote
 document.getElementById('offTable').innerHTML = checkTable('Off-Loading Checklist', OFFLOAD, 'off');
 document.getElementById('houseTable').innerHTML = safeTable('Work Conditions and Housekeeping', HOUSE, 'house');
 document.getElementById('afterTable').innerHTML = safeTable('', AFTER, 'after');
+
+document.getElementById('takePhotoBtn').addEventListener('click', function() {
+  document.getElementById('takePhotoInput').click();
+});
+document.getElementById('addPhotoBtn').addEventListener('click', function() {
+  document.getElementById('addPhotoInput').click();
+});
+document.getElementById('takePhotoInput').addEventListener('change', function(e) {
+  addPhotoFiles(e.target.files);
+  e.target.value = '';
+});
+document.getElementById('addPhotoInput').addEventListener('change', function(e) {
+  addPhotoFiles(e.target.files);
+  e.target.value = '';
+});
+document.getElementById('photoGrid').addEventListener('click', function(e) {
+  var btn = e.target.closest('.photo-remove');
+  if (!btn) return;
+  removePhoto(btn.getAttribute('data-photo-id'));
+});
 
 document.getElementById('paper').addEventListener('click', function(e) {
   var mark = e.target.closest('.mark');
@@ -852,11 +1136,9 @@ window.onload = function() {
     });
     showNote(ctx, false);
   }
-  var sub = document.getElementById('emailSub');
-  if (sub && typeof ndGetContactEmail === 'function') {
-    sub.textContent = 'JPEG to ' + ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
-  }
+  refreshEmailSub();
   ready = true;
+  startPhotos(useDraft);
   FIELD_IDS.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;

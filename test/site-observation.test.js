@@ -134,4 +134,23 @@ describe('Evonik site observation checklist', () => {
     assert.doesNotMatch(page, /ndAttachVoiceInput/);
     assert.doesNotMatch(page, /🎤/);
   });
+
+  it('keeps site photos with the draft and attaches them beside the checklist JPEG', () => {
+    assert.match(page, /Photos \(what's broken\)/);
+    assert.match(page, />Take photo</);
+    assert.match(page, />Add from gallery</);
+    assert.match(page, /id="takePhotoInput" accept="image\/\*" capture="environment"/);
+    assert.match(page, /id="addPhotoInput" accept="image\/\*" multiple/);
+    assert.match(page, /PHOTO_LIMIT = 8/);
+    assert.match(page, /indexedDB\.open\(PHOTO_DB/);
+    assert.match(page, /nickey-site-photos/);
+    assert.match(page, /maxEdge = 1600/);
+    assert.match(page, /'image\/jpeg', 0\.75/);
+    assert.match(page, /site-photo-/);
+    assert.match(page, /querySelectorAll\('\.site-photos'\)/);
+    assert.match(page, /photoCount/);
+    const commentsAt = page.indexOf('id="comments"');
+    const photosAt = page.indexOf('id="sitePhotos"');
+    assert.ok(commentsAt > 0 && photosAt > commentsAt);
+  });
 });
