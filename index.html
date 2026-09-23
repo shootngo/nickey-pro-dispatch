@@ -1,1 +1,25 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nickey Professional Dispatch V 9.6</title>
+<style>
+:root{color-scheme:dark}body{font-family:system-ui,sans-serif;background:#1a1a1a;color:#eee;max-width:720px;margin:0 auto;padding:24px}.header{border-bottom:3px solid #ffd700;padding:12px 0;margin-bottom:24px}.version{color:#ffd700}.card{background:#242424;border-radius:12px;padding:20px;margin:16px 0}.field{margin:14px 0}.field label{display:block;color:#ccc;margin-bottom:6px}.field input{box-sizing:border-box;width:100%;padding:12px;border:1px solid #555;border-radius:8px;background:#111;color:#fff;font-size:18px}.green-box{background:#0f2a0f;border:3px solid #4caf50;border-radius:12px;padding:20px;text-align:center}.green-label{color:#a5d6a7;letter-spacing:1px;text-transform:uppercase;font-size:13px}.green-value{color:#4caf50;font-size:36px;font-weight:700;margin-top:8px}.muted{color:#999;font-size:13px}</style>
+</head>
+<body>
+<header class="header"><strong>NICKEY DISPATCH</strong> <span class="version">V 9.6</span></header>
+<main>
+<div class="card"><h1>Base Pay</h1><div class="field"><label for="basePay">Base pay</label><input id="basePay" type="number" step="0.01" placeholder="0.00"></div>
+<div class="green-box"><div class="green-label">Actual line haul</div><div class="green-value" id="actualLineHaul">Waiting on Rosa — save a trip line haul.</div><div class="muted">One actual line haul amount from Rosa</div></div></div>
+</main>
+<script>
+(function(){
+  var out=document.getElementById('actualLineHaul');
+  function money(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function refresh(){try{var r=JSON.parse(localStorage.getItem('nickeyRosa.baseline')||'null');var n=r&&Number(r.amount);if(Number.isFinite(n)){out.textContent=money(n);}}catch(e){}}
+  refresh();window.addEventListener('storage',refresh);window.addEventListener('focus',refresh);
+})();
+</script>
+</body>
+</html>
