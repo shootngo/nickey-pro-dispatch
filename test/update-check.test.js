@@ -154,7 +154,7 @@ describe('hamburger Check for update', () => {
     assert.match(html, /onclick="openSettings\(\)"[\s\S]*onclick="ndCheckForUpdate\(\)"/);
     assert.match(html, /🔄 Check for update/);
     assert.match(shared, /w\.ndCheckForUpdate\s*=\s*function/);
-    assert.match(shared, /ND_APP_VERSION = 'V 9\.4'/);
+    assert.match(shared, /ND_APP_VERSION = 'V 9\.5'/);
   });
 
   it('keeps the passive New version available banner', () => {
@@ -165,14 +165,14 @@ describe('hamburger Check for update', () => {
     assert.match(html, /updateViaCache:\s*'none'/);
   });
 
-  it('bumps visible version and SW cache to 9.4 together', () => {
-    assert.match(html, /<title>Nickey Professional Dispatch V 9\.4</);
-    assert.match(html, /splash-version">V 9\.4</);
-    assert.match(html, /NICKEY DISPATCH <span[^>]*>V 9\.4</);
-    assert.match(html, /Sent from Nickey Dispatch V 9\.4/);
-    assert.match(sw, /CACHE_VERSION = 'nickey-v9\.4'/);
-    assert.doesNotMatch(html, /V 9\.3/);
-    assert.doesNotMatch(sw, /nickey-v9\.3/);
+  it('bumps visible version and SW cache to 9.5 together', () => {
+    assert.match(html, /<title>Nickey Professional Dispatch V 9\.5</);
+    assert.match(html, /splash-version">V 9\.5</);
+    assert.match(html, /NICKEY DISPATCH <span[^>]*>V 9\.5</);
+    assert.match(html, /Sent from Nickey Dispatch V 9\.5/);
+    assert.match(sw, /CACHE_VERSION = 'nickey-v9\.5'/);
+    assert.doesNotMatch(html, /V 9\.4/);
+    assert.doesNotMatch(sw, /nickey-v9\.4/);
   });
 
   it('activates a waiting worker by posting SKIP_WAITING to it, not only the controller', () => {
@@ -191,7 +191,7 @@ describe('hamburger Check for update', () => {
     const result = await ctx.sandbox.ndCheckForUpdate();
     assert.equal(result, 'latest');
     assert.equal(ctx.alerts.length, 1);
-    assert.match(ctx.alerts[0], /V 9\.4/);
+    assert.match(ctx.alerts[0], /V 9\.5/);
     assert.match(ctx.alerts[0], /already latest/);
     assert.equal(ctx.nodes.menuOverlay.style.display, 'none');
     assert.ok(ctx.fetchCalls.some((c) => String(c.url).indexOf('sw.js?check=') !== -1));
@@ -235,6 +235,6 @@ describe('hamburger Check for update', () => {
     assert.equal(result, 'offline');
     assert.equal(ctx.alerts.length, 1);
     assert.match(ctx.alerts[0], /Couldn't check for an update/);
-    assert.match(ctx.alerts[0], /V 9\.4/);
+    assert.match(ctx.alerts[0], /V 9\.5/);
   });
 });

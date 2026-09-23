@@ -288,6 +288,27 @@ describe('rosa/nickey baseline contract', () => {
     assert.equal(baseline.lastActualForCustomer('Kroger DC', storage).amount, 1200);
   });
 
+  it('asks Nickey to upload a local line haul when Drive has no baseline key', () => {
+    const raw = JSON.stringify({
+      version: 1, amount: 388.8, kind: 'trip', consignee: 'Maxson',
+      label: 'Maxson · Sep 10 · line haul'
+    });
+    const ts = '2026-09-23T14:00:00.000Z';
+    assert.equal(baseline.shouldUploadToDrive(raw, ts, null), true);
+    assert.equal(baseline.shouldUploadToDrive(raw, ts, undefined), true);
+    assert.equal(baseline.shouldUploadToDrive(null, ts, null), false);
+    assert.equal(baseline.shouldUploadToDrive('', ts, null), false);
+    assert.equal(baseline.shouldUploadToDrive(raw, ts, { value: raw, updatedAt: ts }), false);
+    assert.equal(baseline.shouldUploadToDrive(raw, '2026-09-23T15:00:00.000Z', {
+      value: JSON.stringify({ amount: 900, kind: 'trip' }),
+      updatedAt: ts
+    }), true);
+    assert.equal(baseline.shouldUploadToDrive(raw, '2026-09-23T12:00:00.000Z', {
+      value: JSON.stringify({ amount: 900, kind: 'trip' }),
+      updatedAt: '2026-09-23T14:00:00.000Z'
+    }), false);
+  });
+
   it('treats this week and last week as recent for the default checkbox', () => {
     assert.equal(baseline.isRecentPayWeek('2026-09-08', '2026-09-16'), true); // this week (Sun 13)
     assert.equal(baseline.isRecentPayWeek('2026-09-10', '2026-09-16'), true);
@@ -310,6 +331,17 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     const syncBlock = ndsync.slice(ndsync.indexOf('const SYNC_KEYS'), ndsync.indexOf('const SYNC_KEY_SET'));
     assert.match(syncBlock, /nickeyRosa\.baseline/);
     assert.match(persist, /nickeyRosa\.baseline/);
+    assert.match(ndsync, /function baselineShouldUpload/);
+    assert.match(ndsync, /uploadBaseline/);
+    assert.match(ndsync, /shouldUploadToDrive/);
+    assert.match(ndsync, /keys\['nickeyRosa\.baseline'\]/);
+    const pull = ndsync.slice(ndsync.indexOf('function pullFromDrive'), ndsync.indexOf('function pushToDrive'));
+    assert.match(pull, /baselineShouldUpload\(data\)/);
+    assert.match(pull, /uploadBaseline/);
+    const setup = ndsync.slice(ndsync.indexOf('function setupAndPull'), ndsync.indexOf('function notifyPageOfPull'));
+    assert.match(setup, /result\.uploadBaseline/);
+    assert.match(setup, /debouncedPush\(\)/);
+    assert.match(ndsync, /addEventListener\('storage'/);
   });
 
   it('shows Current Baseline on the dashboard instead of a static default', () => {
@@ -337,23 +369,35 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     const store = read('rosas-ledger/js/store.js');
     const rosaHtml = read('rosas-ledger/index.html');
     assert.match(rosaHtml, /nickey-rosa-baseline\.js/);
-    assert.match(app, /Set as Frank/);
-    assert.match(app, /publishTripBaseline/);
-    assert.match(app, /setNickeyBaseline/);
-    assert.match(app, /publishManualBaseline/);
-    assert.doesNotMatch(app, /send-week-baseline|publishWeekBaseline|weekBaselineAmt/);
-    assert.match(app, /Week totals stay on the pay sheet/);
-    assert.match(app, /Set as Frank's baseline \(line haul only\)/);
-    assert.match(app, /Refresh Nickey baseline from this trip/);
-    assert.match(app, /Line haul → Nickey baseline/);
+    const tripStart = app.indexOf('function renderTrip');
+    const tripEnd = app.indexOf('const TOTAL_FIELDS');
+    const trip = app.slice(tripStart, tripEnd);
+    assert.ok(tripStart > 0 && tripEnd > tripStart);
+    assert.doesNotMatch(trip, /baselineCard|Nickey baseline|setNickeyBaseline|refresh-nickey-baseline|Set as Frank|Line haul → Nickey/);
+    assert.match(trip, /data-act="save-actuals"/);
+    assert.match(trip, /actualPay/);
+    const saveStart = app.indexOf('act === "save-actuals"');
+    const saveEnd = app.indexOf('act === "add-note"');
+    const save = app.slice(saveStart, saveEnd);
+    assert.match(save, /publishTripBaseline\(next\)/);
+    assert.match(save, /await saveTrip\(next\)/);
+    assert.doesNotMatch(save, /wantBaseline|setNickeyBaseline|checked/);
+    assert.doesNotMatch(app, /refresh-nickey-baseline|send-manual-baseline|Set as Frank|Refresh Nickey baseline|publishManualBaseline/);
+    const weekStart = app.indexOf('function renderWeek');
+    const weekEnd = app.indexOf('function moneyField');
+    const week = app.slice(weekStart, weekEnd);
+    assert.match(week, /baselineCard/);
+    assert.match(week, /weekMathBlock/);
     assert.match(app, /Week gross/);
+    assert.doesNotMatch(app, /send-week-baseline|publishWeekBaseline|weekBaselineAmt/);
     assert.doesNotMatch(app, /This saved amount is a week total/);
-    assert.match(app, /line haul only/);
     assert.doesNotMatch(app, /pay, detention, extra, and reefer/);
     assert.doesNotMatch(app, /booked actuals to Nickey|send the total to Nickey/);
     assert.doesNotMatch(store, /publishFromWeek|publishWeekBaseline/);
     assert.match(store, /NickeyRosaBaseline|nickeyRosa\.baseline/);
+    assert.match(store, /publishFromTrip/);
     const helper = read('nickey-rosa-baseline.js');
     assert.doesNotMatch(helper, /function publishFromWeek/);
+    assert.match(helper, /function lineHaulAmount/);
   });
 });

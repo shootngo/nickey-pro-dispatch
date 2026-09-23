@@ -59,8 +59,8 @@ describe('Pickup Number trailing actions (mic + BOL camera)', () => {
   });
 
   it('bumps the Nickey service worker so phones pick up the layout', () => {
-    assert.match(sw, /CACHE_VERSION = 'nickey-v9\.4'/);
-    assert.match(html, /V 9\.4/);
+    assert.match(sw, /CACHE_VERSION = 'nickey-v9\.5'/);
+    assert.match(html, /V 9\.5/);
   });
 });
 

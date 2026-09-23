@@ -675,6 +675,23 @@
     return payload;
   }
 
+  // Local baseline that Drive's nickey-dispatch-data.json does not have yet
+  // (or that is newer than the copy in that file) must be pushed. Rosa writes
+  // the key without loading ndsync, so a pull that finds no remote entry would
+  // otherwise leave it on this phone only.
+  function baselineShouldUpload(remotePayload){
+    const localRaw = safeGet('nickeyRosa.baseline');
+    const localTs = safeGet('ndsync_ts_nickeyRosa.baseline') || '';
+    const remote = remotePayload && remotePayload.keys ? remotePayload.keys['nickeyRosa.baseline'] : null;
+    const api = window.NickeyRosaBaseline;
+    if (api && typeof api.shouldUploadToDrive === 'function') {
+      return api.shouldUploadToDrive(localRaw, localTs, remote);
+    }
+    if (localRaw == null || localRaw === '') return false;
+    if (!remote || remote.value == null || remote.value === '') return true;
+    return localTs > (remote.updatedAt || '');
+  }
+
   function applyPayload(payload){
     if (!payload || !payload.keys) return 0;
     let changed = 0;
@@ -948,11 +965,13 @@
             .catch(err => logError('Initial remote snapshot failed', err))
         : Promise.resolve();
       const changed = applyPayload(data);
+      const uploadBaseline = baselineShouldUpload(data);
       _rawSet('ndsync_lastSync', new Date().toISOString());
       // Merged records were written with _rawSet (no intercept). Push the
       // union so a smaller remote file cannot stay canonical on Drive.
-      if (changed > 0 && initialPullDone) debouncedPush();
-      return firstSnap.then(() => changed);
+      // Also push when this phone holds a baseline the Drive bag does not.
+      if (initialPullDone && (changed > 0 || uploadBaseline)) debouncedPush();
+      return firstSnap.then(() => ({ changed: changed, uploadBaseline: uploadBaseline }));
     });
   }
 
@@ -1068,9 +1087,11 @@
     return ensureFolder()
       .then(() => ensureDataFile())
       .then(() => pullFromDrive())
-      .then(changed => {
+      .then(result => {
         initialPullDone = true;
+        const changed = result && result.changed ? result.changed : 0;
         if (changed > 0) notifyPageOfPull();
+        if (result && result.uploadBaseline) debouncedPush();
         document.dispatchEvent(new Event('ndsync:ready'));
         showPill('signed-in', '✓ Synced', 3000);
         log('Initial sync complete, changed keys:', changed);
@@ -1105,7 +1126,8 @@
   function onAppVisible(){
     if (!navigator.onLine) return;
     if (tokenUsable() && initialPullDone) {
-      pullFromDrive().then(changed => {
+      pullFromDrive().then(result => {
+        const changed = result && result.changed ? result.changed : 0;
         if (changed > 0) notifyPageOfPull();
       }).catch(() => {});
       return;
@@ -1124,6 +1146,13 @@
   });
   window.addEventListener('pagehide', flushPendingPush);
   window.addEventListener('pageshow', onAppVisible);
+
+  // Rosa writes nickeyRosa.baseline from her own page (native setItem).
+  // This tab hears that as a storage event and queues a Drive push.
+  window.addEventListener('storage', (ev) => {
+    if (!ev || (ev.key !== 'nickeyRosa.baseline' && ev.key !== 'ndsync_ts_nickeyRosa.baseline')) return;
+    if (isSignedIn && initialPullDone && navigator.onLine) debouncedPush();
+  });
 
   window.addEventListener('online', () => {
     log('Network back online');
@@ -1185,7 +1214,7 @@
       closeModal();
       showPill('syncing', 'Syncing...', 0);
       pullFromDrive()
-        .then(changed => { if (changed > 0) notifyPageOfPull(); })
+        .then(result => { if (result && result.changed > 0) notifyPageOfPull(); })
         .catch(() => {})
         .finally(() => pushToDrive());
     },

@@ -359,6 +359,24 @@ describe('export / import backup — merge-union, never replace-wipe', () => {
     assert.ok(payload.keys.weeklyDeductions);
     assert.equal(payload.currentDriver, 'Frank Mulkey');
   });
+
+  it('includes nickeyRosa.baseline in the export bag when the phone has one', () => {
+    assert.ok(P.EXPORT_KEYS.includes('nickeyRosa.baseline'));
+    const raw = JSON.stringify({
+      version: 1, amount: 388.8, kind: 'trip', consignee: 'Maxson',
+      label: 'Maxson · Sep 10 · line haul'
+    });
+    const store = P.memoryStorage({
+      nickeySavedRecords: JSON.stringify([rec({ id: 'REC-x', pickup: '111' })]),
+      'nickeyRosa.baseline': raw,
+      'ndsync_ts_nickeyRosa.baseline': '2026-09-23T14:00:00.000Z'
+    });
+    const payload = P.buildExportPayload({ storage: store });
+    assert.ok(payload.keys['nickeyRosa.baseline']);
+    assert.equal(payload.keys['nickeyRosa.baseline'].value, raw);
+    assert.equal(payload.keys['nickeyRosa.baseline'].updatedAt, '2026-09-23T14:00:00.000Z');
+    assert.equal(payload['nickeyRosa.baseline'].amount, 388.8);
+  });
 });
 
 describe('master lists — customers, trailers, contacts, SDS', () => {
