@@ -9,7 +9,7 @@
  *   version: 1,
  *   amount: 1200,                 // dollars — Frank's Current Baseline
  *   currency: "USD",
- *   kind: "trip" | "week" | "manual",
+ *   kind: "trip" | "manual" | "week",  // "week" is legacy read-only; new writes are one trip or a typed single amount
  *   payWeek: "2026-09-06",        // Sunday ISO of the Sun–Sat week
  *   tripDate: "2026-09-08",       // when kind === "trip"
  *   tripId: "TRP-…",
@@ -21,8 +21,9 @@
  *   lastActuals: [{ amount, tripId, pickup, consignee, tripDate, payWeek, savedAt }]
  * }
  *
- * amount is what Rosa confirmed Frank actually earned (trip actual total,
- * week's booked actuals, or a typed period total). Nickey shows it as
+ * amount is one trip's pay-sheet actual (publishFromTrip) or a typed
+ * single-trip / period amount (publishManual). It is never a rolled-up
+ * sum of several trips in a pay week. Nickey shows it as
  * "Current Baseline: $X" and compares load estimates against it.
  * ============================================================================= */
 
@@ -267,38 +268,6 @@
     }, storage, now);
   }
 
-  function publishFromWeek(trips, sundayISO, nowIso, storage) {
-    var list = trips || [];
-    var sunday = sundayISO || '';
-    var total = 0;
-    var count = 0;
-    list.forEach(function (t) {
-      if (!t) return;
-      var week = t.payWeek || payWeekOf(t.tripDate);
-      if (sunday && week !== sunday) return;
-      var amt = actualTotal(t);
-      if (amt == null) return;
-      total += amt;
-      count += 1;
-    });
-    if (!count) return read(storage);
-    var now = nowIso || new Date().toISOString();
-    var prev = read(storage);
-    return write({
-      amount: round2(total),
-      kind: 'week',
-      payWeek: sunday,
-      tripDate: '',
-      tripId: '',
-      pickup: '',
-      consignee: '',
-      label: weekLabel(sunday) + ' · ' + count + (count === 1 ? ' trip' : ' trips'),
-      savedAt: now,
-      source: 'rosa',
-      lastActuals: prev.lastActuals
-    }, storage, now);
-  }
-
   function publishManual(input, nowIso, storage) {
     var src = input || {};
     var amount = src.amount == null || src.amount === '' ? null : round2(src.amount);
@@ -314,7 +283,7 @@
       tripId: '',
       pickup: '',
       consignee: '',
-      label: src.label || (payWeek ? weekLabel(payWeek) : 'Rosa confirmed'),
+      label: src.label || 'Single trip · Rosa confirmed',
       savedAt: now,
       source: 'rosa',
       lastActuals: prev.lastActuals
@@ -406,7 +375,6 @@
     clear: clear,
     hasAmount: hasAmount,
     publishFromTrip: publishFromTrip,
-    publishFromWeek: publishFromWeek,
     publishManual: publishManual,
     compareEstimate: compareEstimate,
     compareSummary: compareSummary,

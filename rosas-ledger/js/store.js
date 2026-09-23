@@ -1,6 +1,6 @@
-import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, COLLECTION_WEEKLY, COLLECTION_BACKUPS, BACKUP_DOC, DEFAULT_TOLERANCE } from "./config.js?v=20260922a";
-import { applyVariance, hasActuals, migrateTripDeductions, normalizeTrip, normalizeWeeklyTotals, num } from "./core.js?v=20260922a";
-import { DEMO_SEED_VERSION, getDemoTrips, getDemoWeeklyTotals } from "./demo-data.js?v=20260922a";
+import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, COLLECTION_WEEKLY, COLLECTION_BACKUPS, BACKUP_DOC, DEFAULT_TOLERANCE } from "./config.js?v=20260923a";
+import { applyVariance, hasActuals, migrateTripDeductions, normalizeTrip, normalizeWeeklyTotals, num } from "./core.js?v=20260923a";
+import { DEMO_SEED_VERSION, getDemoTrips, getDemoWeeklyTotals } from "./demo-data.js?v=20260923a";
 
 const LS_TRIPS = "rosasLedger.trips";
 const LS_WEEKS = "rosasLedger.weeklyTotals";
@@ -449,17 +449,11 @@ export function publishedBaseline() {
   }
 }
 
+/** Current Baseline is this trip's pay-sheet actual only. */
 export function publishTripBaseline(trip) {
   if (!trip || !hasActuals(trip)) return publishedBaseline();
   if (typeof window !== "undefined" && window.NickeyRosaBaseline) {
     return window.NickeyRosaBaseline.publishFromTrip(trip);
-  }
-  return publishedBaseline();
-}
-
-export function publishWeekBaseline(trips, sundayISO) {
-  if (typeof window !== "undefined" && window.NickeyRosaBaseline) {
-    return window.NickeyRosaBaseline.publishFromWeek(trips, sundayISO);
   }
   return publishedBaseline();
 }
