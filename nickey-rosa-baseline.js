@@ -7,7 +7,7 @@
  * Shape (version 1):
  * {
  *   version: 1,
- *   amount: 1200,                 // dollars — Frank's Current Baseline
+ *   amount: 388.80,               // dollars — that trip's line haul (actualPay) only
  *   currency: "USD",
  *   kind: "trip" | "manual",      // leftover "week" is invalid and cleared on read
  *   payWeek: "2026-09-06",        // Sunday ISO of the Sun–Sat week
@@ -15,16 +15,16 @@
  *   tripId: "TRP-…",
  *   pickup: "3012874535",
  *   consignee: "Kroger DC",
- *   label: "Kroger DC · Sep 8",
+ *   label: "Kroger DC · Sep 8 · line haul",
  *   savedAt: "2026-09-16T12:00:00.000Z",
  *   source: "rosa",
  *   lastActuals: [{ amount, tripId, pickup, consignee, tripDate, payWeek, savedAt }]
  * }
  *
- * amount is one trip's pay-sheet actual (publishFromTrip) or a typed
- * single-trip / period amount (publishManual). It is never a rolled-up
- * sum of several trips in a pay week. Nickey shows it as
- * "Current Baseline: $X" and compares load estimates against it.
+ * amount is one trip's line haul (actualPay) from publishFromTrip, or a
+ * typed line-haul amount from publishManual. Detention, extra, and reefer
+ * stay on the trip. It is never a rolled-up week gross. Nickey shows it as
+ * "Current Baseline: $X" and compares load estimates against that line haul.
  *
  * A leftover kind "week" record (the Sun–Sat gross) is not a baseline.
  * read() rewrites it to an empty amount with a Drive timestamp newer than
@@ -99,8 +99,14 @@
     var when = d
       ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       : (t && t.tripDate) || '';
-    if (name && when) return name + ' · ' + when;
-    return name || when || 'Actual pay';
+    var core = (name && when) ? (name + ' · ' + when) : (name || when || '');
+    return core ? (core + ' · line haul') : 'Line haul';
+  }
+
+  /** Baseline amount is line haul only. Add-ons are not included. */
+  function lineHaulAmount(t) {
+    if (!t || t.actualPay == null || t.actualPay === '') return null;
+    return round2(t.actualPay);
   }
 
   function weekLabel(sundayISO) {
@@ -290,8 +296,7 @@
 
   function publishFromTrip(trip, nowIso, storage) {
     var t = trip || {};
-    var amount = actualTotal(t);
-    if (amount == null && t.actualPay != null && t.actualPay !== '') amount = round2(t.actualPay);
+    var amount = lineHaulAmount(t);
     if (amount == null) return read(storage);
     var now = nowIso || new Date().toISOString();
     var prev = read(storage);
@@ -335,7 +340,7 @@
       tripId: '',
       pickup: '',
       consignee: '',
-      label: src.label || 'Single trip · Rosa confirmed',
+      label: src.label || 'Line haul · Rosa confirmed',
       savedAt: now,
       source: 'rosa',
       lastActuals: prev.lastActuals
@@ -343,7 +348,7 @@
   }
 
   /**
-   * Compare a load's estimated pay against the current baseline / last actual.
+   * Compare a load's estimated pay against the current line-haul baseline.
    * delta = estimate − baseline (positive means this load is estimated higher).
    */
   function compareEstimate(estimate, baselineAmount) {
@@ -362,14 +367,14 @@
 
   function compareSummary(cmp) {
     if (!cmp || cmp.tone === 'none' || cmp.baseline == null) {
-      return 'No baseline yet — Rosa has not sent an actual pay.';
+      return 'No baseline yet — Rosa has not sent a trip line haul.';
     }
     var est = formatMoney(cmp.estimate);
     var base = formatMoney(cmp.baseline);
-    if (cmp.tone === 'even') return 'Est. ' + est + ' matches last actual ' + base;
+    if (cmp.tone === 'even') return 'Est. ' + est + ' matches line haul ' + base;
     var signed = (cmp.delta >= 0 ? '+' : '−') + formatMoney(Math.abs(cmp.delta));
-    if (cmp.tone === 'over') return 'Est. ' + est + ' is ' + signed + ' vs last actual ' + base;
-    return 'Est. ' + est + ' is ' + signed + ' vs last actual ' + base;
+    if (cmp.tone === 'over') return 'Est. ' + est + ' is ' + signed + ' vs line haul ' + base;
+    return 'Est. ' + est + ' is ' + signed + ' vs line haul ' + base;
   }
 
   function lastActualForCustomer(customer, storage) {
@@ -418,6 +423,7 @@
     formatMoney: formatMoney,
     hasActuals: hasActuals,
     actualTotal: actualTotal,
+    lineHaulAmount: lineHaulAmount,
     tripLabel: tripLabel,
     weekLabel: weekLabel,
     emptyRecord: emptyRecord,

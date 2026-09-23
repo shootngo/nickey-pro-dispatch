@@ -32,7 +32,7 @@ describe('rosa/nickey baseline contract', () => {
     assert.equal(cmp.baseline, null);
   });
 
-  it('publishes a trip actual total as the new baseline', () => {
+  it('publishes line haul only, not pay plus detention, extra, and reefer', () => {
     const storage = memoryStorage();
     const rec = baseline.publishFromTrip({
       id: 'TRP-1',
@@ -45,15 +45,40 @@ describe('rosa/nickey baseline contract', () => {
       actualExtra: 0,
       actualReefer: 20
     }, '2026-09-16T12:00:00.000Z', storage);
-    assert.equal(rec.amount, 1200);
+    assert.equal(rec.amount, 1100);
+    assert.notEqual(rec.amount, 1200);
     assert.equal(rec.kind, 'trip');
     assert.equal(rec.payWeek, '2026-09-06');
     assert.equal(rec.pickup, '3012874535');
     assert.match(rec.label, /Kroger DC/);
-    assert.equal(JSON.parse(storage.getItem(baseline.KEY)).amount, 1200);
+    assert.match(rec.label, /line haul/);
+    assert.equal(JSON.parse(storage.getItem(baseline.KEY)).amount, 1100);
     assert.equal(storage.getItem(baseline.TS_KEY), '2026-09-16T12:00:00.000Z');
     assert.equal(rec.lastActuals.length, 1);
-    assert.equal(rec.lastActuals[0].amount, 1200);
+    assert.equal(rec.lastActuals[0].amount, 1100);
+  });
+
+  it('sets a Maxson baseline from line haul ~388.80, not add-ons or the week gross', () => {
+    const storage = memoryStorage();
+    const rec = baseline.publishFromTrip({
+      id: 'TRP-maxson',
+      tripDate: '2026-09-10',
+      consignee: 'Maxson',
+      actualPay: 388.8,
+      actualDetention: 150,
+      actualExtra: 25,
+      actualReefer: 40
+    }, '2026-09-23T12:00:00.000Z', storage);
+    assert.equal(rec.amount, 388.8);
+    assert.equal(rec.kind, 'trip');
+    assert.match(rec.label, /Maxson/);
+    assert.match(rec.label, /line haul/);
+    assert.notEqual(rec.amount, 603.8);
+    assert.notEqual(rec.amount, 8945.5);
+    const cmp = baseline.compareEstimate(388.8, rec.amount);
+    assert.equal(cmp.tone, 'even');
+    assert.match(baseline.compareSummary(cmp), /line haul \$388\.80/);
+    assert.doesNotMatch(baseline.compareSummary(cmp), /8,945\.50|603\.80/);
   });
 
   it('does not publish when Rosa has not entered actuals', () => {
@@ -66,6 +91,22 @@ describe('rosa/nickey baseline contract', () => {
     }, '2026-09-16T12:00:00.000Z', storage);
     assert.equal(rec.amount, null);
     assert.equal(storage.getItem(baseline.KEY), null);
+  });
+
+  it('does not publish detention or other add-ons when line haul is blank', () => {
+    const storage = memoryStorage();
+    const rec = baseline.publishFromTrip({
+      id: 'TRP-addons',
+      tripDate: '2026-09-10',
+      consignee: 'Maxson',
+      actualPay: null,
+      actualDetention: 150,
+      actualExtra: 25,
+      actualReefer: 40
+    }, '2026-09-23T12:00:00.000Z', storage);
+    assert.equal(rec.amount, null);
+    assert.equal(storage.getItem(baseline.KEY), null);
+    assert.equal(baseline.lineHaulAmount({ actualPay: 388.8, actualDetention: 150 }), 388.8);
   });
 
   it('publishes one trip actual and leaves the other Pros in that week alone', () => {
@@ -230,7 +271,7 @@ describe('rosa/nickey baseline contract', () => {
     assert.equal(under.tone, 'under');
     const even = baseline.compareEstimate(1200, 1200);
     assert.equal(even.tone, 'even');
-    assert.match(baseline.compareSummary(under), /last actual \$1,200\.00/);
+    assert.match(baseline.compareSummary(under), /line haul \$1,200\.00/);
     assert.match(baseline.compareSummary(under), /Est\. \$1,050\.00/);
   });
 
@@ -301,8 +342,14 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     assert.match(app, /setNickeyBaseline/);
     assert.match(app, /publishManualBaseline/);
     assert.doesNotMatch(app, /send-week-baseline|publishWeekBaseline|weekBaselineAmt/);
-    assert.match(app, /not a valid Nickey baseline/);
+    assert.match(app, /Week totals stay on the pay sheet/);
+    assert.match(app, /Set as Frank's baseline \(line haul only\)/);
+    assert.match(app, /Refresh Nickey baseline from this trip/);
+    assert.match(app, /Line haul → Nickey baseline/);
+    assert.match(app, /Week gross/);
     assert.doesNotMatch(app, /This saved amount is a week total/);
+    assert.match(app, /line haul only/);
+    assert.doesNotMatch(app, /pay, detention, extra, and reefer/);
     assert.doesNotMatch(app, /booked actuals to Nickey|send the total to Nickey/);
     assert.doesNotMatch(store, /publishFromWeek|publishWeekBaseline/);
     assert.match(store, /NickeyRosaBaseline|nickeyRosa\.baseline/);

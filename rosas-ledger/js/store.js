@@ -1,5 +1,5 @@
 import { isFirebaseConfigured, firebaseConfig, COLLECTION_TRIPS, COLLECTION_WEEKLY, COLLECTION_BACKUPS, BACKUP_DOC, DEFAULT_TOLERANCE } from "./config.js?v=20260923a";
-import { applyVariance, hasActuals, migrateTripDeductions, normalizeTrip, normalizeWeeklyTotals, num } from "./core.js?v=20260923a";
+import { applyVariance, migrateTripDeductions, normalizeTrip, normalizeWeeklyTotals, num } from "./core.js?v=20260923a";
 import { DEMO_SEED_VERSION, getDemoTrips, getDemoWeeklyTotals } from "./demo-data.js?v=20260923a";
 
 const LS_TRIPS = "rosasLedger.trips";
@@ -451,9 +451,9 @@ export function publishedBaseline() {
   }
 }
 
-/** Current Baseline is this trip's pay-sheet actual only. */
+/** Current Baseline is this trip's line haul (actualPay) only. */
 export function publishTripBaseline(trip) {
-  if (!trip || !hasActuals(trip)) return publishedBaseline();
+  if (!trip || trip.actualPay == null || trip.actualPay === "") return publishedBaseline();
   if (typeof window !== "undefined" && window.NickeyRosaBaseline) {
     return window.NickeyRosaBaseline.publishFromTrip(trip);
   }

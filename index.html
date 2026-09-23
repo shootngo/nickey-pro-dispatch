@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Professional Dispatch V 9.1</title>
+<title>Nickey Professional Dispatch V 9.2</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico" sizes="48x48">
@@ -180,7 +180,7 @@ body.nd-menu-open{overflow:hidden}
 </head>
 <body>
 <div class="splash-overlay" id="splashOverlay">
-  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 9.1</div></div>
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 9.2</div></div>
   <div class="splash-truck-wrap">
     <img class="splash-truck-img" id="splashTruckImg" alt="">
     <div class="splash-flames"></div>
@@ -189,7 +189,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="splash-loading"><span></span><span></span><span></span></div>
 </div>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 9.1</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 9.2</span></div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="driver-badge" id="driverBadge">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -204,7 +204,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="baseline-banner" id="baselineBanner">
     <div class="k">Current Baseline</div>
     <div class="v" id="baselineAmount">—</div>
-    <div class="sub" id="baselineSub">Waiting on Rosa's Ledger — save an actual pay there (same phone) to replace a leftover default.</div>
+    <div class="sub" id="baselineSub">Waiting on Rosa — save a trip line haul.</div>
   </div>
   <div class="sec">
 <div class="sec">
@@ -235,8 +235,8 @@ body.nd-menu-open{overflow:hidden}
       <div class="fld"><label>Customer</label><select id="customerSelect" class="customer-select" onchange="loadCustomerData()"><option value="">— Select Customer —</option></select></div>
       <div class="fld"><label>Base Pay</label><input type="number" id="bpay" step="0.01" placeholder="0.00" style="font-size:18px">
         <div class="pay-compare none" id="payCompareBox">
-          <div class="pc-k">Estimated vs last actual</div>
-          <div class="pc-v" id="payCompareText">Enter base pay to compare against Rosa's baseline.</div>
+          <div class="pc-k">Estimated vs line haul</div>
+          <div class="pc-v" id="payCompareText">Enter base pay to compare against the last trip line haul.</div>
         </div>
       </div>
       <div class="fld"><label>Customer High Limit (gallons)</label><input type="number" id="thl" placeholder="5400" style="font-size:18px" oninput="updateWarning()"></div>
@@ -415,7 +415,7 @@ body.nd-menu-open{overflow:hidden}
       </div>
 
       <div id="paBaselineCompare" class="pay-compare none" style="margin-top:4px;margin-bottom:8px;">
-        <div class="pc-k">Vs last actual (Rosa)</div>
+        <div class="pc-k">Vs line haul (Rosa)</div>
         <div class="pc-v" id="paBaselineText">No baseline yet.</div>
       </div>
 
@@ -1753,13 +1753,13 @@ function refreshBaselineBanner() {
   var rec = api.read();
   if (!api.hasAmount(rec) || rec.kind === 'week') {
     amtEl.textContent = '—';
-    if (subEl) subEl.textContent = 'Waiting on Rosa — save an actual pay in Rosa’s Ledger (same phone) to set this. Not stuck on a leftover $900.';
+    if (subEl) subEl.textContent = 'Waiting on Rosa — save a trip line haul.';
     return;
   }
   amtEl.textContent = api.formatMoney(rec.amount);
   var bits = [];
   if (rec.label) bits.push(rec.label);
-  else if (rec.kind === 'trip') bits.push('Last booked trip');
+  else if (rec.kind === 'trip') bits.push('Last trip line haul');
   else if (rec.kind === 'manual') bits.push('Rosa confirmed');
   bits.push('from Rosa');
   if (subEl) subEl.textContent = bits.join(' · ');
@@ -1789,7 +1789,7 @@ function savedRecordBaselineHtml(r) {
   var via = r && r.customer ? api.lastActualForCustomer(r.customer) : null;
   if (via && via.amount != null) amount = via.amount;
   var cmp = api.compareEstimate(r && r.basePay, amount);
-  if (cmp.tone === 'none') return '<div class="sr-compare none">Est vs last actual — waiting on Rosa</div>';
+  if (cmp.tone === 'none') return '<div class="sr-compare none">Est vs line haul — waiting on Rosa</div>';
   return '<div class="sr-compare ' + cmp.tone + '">' + api.compareSummary(cmp) + '</div>';
 }
 
@@ -2235,7 +2235,7 @@ function sendEmail() {
     if (insp.remarks) body += `\n  REMARKS:\n  ${insp.remarks}\n`;
   });
 
-  body += `\n\nSent from Nickey Dispatch V 9.1`;
+  body += `\n\nSent from Nickey Dispatch V 9.2`;
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 

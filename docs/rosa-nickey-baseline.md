@@ -9,30 +9,32 @@ This is **not** a new cloud backend. Both apps sit on the same GitHub Pages orig
 ```
 {
   version: 1,
-  amount: 1200,                 // dollars — what Frank sees as Current Baseline
+  amount: 388.80,               // dollars — that trip's line haul (actualPay) only
   currency: "USD",
   kind: "trip" | "manual",      // leftover "week" is invalid and cleared on read
   payWeek: "2026-09-06",        // Sunday of the Sun–Sat week
   tripDate: "2026-09-08",       // when kind is trip
   tripId, pickup, consignee,
-  label: "Kroger DC · Sep 8",
+  label: "Kroger DC · Sep 8 · line haul",
   savedAt: "<ISO>",
   source: "rosa",
   lastActuals: [{ amount, tripId, pickup, consignee, tripDate, payWeek, savedAt }]
 }
 ```
 
-- **Rosa writes** on: Save actuals with **Set as Frank’s baseline** (that trip’s actual total only), or More → a typed single-trip / period amount.
+- **Rosa writes** on: Save actuals with **Set as Frank’s baseline** (that trip’s line haul / `actualPay` only), or More → a typed line haul.
 - **Nickey reads** on load, pageshow, `storage` events (other tab), and after Drive pull.
-- `amount` is one trip’s actual total (pay + detention + extra + reefer), the same figure as the ledger variance card. Week gross stays on the pay sheet.
+- `amount` is one trip’s line haul. Detention, extra, and reefer stay on the trip and are not added in. Week gross stays on the pay sheet and is never the baseline.
 - A leftover `kind: "week"` record is not a Nickey baseline. On read, the shared module rewrites it to an empty amount and stamps a newer Drive time so the week gross cannot come back from localStorage or sync. Replace it by opening one trip and saving actuals with **Set as Frank’s baseline**. New publishes are `kind: "trip"` or `kind: "manual"` only.
 - Drive timestamp key: `ndsync_ts_nickeyRosa.baseline` (stamped on write so last-write-wins works even though Rosa’s PWA does not load `ndsync.js`).
 
 ## Frank / Rosa on the same phone
 
-1. Rosa opens `/rosas-ledger/`, enters actuals, saves with **Set as Frank’s baseline**.
-2. Frank opens Nickey (same origin). Dashboard shows **Current Baseline: $X**.
-3. On a load, estimated base pay is compared to that last actual.
+After this update is on the phone: Rosa and Frank each tap **Check for update**, then Rosa opens the latest trip, checks **Set as Frank’s baseline (line haul only)** or taps **Refresh Nickey baseline from this trip**, and saves. That writes the trip’s line haul into shared `localStorage` (and Nickey Drive sync on the next signed-in push). Nickey Current Baseline shows that amount.
+
+1. Rosa opens `/rosas-ledger/`, enters the trip’s **line haul** (`actualPay`), and saves with **Set as Frank’s baseline (line haul only)**.
+2. Frank opens Nickey (same origin). Dashboard shows **Current Baseline** as that line haul.
+3. On a load, estimated base pay is compared to that trip’s line haul.
 
 Two phones / two browsers: localStorage will not cross devices until Frank’s Nickey Drive-syncs after the value is on a signed-in Nickey device. **Follow-up:** pull latest `actual*` from the existing Firestore `trips` collection (reverse of Push to Rosa) so Rosa’s bookkeeping phone can update Frank’s truck without sharing a browser.
 
