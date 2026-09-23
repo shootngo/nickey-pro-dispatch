@@ -114,19 +114,43 @@ describe('Evonik site observation checklist', () => {
     assert.match(page, /Comments:/);
   });
 
-  it('emails the dispatcher with the dispatch contact helper and saves a local draft', () => {
+  it('emails the dispatcher a JPEG and keeps a local draft', () => {
     assert.match(page, /ndGetContactEmail\('dispatch', 'DKlein@nickeywarehouse\.com'\)/);
     assert.match(page, /mailto:' \+ dispatchEmail/);
     assert.match(page, /Site Observation Checklist — /);
+    assert.match(page, /navigator\.share/);
+    assert.match(page, /navigator\.canShare/);
+    assert.match(page, /image\/jpeg/);
+    assert.match(page, /site-observation-/);
+    assert.match(page, /attach the downloaded JPEG/);
+    assert.match(page, /so-export-host/);
     assert.match(page, /nickeySiteObservationDraft/);
     assert.match(page, /nickeyDispatchFormState/);
     assert.match(page, /currentDriver/);
     assert.match(page, /window\.print\(\)/);
-    assert.match(page, /statusWord/);
-    assert.match(page, /'Safe'/);
-    assert.match(page, /'Concern'/);
-    assert.match(page, /'Checked'/);
-    assert.match(page, /'blank'/);
-    assert.match(page, /NON-CONFORMANCE/);
+  });
+
+  it('does not attach voice input or show a microphone on this page', () => {
+    assert.doesNotMatch(page, /ndAttachVoiceInput/);
+    assert.doesNotMatch(page, /🎤/);
+  });
+
+  it('keeps site photos with the draft and attaches them beside the checklist JPEG', () => {
+    assert.match(page, /Photos \(what's broken\)/);
+    assert.match(page, />Take photo</);
+    assert.match(page, />Add from gallery</);
+    assert.match(page, /id="takePhotoInput" accept="image\/\*" capture="environment"/);
+    assert.match(page, /id="addPhotoInput" accept="image\/\*" multiple/);
+    assert.match(page, /PHOTO_LIMIT = 8/);
+    assert.match(page, /indexedDB\.open\(PHOTO_DB/);
+    assert.match(page, /nickey-site-photos/);
+    assert.match(page, /maxEdge = 1600/);
+    assert.match(page, /'image\/jpeg', 0\.75/);
+    assert.match(page, /site-photo-/);
+    assert.match(page, /querySelectorAll\('\.site-photos'\)/);
+    assert.match(page, /photoCount/);
+    const commentsAt = page.indexOf('id="comments"');
+    const photosAt = page.indexOf('id="sitePhotos"');
+    assert.ok(commentsAt > 0 && photosAt > commentsAt);
   });
 });

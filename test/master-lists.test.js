@@ -63,8 +63,8 @@ describe('hamburger Settings master lists persist', () => {
   });
 
   it('bumps visible app version and service worker cache together', () => {
-    assert.match(html, /V 9\.3/);
-    assert.match(sw, /CACHE_VERSION = 'nickey-v9\.3'/);
+    assert.match(html, /V 9\.5/);
+    assert.match(sw, /CACHE_VERSION = 'nickey-v9\.5'/);
   });
 
   it('round-trips a new customer and trailer through shared helpers + persist', () => {
