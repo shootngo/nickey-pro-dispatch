@@ -7,7 +7,7 @@ import {
   weeklyFieldEdited, weeklyTotalsInYear, weekPaySheet, weekRunningTotal, weekShade
 } from "./core.js?v=20260923a";
 import { buildXlsx } from "./xlsx-lite.js?v=20260923a";
-import { ROSA_APP_VERSION } from "./config.js?v=20260923a";
+import { ROSA_APP_VERSION } from "./config.js?v=20260923d";
 import {
   currentAuthor, enterDemo, getSettings, getState, initStore, isFirebaseConfigured,
   publishedBaseline, publishManualBaseline, publishTripBaseline,
@@ -178,13 +178,13 @@ function baselineCard({ compact } = {}) {
   const has = !!(rec && rec.amount != null && !legacyWeek);
   const amt = has ? (api ? api.formatMoney(rec.amount) : money(rec.amount)) : "—";
   const sub = has
-    ? `${esc(rec.label || rec.kind || "Actual pay")}${rec.savedAt ? " · sent to Nickey" : ""}`
-    : "Nickey still has no baseline until you save a trip's line haul";
+    ? `${esc(rec.label || "Line haul")}${rec.savedAt ? " · sent to Nickey" : ""}`
+    : "Waiting on a trip line haul.";
   const legacyWeekHint = legacyWeek
-    ? `<p class="hint" style="margin:8px 0 0">A week total is not a valid Nickey baseline. Open one trip, check Set as Frank's baseline, and save to replace it with that trip's pay.</p>`
+    ? `<p class="hint">Week totals stay on the pay sheet. Nickey baseline is one trip's line haul.</p>`
     : "";
   return `<div class="baseline-card${compact ? " compact" : ""}">
-    <div class="k">Frank's Current Baseline</div>
+    <div class="k">Nickey baseline · line haul</div>
     <div class="v tabular">${amt}</div>
     <div class="sub">${sub}</div>
     ${legacyWeekHint}
@@ -368,21 +368,22 @@ function tripRow(t) {
 function weekMathBlock(sheet) {
   if (sheet.pending) {
     return `<section class="week-math pending">
-      <div class="row gross"><span>Gross</span><b class="tabular">${money(sheet.gross)}</b></div>
+      <div class="row gross"><span>Week gross</span><b class="tabular">${money(sheet.gross)}</b></div>
       <div class="pending-flag">Pending deductions.</div>
-      <p class="hint">Gross only until weekly totals are entered. No net yet.</p>
+      <p class="hint">Week gross only until weekly totals are entered. Not Nickey's baseline.</p>
     </section>`;
   }
   if (!sheet.tripCount && !sheet.entered) {
     return `<section class="week-math">
-      <div class="row gross"><span>Gross</span><b class="tabular">—</b></div>
+      <div class="row gross"><span>Week gross</span><b class="tabular">—</b></div>
       <p class="hint">No trips this week. You can still enter weekly totals.</p>
     </section>`;
   }
   return `<section class="week-math">
-    <div class="row gross"><span>Gross</span><b class="tabular">${money(sheet.gross)}</b></div>
+    <div class="row gross"><span>Week gross</span><b class="tabular">${money(sheet.gross)}</b></div>
     <div class="row deduct"><span>Deductions</span><b class="tabular">${money(sheet.deductions)}</b></div>
     <div class="row net"><span>Net</span><b class="tabular">${money(sheet.net)}</b></div>
+    <p class="hint">Pay sheet only. Not Nickey's baseline.</p>
   </section>`;
 }
 
@@ -410,7 +411,7 @@ function renderWeek() {
       <div class="tot tabular">${run.tripCount} trip${run.tripCount === 1 ? "" : "s"} · ${esc(status)}</div>
     </div>
     ${baselineCard({ compact: true })}
-    <p class="hint week-baseline-hint">Current Baseline is that trip's line haul, not the week gross. Open the trip, check Set as Frank's baseline, and save.</p>
+    <p class="week-sheet-note">Week totals stay on the pay sheet. Nickey baseline is one trip's line haul.</p>
     ${days.map((iso) => {
       const list = tripsOnDay(trips, iso);
       const hi = iso === ui.selectedDay ? " hi" : "";
@@ -530,10 +531,14 @@ function renderTrip() {
         <div class="kv"><div class="k">Miles</div><div class="v">${trip.miles || "—"}</div></div>
       </div>
       ${baselineCard({ compact: true })}
-      <div class="sec-title">Pay for this trip</div>
-      <p class="hint" style="margin-top:0">Trip data only. Truck lease, insurance, IFTA, fuel, and truck wash are entered once on the pay week.</p>
-      <div class="form-grid">
+      <div class="sec-title">Line haul → Nickey baseline</div>
+      <p class="hint" style="margin-top:0">This field is what Nickey compares. Detention, extra, and reefer are not included.</p>
+      <div class="linehaul-field">
         ${moneyField("actualPay", "Line haul", draft.actualPay)}
+      </div>
+      <div class="sec-title">Add-ons on this trip</div>
+      <p class="hint" style="margin-top:0">Saved on this trip only. Not sent as Frank's baseline. Truck lease, insurance, IFTA, fuel, and truck wash stay on the pay week.</p>
+      <div class="form-grid addon-grid">
         ${moneyField("actualDetention", "Detention", draft.actualDetention)}
         ${moneyField("actualExtra", "Extra pay", draft.actualExtra)}
         ${moneyField("actualReefer", "Reefer fuel", draft.actualReefer)}
@@ -558,11 +563,15 @@ function renderTrip() {
         <textarea id="noteText" name="noteText" rows="3" placeholder="Pay-sheet discrepancy, dispatcher call, …">${esc(draft.noteText || "")}</textarea>
       </div>
       <button class="btn btn-ghost" type="button" data-act="add-note" style="margin-bottom:10px">Add note</button>
-      <label class="check-row">
-        <input id="setNickeyBaseline" type="checkbox" ${baselineApi() && baselineApi().isRecentPayWeek(trip.tripDate) ? "checked" : ""}>
-        <span>Set as Frank's baseline in Nickey Dispatch</span>
-      </label>
-      <p class="hint" style="margin-top:0">Sends this trip's line haul only. Detention, extra, and reefer stay on the trip. Week totals are not sent.</p>
+      <div class="baseline-send">
+        <div class="k">Line haul → Nickey baseline</div>
+        <label class="check-row">
+          <input id="setNickeyBaseline" type="checkbox" ${baselineApi() && baselineApi().isRecentPayWeek(trip.tripDate) ? "checked" : ""}>
+          <span>Set as Frank's baseline (line haul only)</span>
+        </label>
+        <p class="hint">Week totals stay on the pay sheet. Nickey baseline is one trip's line haul.</p>
+        <button class="btn btn-ghost" type="button" data-act="refresh-nickey-baseline">Refresh Nickey baseline from this trip</button>
+      </div>
       <div class="sticky-save">
         <button class="btn btn-gold" data-act="save-actuals">Save actuals</button>
       </div>
@@ -726,14 +735,14 @@ function renderSettings() {
     <div class="settings">
       ${baselineCard()}
       <div class="card">
-        <div class="sec-title" style="margin-top:0">Type one trip's line haul</div>
-        <p class="hint" style="margin-top:0">Type that trip's line haul. Nickey shows that number as Current Baseline. Do not enter a week total.</p>
-        <div class="fld money-fld">
+        <div class="sec-title" style="margin-top:0">Line haul → Nickey baseline</div>
+        <p class="hint" style="margin-top:0">Type one trip's line haul. Week totals stay on the pay sheet and are not filled in here.</p>
+        <div class="fld money-fld linehaul-field">
           <label for="manualBaselineAmt">Line haul</label>
           <span class="pre">$</span>
-          <input id="manualBaselineAmt" name="manualBaselineAmt" inputmode="decimal" type="number" step="0.01" placeholder="1200.00">
+          <input id="manualBaselineAmt" name="manualBaselineAmt" inputmode="decimal" type="number" step="0.01" placeholder="388.80">
         </div>
-        <button class="btn btn-gold" type="button" data-act="send-manual-baseline">Set as Frank's baseline</button>
+        <button class="btn btn-gold" type="button" data-act="send-manual-baseline">Set as Frank's baseline (line haul only)</button>
       </div>
       <div class="card">
         <div class="sec-title" style="margin-top:0">Tolerance band</div>
@@ -949,6 +958,22 @@ async function onClick(e) {
       toast(next.flagged ? "Saved — flagged outside band" : "Actuals saved");
     }
     ui.draft = null;
+    render();
+    return;
+  }
+  if (act === "refresh-nickey-baseline") {
+    captureDraftFromForm();
+    const trip = getState().trips.find((t) => t.id === ui.tripId);
+    if (!trip) return;
+    const next = draftAsTrip(trip);
+    if (next.actualPay == null || next.actualPay === "") {
+      toast("Enter line haul first");
+      return;
+    }
+    await saveTrip(next);
+    const rec = publishTripBaseline(next);
+    ui.draft = null;
+    toast("Nickey baseline " + money(rec.amount) + " · line haul");
     render();
     return;
   }

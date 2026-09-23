@@ -342,7 +342,11 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     assert.match(app, /setNickeyBaseline/);
     assert.match(app, /publishManualBaseline/);
     assert.doesNotMatch(app, /send-week-baseline|publishWeekBaseline|weekBaselineAmt/);
-    assert.match(app, /not a valid Nickey baseline/);
+    assert.match(app, /Week totals stay on the pay sheet/);
+    assert.match(app, /Set as Frank's baseline \(line haul only\)/);
+    assert.match(app, /Refresh Nickey baseline from this trip/);
+    assert.match(app, /Line haul → Nickey baseline/);
+    assert.match(app, /Week gross/);
     assert.doesNotMatch(app, /This saved amount is a week total/);
     assert.match(app, /line haul only/);
     assert.doesNotMatch(app, /pay, detention, extra, and reefer/);

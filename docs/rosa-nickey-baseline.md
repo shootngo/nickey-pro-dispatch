@@ -30,8 +30,10 @@ This is **not** a new cloud backend. Both apps sit on the same GitHub Pages orig
 
 ## Frank / Rosa on the same phone
 
-1. Rosa opens `/rosas-ledger/`, enters actuals, saves with **Set as Frank’s baseline**.
-2. Frank opens Nickey (same origin). Dashboard shows **Current Baseline: $X**.
+After this update is on the phone: Rosa and Frank each tap **Check for update**, then Rosa opens the latest trip, checks **Set as Frank’s baseline (line haul only)** or taps **Refresh Nickey baseline from this trip**, and saves. That writes the trip’s line haul into shared `localStorage` (and Nickey Drive sync on the next signed-in push). Nickey Current Baseline shows that amount.
+
+1. Rosa opens `/rosas-ledger/`, enters the trip’s **line haul** (`actualPay`), and saves with **Set as Frank’s baseline (line haul only)**.
+2. Frank opens Nickey (same origin). Dashboard shows **Current Baseline** as that line haul.
 3. On a load, estimated base pay is compared to that trip’s line haul.
 
 Two phones / two browsers: localStorage will not cross devices until Frank’s Nickey Drive-syncs after the value is on a signed-in Nickey device. **Follow-up:** pull latest `actual*` from the existing Firestore `trips` collection (reverse of Push to Rosa) so Rosa’s bookkeeping phone can update Frank’s truck without sharing a browser.

@@ -22,7 +22,7 @@ export const SETTINGS_DOC = "rosa";
 export const BACKUP_DOC = "preWeeklyTotals";
 
 /** Rosa's Ledger version. Nickey Dispatch stays on its own version string. */
-export const ROSA_APP_VERSION = "V 1.1";
+export const ROSA_APP_VERSION = "V 1.2";
 
 export const DEFAULT_TOLERANCE = 25;
 

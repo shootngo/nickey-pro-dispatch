@@ -204,7 +204,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="baseline-banner" id="baselineBanner">
     <div class="k">Current Baseline</div>
     <div class="v" id="baselineAmount">—</div>
-    <div class="sub" id="baselineSub">Waiting on Rosa's Ledger — save this trip's line haul there (same phone). A week total is not the baseline.</div>
+    <div class="sub" id="baselineSub">Waiting on Rosa — save a trip line haul.</div>
   </div>
   <div class="sec">
 <div class="sec">
@@ -1753,7 +1753,7 @@ function refreshBaselineBanner() {
   var rec = api.read();
   if (!api.hasAmount(rec) || rec.kind === 'week') {
     amtEl.textContent = '—';
-    if (subEl) subEl.textContent = 'Waiting on Rosa — save this trip’s line haul in Rosa’s Ledger (same phone). Not a week total.';
+    if (subEl) subEl.textContent = 'Waiting on Rosa — save a trip line haul.';
     return;
   }
   amtEl.textContent = api.formatMoney(rec.amount);
