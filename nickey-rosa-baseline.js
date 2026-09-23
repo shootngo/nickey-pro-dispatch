@@ -399,6 +399,22 @@
     return null;
   }
 
+  /**
+   * True when this phone's baseline should be written into nickey-dispatch-data.json.
+   * A missing Drive entry is the usual case: Rosa saved locally and Nickey has not
+   * pushed that key yet. A newer local stamp also uploads. A newer remote entry
+   * stays on Drive (the pull already applied it).
+   */
+  function shouldUploadToDrive(localRaw, localTs, remoteEntry) {
+    if (localRaw == null || localRaw === '') return false;
+    if (!remoteEntry || remoteEntry.value == null || remoteEntry.value === '') return true;
+    var remoteTs = String(remoteEntry.updatedAt || '');
+    var local = String(localTs || '');
+    if (local > remoteTs) return true;
+    if (String(remoteEntry.value) !== String(localRaw) && local >= remoteTs) return true;
+    return false;
+  }
+
   /** True when a trip date is this Sun–Sat week or the previous one. */
   function isRecentPayWeek(tripDate, now) {
     var week = payWeekOf(tripDate);
@@ -437,6 +453,7 @@
     compareEstimate: compareEstimate,
     compareSummary: compareSummary,
     lastActualForCustomer: lastActualForCustomer,
+    shouldUploadToDrive: shouldUploadToDrive,
     isRecentPayWeek: isRecentPayWeek
   };
 }));

@@ -27,6 +27,7 @@ This is **not** a new cloud backend. Both apps sit on the same GitHub Pages orig
 - `amount` is one trip’s line haul. Detention, extra, and reefer stay on the trip and are not added in. Week gross stays on the pay sheet and is never the baseline.
 - A leftover `kind: "week"` record is not a Nickey baseline. On read, the shared module rewrites it to an empty amount and stamps a newer Drive time so the week gross cannot come back from localStorage or sync. Replace it by opening one trip and saving actuals with a line haul. New publishes from a trip are `kind: "trip"`. `publishManual` remains on the shared module for a typed amount, and Rosa’s screens do not expose it.
 - Drive timestamp key: `ndsync_ts_nickeyRosa.baseline` (stamped on write so last-write-wins works even though Rosa’s PWA does not load `ndsync.js`).
+- The key is on Nickey’s Drive allowlist (`SYNC_KEYS` in `ndsync.js`, `EXPORT_KEYS` in `nickey-persist.js`). `buildPayload` writes it under `keys["nickeyRosa.baseline"]` in `nickey-dispatch-data.json` whenever this phone has a value. If that file is missing the key, the next signed-in Nickey open pushes the local baseline into the bag so another device sees it after a Drive pull.
 
 ## Frank / Rosa on the same phone
 

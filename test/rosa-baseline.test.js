@@ -288,6 +288,27 @@ describe('rosa/nickey baseline contract', () => {
     assert.equal(baseline.lastActualForCustomer('Kroger DC', storage).amount, 1200);
   });
 
+  it('asks Nickey to upload a local line haul when Drive has no baseline key', () => {
+    const raw = JSON.stringify({
+      version: 1, amount: 388.8, kind: 'trip', consignee: 'Maxson',
+      label: 'Maxson · Sep 10 · line haul'
+    });
+    const ts = '2026-09-23T14:00:00.000Z';
+    assert.equal(baseline.shouldUploadToDrive(raw, ts, null), true);
+    assert.equal(baseline.shouldUploadToDrive(raw, ts, undefined), true);
+    assert.equal(baseline.shouldUploadToDrive(null, ts, null), false);
+    assert.equal(baseline.shouldUploadToDrive('', ts, null), false);
+    assert.equal(baseline.shouldUploadToDrive(raw, ts, { value: raw, updatedAt: ts }), false);
+    assert.equal(baseline.shouldUploadToDrive(raw, '2026-09-23T15:00:00.000Z', {
+      value: JSON.stringify({ amount: 900, kind: 'trip' }),
+      updatedAt: ts
+    }), true);
+    assert.equal(baseline.shouldUploadToDrive(raw, '2026-09-23T12:00:00.000Z', {
+      value: JSON.stringify({ amount: 900, kind: 'trip' }),
+      updatedAt: '2026-09-23T14:00:00.000Z'
+    }), false);
+  });
+
   it('treats this week and last week as recent for the default checkbox', () => {
     assert.equal(baseline.isRecentPayWeek('2026-09-08', '2026-09-16'), true); // this week (Sun 13)
     assert.equal(baseline.isRecentPayWeek('2026-09-10', '2026-09-16'), true);
@@ -310,6 +331,17 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     const syncBlock = ndsync.slice(ndsync.indexOf('const SYNC_KEYS'), ndsync.indexOf('const SYNC_KEY_SET'));
     assert.match(syncBlock, /nickeyRosa\.baseline/);
     assert.match(persist, /nickeyRosa\.baseline/);
+    assert.match(ndsync, /function baselineShouldUpload/);
+    assert.match(ndsync, /uploadBaseline/);
+    assert.match(ndsync, /shouldUploadToDrive/);
+    assert.match(ndsync, /keys\['nickeyRosa\.baseline'\]/);
+    const pull = ndsync.slice(ndsync.indexOf('function pullFromDrive'), ndsync.indexOf('function pushToDrive'));
+    assert.match(pull, /baselineShouldUpload\(data\)/);
+    assert.match(pull, /uploadBaseline/);
+    const setup = ndsync.slice(ndsync.indexOf('function setupAndPull'), ndsync.indexOf('function notifyPageOfPull'));
+    assert.match(setup, /result\.uploadBaseline/);
+    assert.match(setup, /debouncedPush\(\)/);
+    assert.match(ndsync, /addEventListener\('storage'/);
   });
 
   it('shows Current Baseline on the dashboard instead of a static default', () => {
