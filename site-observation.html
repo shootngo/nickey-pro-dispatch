@@ -77,6 +77,13 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
   .mark{min-height:22px;font-size:16px}
   a{color:#1a4fa3;text-decoration:underline}
 }
+/* Off-screen paper used only to rasterize the JPEG Daniel receives. */
+.so-export-host{position:fixed;left:0;top:0;width:880px;background:#fff;z-index:-1;opacity:0;pointer-events:none}
+.so-export-host .paper{box-shadow:none;max-width:none;width:100%;margin:0}
+.so-export-host .sec-tools,.so-export-host .nd-mic-btn{display:none !important}
+.so-export-host .split{flex-direction:row;gap:8px}
+.so-flat{min-height:22px;font-size:16px;line-height:1.35;padding:2px 2px 3px;border-bottom:1px solid #c8c8c8;color:#111;white-space:pre-wrap;word-wrap:break-word}
+.so-flat-comments{min-height:8.6em;line-height:1.7em;border-bottom:none;padding:0 4px}
 </style>
 <script src="nickey-shared.js"></script>
 <script src="nickey-persist.js"></script>
@@ -234,7 +241,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
 </div>
 
 <div class="action-bar">
-  <button type="button" class="email-btn" id="emailBtn" onclick="emailChecklist()">✉️ Email to Daniel<span class="sub" id="emailSub">Opens your mail app with this checklist</span></button>
+  <button type="button" class="email-btn" id="emailBtn" onclick="emailChecklist()">✉️ Email to Daniel<span class="sub" id="emailSub">Sends a JPEG of this checklist</span></button>
   <div class="action-row">
     <button type="button" onclick="window.print()">🖨️ Print / Save as PDF</button>
     <button type="button" onclick="saveLocalCopy()">💾 Save copy</button>
@@ -245,7 +252,6 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
 /* Wording matches Frank Mulkey's printed Evonik Customer Site Observation Checklist. Do not rephrase. */
 var DRAFT_KEY = 'nickeySiteObservationDraft';
 var HISTORY_KEY = 'nickeySiteObservationHistory';
-var NONCONF_EMAILS = 'jim.dollahan@evonik.com , Jacob-D.Smith@evonik.com , bruce.eaton@evonik.com';
 
 var PPE = [
   'Hard hat',
@@ -474,73 +480,316 @@ function formatLongDate(iso) {
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
-function statusWord(v, kind) {
-  if (kind === 'check') return v === 'checked' ? 'Checked' : 'blank';
-  if (v === 'safe') return 'Safe';
-  if (v === 'concern') return 'Concern';
-  return 'blank';
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function localIsoDate() {
+  var d = new Date();
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 }
-function line(label, status) {
-  return label + ': ' + status;
+function shortDate(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) return iso || '';
+  return m[2] + '/' + m[3] + '/' + m[1];
 }
-function buildBody() {
-  var concerns = [];
-  var body = 'EVONIK CUSTOMER SITE OBSERVATION CHECKLIST\n';
-  body += '-------------------------------------------\n\n';
-  body += 'Driver Name: ' + (val('driverName') || 'blank') + '\n';
-  body += 'Carrier: ' + (val('carrier') || 'blank') + '\n';
-  body += 'Trailer #: ' + (val('trailer') || 'blank') + '\n';
-  body += 'Delivery #: ' + (val('delivery') || 'blank') + '\n';
-  body += 'Customer Location: ' + (val('customerLocation') || 'blank') + '\n';
-  body += 'Product description: ' + (val('product') || 'blank') + '\n';
-  body += 'Date: ' + (formatLongDate(val('obsDate')) || val('obsDate') || 'blank') + '\n\n';
-  body += 'PICKUP INFORMATION\n';
-  body += 'Arrival Time: DT ' + (val('pickupArrivalDate') || '____') + '  TIME ' + (val('pickupArrivalTime') || '____') + '\n';
-  body += 'Depart Time: DT ' + (val('pickupDepartDate') || '____') + '  TIME ' + (val('pickupDepartTime') || '____') + '\n\n';
-  body += 'DELIVERY INFORMATION\n';
-  body += 'Arrival Time: DT ' + (val('deliveryArrivalDate') || '____') + '  TIME ' + (val('deliveryArrivalTime') || '____') + '\n';
-  body += 'Depart Time: DT ' + (val('deliveryDepartDate') || '____') + '  TIME ' + (val('deliveryDepartTime') || '____') + '\n\n';
-  body += 'DRIVER PERSONAL PROTECTIVE EQUIPMENT\n';
-  PPE.forEach(function(label, i) {
-    var st = statusWord(state.items['ppe-' + i], 'safe');
-    if (st === 'Concern') concerns.push(label);
-    body += line(label, st) + '\n';
-  });
-  body += '\nOFF-LOADING CHECKLIST\n';
-  OFFLOAD.forEach(function(label, i) {
-    body += line(label, statusWord(state.items['off-' + i], 'check')) + '\n';
-  });
-  body += '\nWORK CONDITIONS AND HOUSEKEEPING\n';
-  HOUSE.forEach(function(label, i) {
-    var st = statusWord(state.items['house-' + i], 'safe');
-    if (st === 'Concern') concerns.push(label);
-    body += line(label, st) + '\n';
-  });
-  body += '\n';
-  AFTER.forEach(function(label, i) {
-    var st = statusWord(state.items['after-' + i], 'safe');
-    if (st === 'Concern') concerns.push(label);
-    body += line(label, st) + '\n';
-  });
-  body += '\nCOMMENTS\n';
-  body += (val('comments') || 'blank') + '\n';
-  if (concerns.length) {
-    body += '\nNON-CONFORMANCE\n';
-    body += 'Please email all non-conformance issues to , ' + NONCONF_EMAILS + '\n';
-    concerns.forEach(function(label) { body += '- ' + label + '\n'; });
-  }
-  var ver = (typeof ND_APP_VERSION === 'string') ? ND_APP_VERSION : '';
-  body += '\nSent from Nickey Dispatch ' + ver;
-  return body;
+function formatClock(hhmm) {
+  var m = /^(\d{1,2}):(\d{2})/.exec(hhmm || '');
+  if (!m) return hhmm || '';
+  var h = parseInt(m[1], 10);
+  var suf = h >= 12 ? 'PM' : 'AM';
+  var h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return h12 + ':' + m[2] + ' ' + suf;
 }
-function emailChecklist() {
-  autoSave();
+function jpegFilename() {
+  var v = val('obsDate');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) v = localIsoDate();
+  return 'site-observation-' + v + '.jpg';
+}
+function mailMeta() {
   var place = val('customerLocation') || 'Site';
-  var dateLabel = formatLongDate(val('obsDate')) || val('obsDate') || formatLongDate(new Date().toISOString().slice(0, 10));
-  var subject = 'Site Observation Checklist — ' + place + ' — ' + dateLabel;
-  var dispatchEmail = ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
-  var mailUrl = 'mailto:' + dispatchEmail + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(buildBody());
+  var dateLabel = formatLongDate(val('obsDate')) || val('obsDate') || formatLongDate(localIsoDate());
+  return {
+    place: place,
+    dateLabel: dateLabel,
+    subject: 'Site Observation Checklist — ' + place + ' — ' + dateLabel
+  };
+}
+function displayValue(el) {
+  var v = el && el.value ? String(el.value) : '';
+  if (!v) return '';
+  var type = (el.getAttribute('type') || '').toLowerCase();
+  if (type === 'date') return el.id === 'obsDate' ? (formatLongDate(v) || v) : shortDate(v);
+  if (type === 'time') return formatClock(v);
+  return v;
+}
+function flattenControls(original, clone) {
+  var src = original.querySelectorAll('input, textarea');
+  var copy = clone.querySelectorAll('input, textarea');
+  var i, el, div, text;
+  for (i = copy.length - 1; i >= 0; i--) {
+    el = copy[i];
+    div = document.createElement('div');
+    div.className = el.tagName === 'TEXTAREA' ? 'so-flat so-flat-comments' : 'so-flat';
+    text = displayValue(src[i]);
+    div.textContent = text || '\u00a0';
+    el.parentNode.replaceChild(div, el);
+  }
+  var tagged = clone.querySelectorAll('[id]');
+  for (i = 0; i < tagged.length; i++) tagged[i].removeAttribute('id');
+}
+function nextFrame() {
+  return new Promise(function(resolve) {
+    requestAnimationFrame(function() { requestAnimationFrame(resolve); });
+  });
+}
+function drawEvonikMark(ctx, x, y, w, h) {
+  var s = Math.min(w, h) / 64;
+  ctx.save();
+  ctx.translate(x + (w - 64 * s) / 2, y + (h - 64 * s) / 2);
+  ctx.scale(s, s);
+  ctx.strokeStyle = '#8C1D42';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3.2;
+  ctx.beginPath();
+  ctx.arc(32, 32, 27.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(47, 32.2);
+  ctx.bezierCurveTo(47, 22.8, 40.3, 16.4, 31.4, 16.4);
+  ctx.bezierCurveTo(21.8, 16.4, 15, 23.4, 15, 32.2);
+  ctx.bezierCurveTo(15, 41, 21.8, 48, 31.4, 48);
+  ctx.bezierCurveTo(37.8, 48, 42.8, 45.3, 45.6, 41.2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(24.2, 32.2);
+  ctx.lineTo(42, 32.2);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawCommentRules(ctx, el, x, y, w, h) {
+  var lh = parseFloat(getComputedStyle(el).lineHeight);
+  if (!lh || isNaN(lh)) lh = 27;
+  ctx.save();
+  ctx.strokeStyle = '#c5c5c5';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  var yLine = y + lh;
+  while (yLine < y + h - 1) {
+    ctx.moveTo(x + 4, yLine);
+    ctx.lineTo(x + w - 4, yLine);
+    yLine += lh;
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function strokeBorder(ctx, cs, x, y, w, h) {
+  var sides = ['Top', 'Right', 'Bottom', 'Left'];
+  var i, width, style, name;
+  ctx.save();
+  for (i = 0; i < sides.length; i++) {
+    name = sides[i];
+    width = parseFloat(cs['border' + name + 'Width']) || 0;
+    style = cs['border' + name + 'Style'];
+    if (!width || style === 'none' || style === 'hidden') continue;
+    ctx.beginPath();
+    ctx.strokeStyle = cs['border' + name + 'Color'] || '#222';
+    ctx.lineWidth = width;
+    ctx.setLineDash(style === 'dashed' ? [5, 4] : (style === 'dotted' ? [1, 2] : []));
+    if (name === 'Top') { ctx.moveTo(x, y); ctx.lineTo(x + w, y); }
+    else if (name === 'Right') { ctx.moveTo(x + w, y); ctx.lineTo(x + w, y + h); }
+    else if (name === 'Bottom') { ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); }
+    else { ctx.moveTo(x, y); ctx.lineTo(x, y + h); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function paintTextNode(ctx, textNode, origin) {
+  var raw = textNode.nodeValue;
+  if (!raw || !/\S/.test(raw)) return;
+  var parent = textNode.parentElement;
+  if (!parent) return;
+  var cs = getComputedStyle(parent);
+  var range = document.createRange();
+  var len = raw.length;
+  var lines = [];
+  var lineStart = 0;
+  var lineTop = null;
+  var lineLeft = 0;
+  var lineBottom = 0;
+  var i, ch, r;
+  function pushLine(end) {
+    var text = raw.slice(lineStart, end).replace(/\s+$/, '').replace(/^\s+/, '');
+    if (text && lineTop != null) lines.push({ text: text, left: lineLeft, top: lineTop, bottom: lineBottom });
+  }
+  for (i = 0; i < len; i++) {
+    ch = raw.charAt(i);
+    if (ch === '\n') {
+      pushLine(i);
+      lineStart = i + 1;
+      lineTop = null;
+      continue;
+    }
+    range.setStart(textNode, i);
+    range.setEnd(textNode, i + 1);
+    r = range.getBoundingClientRect();
+    if (!r || (r.width === 0 && r.height === 0)) continue;
+    if (lineTop == null) {
+      lineTop = r.top;
+      lineLeft = r.left;
+      lineBottom = r.bottom;
+      continue;
+    }
+    if (r.top > lineTop + 1) {
+      pushLine(i);
+      lineStart = i;
+      lineTop = r.top;
+      lineLeft = r.left;
+      lineBottom = r.bottom;
+    } else if (r.bottom > lineBottom) {
+      lineBottom = r.bottom;
+    }
+  }
+  pushLine(len);
+  ctx.save();
+  ctx.font = cs.font || '16px Arial, Helvetica, sans-serif';
+  ctx.fillStyle = cs.color || '#111';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  for (i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i].text, lines[i].left - origin.x, ((lines[i].top + lines[i].bottom) / 2) - origin.y);
+  }
+  ctx.restore();
+}
+function paintElement(ctx, el, origin) {
+  if (!el || el.nodeType !== 1) return;
+  var tag = el.tagName;
+  if (tag === 'SCRIPT' || tag === 'STYLE') return;
+  var cs = getComputedStyle(el);
+  if (cs.display === 'none' || cs.visibility === 'hidden') return;
+  var rect = el.getBoundingClientRect();
+  var x = rect.left - origin.x;
+  var y = rect.top - origin.y;
+  var w = rect.width;
+  var h = rect.height;
+  if (w > 0 && h > 0) {
+    var bg = cs.backgroundColor;
+    if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+      ctx.fillStyle = bg;
+      ctx.fillRect(x, y, w, h);
+    }
+    if (el.classList && el.classList.contains('so-flat-comments')) drawCommentRules(ctx, el, x, y, w, h);
+  }
+  if (el.classList && el.classList.contains('brand-mark')) {
+    drawEvonikMark(ctx, x, y, w, h);
+    return;
+  }
+  var n, i;
+  for (i = 0; i < el.childNodes.length; i++) {
+    n = el.childNodes[i];
+    if (n.nodeType === 1) paintElement(ctx, n, origin);
+    else if (n.nodeType === 3) paintTextNode(ctx, n, origin);
+  }
+  if (w > 0 && h > 0) strokeBorder(ctx, cs, x, y, w, h);
+}
+function renderChecklistJpeg() {
+  var host = document.createElement('div');
+  host.className = 'so-export-host';
+  host.setAttribute('aria-hidden', 'true');
+  var original = document.getElementById('paper');
+  var clone = original.cloneNode(true);
+  clone.removeAttribute('id');
+  flattenControls(original, clone);
+  host.appendChild(clone);
+  document.body.appendChild(host);
+  var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  return ready.then(nextFrame).then(function() {
+    var rect = clone.getBoundingClientRect();
+    if (!rect.width || !rect.height) throw new Error('empty checklist');
+    var pad = 12;
+    var width = Math.ceil(rect.width + pad * 2);
+    var height = Math.ceil(rect.height + pad * 2);
+    var canvas = document.createElement('canvas');
+    var scale = 2;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    paintElement(ctx, clone, { x: rect.left - pad, y: rect.top - pad });
+    return new Promise(function(resolve, reject) {
+      canvas.toBlob(function(blob) {
+        if (host.parentNode) host.parentNode.removeChild(host);
+        if (!blob) reject(new Error('jpeg'));
+        else resolve(blob);
+      }, 'image/jpeg', 0.92);
+    });
+  }).catch(function(err) {
+    if (host.parentNode) host.parentNode.removeChild(host);
+    throw err;
+  });
+}
+function downloadBlob(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.parentNode.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 4000);
+}
+function openChecklistMailto(dispatchEmail, subject, body) {
+  var mailUrl = 'mailto:' + dispatchEmail + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   window.location.href = mailUrl;
+}
+function fallbackMail(blob, meta, filename, dispatchEmail) {
+  downloadBlob(blob, filename);
+  var body = 'Site Observation Checklist — ' + meta.place + ' — ' + meta.dateLabel + '.\n\n'
+    + 'The checklist image was saved as ' + filename + '. Please attach the downloaded JPEG.\n';
+  alert('Checklist image saved as ' + filename + '.\n\nAttach that JPEG from Downloads. Mail will open to ' + dispatchEmail + '.');
+  openChecklistMailto(dispatchEmail, meta.subject, body);
+}
+function canShareFiles(payload) {
+  try {
+    return !!(navigator.share && typeof navigator.canShare === 'function' && navigator.canShare(payload));
+  } catch (e) {
+    return false;
+  }
+}
+var emailBusy = false;
+function emailChecklist() {
+  if (emailBusy) return;
+  emailBusy = true;
+  autoSave();
+  var meta = mailMeta();
+  var filename = jpegFilename();
+  var dispatchEmail = ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
+  var btn = document.getElementById('emailBtn');
+  var sub = document.getElementById('emailSub');
+  var prevSub = sub ? sub.textContent : '';
+  if (btn) btn.disabled = true;
+  if (sub) sub.textContent = 'Preparing checklist image…';
+  renderChecklistJpeg().then(function(blob) {
+    var file = new File([blob], filename, { type: 'image/jpeg' });
+    var text = 'Site Observation Checklist — ' + meta.place + ' — ' + meta.dateLabel + '\nTo: ' + dispatchEmail;
+    var payload = { files: [file], title: meta.subject, text: text };
+    if (canShareFiles(payload)) {
+      return navigator.share(payload).catch(function(err) {
+        if (err && err.name === 'AbortError') return;
+        fallbackMail(blob, meta, filename, dispatchEmail);
+      });
+    }
+    fallbackMail(blob, meta, filename, dispatchEmail);
+  }).catch(function(err) {
+    console.warn(err);
+    alert('Could not create the checklist image. Use Print / Save as PDF, or try again.');
+  }).then(function() {
+    emailBusy = false;
+    if (btn) btn.disabled = false;
+    if (sub) sub.textContent = prevSub;
+  });
 }
 function saveLocalCopy() {
   autoSave();
@@ -605,7 +854,7 @@ window.onload = function() {
   }
   var sub = document.getElementById('emailSub');
   if (sub && typeof ndGetContactEmail === 'function') {
-    sub.textContent = 'Opens mail to ' + ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
+    sub.textContent = 'JPEG to ' + ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
   }
   ready = true;
   FIELD_IDS.forEach(function(id) {
@@ -613,9 +862,6 @@ window.onload = function() {
     if (!el) return;
     el.addEventListener('input', autoSave);
     el.addEventListener('change', autoSave);
-  });
-  ['driverName','carrier','trailer','customerLocation','product','delivery','comments'].forEach(function(id) {
-    if (typeof ndAttachVoiceInput === 'function') ndAttachVoiceInput(id);
   });
   window.addEventListener('beforeunload', function() { if (ready) autoSave(); });
 };

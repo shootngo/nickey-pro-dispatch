@@ -114,19 +114,24 @@ describe('Evonik site observation checklist', () => {
     assert.match(page, /Comments:/);
   });
 
-  it('emails the dispatcher with the dispatch contact helper and saves a local draft', () => {
+  it('emails the dispatcher a JPEG and keeps a local draft', () => {
     assert.match(page, /ndGetContactEmail\('dispatch', 'DKlein@nickeywarehouse\.com'\)/);
     assert.match(page, /mailto:' \+ dispatchEmail/);
     assert.match(page, /Site Observation Checklist — /);
+    assert.match(page, /navigator\.share/);
+    assert.match(page, /navigator\.canShare/);
+    assert.match(page, /image\/jpeg/);
+    assert.match(page, /site-observation-/);
+    assert.match(page, /attach the downloaded JPEG/);
+    assert.match(page, /so-export-host/);
     assert.match(page, /nickeySiteObservationDraft/);
     assert.match(page, /nickeyDispatchFormState/);
     assert.match(page, /currentDriver/);
     assert.match(page, /window\.print\(\)/);
-    assert.match(page, /statusWord/);
-    assert.match(page, /'Safe'/);
-    assert.match(page, /'Concern'/);
-    assert.match(page, /'Checked'/);
-    assert.match(page, /'blank'/);
-    assert.match(page, /NON-CONFORMANCE/);
+  });
+
+  it('does not attach voice input or show a microphone on this page', () => {
+    assert.doesNotMatch(page, /ndAttachVoiceInput/);
+    assert.doesNotMatch(page, /🎤/);
   });
 });
