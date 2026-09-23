@@ -12,7 +12,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'nickey-v9.0';
+const CACHE_VERSION = 'nickey-v9.1';
 const CACHE_NAME    = 'nickey-shell-' + CACHE_VERSION;
 const FONT_CACHE    = 'nickey-fonts-' + CACHE_VERSION;
 

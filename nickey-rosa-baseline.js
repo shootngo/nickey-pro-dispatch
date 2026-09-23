@@ -9,7 +9,7 @@
  *   version: 1,
  *   amount: 1200,                 // dollars — Frank's Current Baseline
  *   currency: "USD",
- *   kind: "trip" | "manual" | "week",  // "week" is legacy read-only; new writes are one trip or a typed single amount
+ *   kind: "trip" | "manual",      // leftover "week" is invalid and cleared on read
  *   payWeek: "2026-09-06",        // Sunday ISO of the Sun–Sat week
  *   tripDate: "2026-09-08",       // when kind === "trip"
  *   tripId: "TRP-…",
@@ -25,6 +25,11 @@
  * single-trip / period amount (publishManual). It is never a rolled-up
  * sum of several trips in a pay week. Nickey shows it as
  * "Current Baseline: $X" and compares load estimates against it.
+ *
+ * A leftover kind "week" record (the Sun–Sat gross) is not a baseline.
+ * read() rewrites it to an empty amount with a Drive timestamp newer than
+ * the week record so localStorage and last-write-wins sync cannot put that
+ * sum back on the Current Baseline card.
  * ============================================================================= */
 
 (function (root, factory) {
@@ -147,23 +152,54 @@
     return out;
   }
 
+  function isLegacyWeek(raw) {
+    return !!(raw && typeof raw === 'object' && raw.kind === 'week');
+  }
+
+  /**
+   * Stamp strictly after any stored week timestamp, including a future-dated
+   * one. ndsync compares these strings, so the new value has to sort after
+   * the week stamp — a +1ms ISO can sort first when the old stamp has no
+   * fractional seconds.
+   */
+  function stampAfterWeek(storage, priorIso) {
+    var now = new Date().toISOString();
+    var latest = '';
+    function consider(iso) {
+      if (iso && String(iso) > latest) latest = String(iso);
+    }
+    consider(priorIso);
+    try {
+      if (storage && typeof storage.getItem === 'function') consider(storage.getItem(TS_KEY) || '');
+    } catch (e) { /* ignore */ }
+    if (!latest || now > latest) return now;
+    var t = Date.parse(latest);
+    var bumped = Number.isFinite(t) ? new Date(t + 1000).toISOString() : (latest + '~');
+    if (!(bumped > latest)) bumped = latest + '~';
+    return bumped;
+  }
+
   function normalize(raw) {
     var t = emptyRecord();
     if (!raw || typeof raw !== 'object') return t;
-    var amount = raw.amount == null || raw.amount === '' ? null : round2(raw.amount);
+    var week = isLegacyWeek(raw);
+    var amount = week || raw.amount == null || raw.amount === '' ? null : round2(raw.amount);
     t.version = 1;
     t.amount = amount;
     t.currency = raw.currency || 'USD';
-    t.kind = raw.kind === 'week' || raw.kind === 'manual' || raw.kind === 'trip' ? raw.kind : (amount != null ? 'trip' : '');
-    t.payWeek = String(raw.payWeek || '');
-    t.tripDate = String(raw.tripDate || '');
-    t.tripId = String(raw.tripId || '');
-    t.pickup = String(raw.pickup || '');
-    t.consignee = String(raw.consignee || raw.customer || '');
-    t.label = String(raw.label || '');
+    t.kind = !week && (raw.kind === 'manual' || raw.kind === 'trip') ? raw.kind : (amount != null ? 'trip' : '');
+    t.payWeek = week ? '' : String(raw.payWeek || '');
+    t.tripDate = week ? '' : String(raw.tripDate || '');
+    t.tripId = week ? '' : String(raw.tripId || '');
+    t.pickup = week ? '' : String(raw.pickup || '');
+    t.consignee = week ? '' : String(raw.consignee || raw.customer || '');
+    t.label = week ? '' : String(raw.label || '');
     t.savedAt = String(raw.savedAt || '');
     t.source = String(raw.source || 'rosa');
-    t.lastActuals = normalizeHistory(raw.lastActuals);
+    var gross = week && raw.amount != null && raw.amount !== '' ? round2(raw.amount) : null;
+    t.lastActuals = normalizeHistory(raw.lastActuals).filter(function (row) {
+      return gross == null || row.amount !== gross;
+    });
     return t;
   }
 
@@ -175,13 +211,26 @@
     return null;
   }
 
+  function persistClearedWeek(parsed, storage) {
+    var rec = normalize(parsed);
+    rec.savedAt = stampAfterWeek(storage, parsed && parsed.savedAt);
+    rec.version = 1;
+    rec.source = rec.source || 'rosa';
+    if (!storage || typeof storage.setItem !== 'function') return rec;
+    try { storage.setItem(KEY, JSON.stringify(rec)); } catch (e) { /* ignore */ }
+    try { storage.setItem(TS_KEY, rec.savedAt); } catch (e2) { /* ignore */ }
+    return rec;
+  }
+
   function read(storage) {
     storage = getStorage(storage);
     if (!storage || typeof storage.getItem !== 'function') return emptyRecord();
     try {
       var raw = storage.getItem(KEY);
       if (!raw) return emptyRecord();
-      return normalize(JSON.parse(raw));
+      var parsed = JSON.parse(raw);
+      if (isLegacyWeek(parsed)) return persistClearedWeek(parsed, storage);
+      return normalize(parsed);
     } catch (e) {
       return emptyRecord();
     }
@@ -189,8 +238,10 @@
 
   function write(record, storage, nowIso) {
     storage = getStorage(storage);
+    var dropWeek = isLegacyWeek(record);
     var rec = normalize(record);
-    rec.savedAt = rec.savedAt || nowIso || new Date().toISOString();
+    if (dropWeek) rec.savedAt = stampAfterWeek(storage, rec.savedAt);
+    else rec.savedAt = rec.savedAt || nowIso || new Date().toISOString();
     rec.version = 1;
     rec.source = rec.source || 'rosa';
     if (!storage || typeof storage.setItem !== 'function') return rec;
@@ -209,7 +260,8 @@
   }
 
   function hasAmount(rec) {
-    return !!(rec && rec.amount != null && Number.isFinite(Number(rec.amount)));
+    if (!rec || rec.kind === 'week') return false;
+    return !!(rec.amount != null && Number.isFinite(Number(rec.amount)));
   }
 
   function prependHistory(existing, row) {
@@ -328,7 +380,7 @@
     for (var i = 0; i < list.length; i++) {
       if (String(list[i].consignee || '').trim().toLowerCase() === want) return list[i];
     }
-    if (rec.consignee && String(rec.consignee).trim().toLowerCase() === want && rec.amount != null) {
+    if (rec.kind !== 'week' && rec.consignee && String(rec.consignee).trim().toLowerCase() === want && rec.amount != null) {
       return {
         amount: rec.amount,
         tripId: rec.tripId,

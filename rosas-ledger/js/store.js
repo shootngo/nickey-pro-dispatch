@@ -443,7 +443,9 @@ export function publishedBaseline() {
       return window.NickeyRosaBaseline.read();
     }
     const raw = JSON.parse(localStorage.getItem("nickeyRosa.baseline") || "null");
-    return raw && typeof raw === "object" ? raw : { amount: null };
+    if (!raw || typeof raw !== "object") return { amount: null };
+    if (raw.kind === "week") return { amount: null, kind: "", label: "" };
+    return raw;
   } catch {
     return { amount: null };
   }
