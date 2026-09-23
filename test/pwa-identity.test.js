@@ -113,7 +113,7 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   const rosaHtml = read('rosas-ledger/index.html');
 
   it('bumps Nickey cache when the manifest/icons change', () => {
-    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v9\.1'/);
+    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v9\.2'/);
     assert.match(nickeySw, /'\.\/icon-192\.png'/);
     assert.match(nickeySw, /'\.\/icon-512-2\.png'/);
     assert.match(nickeySw, /'\.\/icon-maskable-512\.png'/);
@@ -137,7 +137,7 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   });
 
   it('registers a Rosa SW scoped to this folder', () => {
-    assert.match(rosaSw, /CACHE_VERSION = 'rosa-v5'/);
+    assert.match(rosaSw, /CACHE_VERSION = 'rosa-v6'/);
     assert.match(rosaHtml, /serviceWorker\.register\('\.\/sw\.js'/);
     assert.match(rosaHtml, /scope:\s*'\.\/'/);
     assert.match(rosaHtml, /rel="manifest"/);

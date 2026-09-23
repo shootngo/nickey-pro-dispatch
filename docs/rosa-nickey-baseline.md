@@ -22,9 +22,9 @@ This is **not** a new cloud backend. Both apps sit on the same GitHub Pages orig
 }
 ```
 
-- **Rosa writes** on: Save actuals with **Set as Frank’s baseline** (that trip’s actual total only), or More → a typed single-trip / period amount.
+- **Rosa writes** on: Save actuals with **Set as Frank’s baseline** (that trip’s line haul / `actualPay` only), or More → a typed line haul.
 - **Nickey reads** on load, pageshow, `storage` events (other tab), and after Drive pull.
-- `amount` is one trip’s actual total (pay + detention + extra + reefer), the same figure as the ledger variance card. Week gross stays on the pay sheet.
+- `amount` is one trip’s line haul (`actualPay`). Detention, extra, and reefer stay on the pay sheet and in Rosa’s variance total. Week gross stays on the pay sheet.
 - A leftover `kind: "week"` record is not a Nickey baseline. On read, the shared module rewrites it to an empty amount and stamps a newer Drive time so the week gross cannot come back from localStorage or sync. Replace it by opening one trip and saving actuals with **Set as Frank’s baseline**. New publishes are `kind: "trip"` or `kind: "manual"` only.
 - Drive timestamp key: `ndsync_ts_nickeyRosa.baseline` (stamped on write so last-write-wins works even though Rosa’s PWA does not load `ndsync.js`).
 

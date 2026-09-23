@@ -21,10 +21,11 @@
  *   lastActuals: [{ amount, tripId, pickup, consignee, tripDate, payWeek, savedAt }]
  * }
  *
- * amount is one trip's pay-sheet actual (publishFromTrip) or a typed
- * single-trip / period amount (publishManual). It is never a rolled-up
- * sum of several trips in a pay week. Nickey shows it as
- * "Current Baseline: $X" and compares load estimates against it.
+ * amount is one trip's line haul (publishFromTrip uses actualPay only) or
+ * a typed line haul (publishManual). Detention, extra, and reefer are not
+ * part of the baseline. It is never a rolled-up sum of several trips in a
+ * pay week. Nickey shows it as "Current Baseline: $X" and compares load
+ * estimates against it.
  *
  * A leftover kind "week" record (the Sun–Sat gross) is not a baseline.
  * read() rewrites it to an empty amount with a Drive timestamp newer than
@@ -290,8 +291,9 @@
 
   function publishFromTrip(trip, nowIso, storage) {
     var t = trip || {};
-    var amount = actualTotal(t);
-    if (amount == null && t.actualPay != null && t.actualPay !== '') amount = round2(t.actualPay);
+    // Line haul only. actualTotal (pay + detention + extra + reefer) stays
+    // available for Rosa variance, but it is not the Nickey baseline.
+    var amount = (t.actualPay == null || t.actualPay === '') ? null : round2(t.actualPay);
     if (amount == null) return read(storage);
     var now = nowIso || new Date().toISOString();
     var prev = read(storage);

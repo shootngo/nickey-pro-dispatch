@@ -32,9 +32,9 @@ describe('rosa/nickey baseline contract', () => {
     assert.equal(cmp.baseline, null);
   });
 
-  it('publishes a trip actual total as the new baseline', () => {
+  it('publishes line haul only, not pay plus detention, extra, and reefer', () => {
     const storage = memoryStorage();
-    const rec = baseline.publishFromTrip({
+    const trip = {
       id: 'TRP-1',
       tripDate: '2026-09-08',
       payWeek: '2026-09-06',
@@ -44,16 +44,55 @@ describe('rosa/nickey baseline contract', () => {
       actualDetention: 80,
       actualExtra: 0,
       actualReefer: 20
-    }, '2026-09-16T12:00:00.000Z', storage);
-    assert.equal(rec.amount, 1200);
+    };
+    assert.equal(baseline.actualTotal(trip), 1200);
+    const rec = baseline.publishFromTrip(trip, '2026-09-16T12:00:00.000Z', storage);
+    assert.equal(rec.amount, 1100);
     assert.equal(rec.kind, 'trip');
     assert.equal(rec.payWeek, '2026-09-06');
     assert.equal(rec.pickup, '3012874535');
     assert.match(rec.label, /Kroger DC/);
-    assert.equal(JSON.parse(storage.getItem(baseline.KEY)).amount, 1200);
+    assert.equal(JSON.parse(storage.getItem(baseline.KEY)).amount, 1100);
     assert.equal(storage.getItem(baseline.TS_KEY), '2026-09-16T12:00:00.000Z');
     assert.equal(rec.lastActuals.length, 1);
-    assert.equal(rec.lastActuals[0].amount, 1200);
+    assert.equal(rec.lastActuals[0].amount, 1100);
+  });
+
+  it('keeps a Maxson-like baseline at line haul when add-ons are present', () => {
+    const storage = memoryStorage();
+    const rec = baseline.publishFromTrip({
+      id: 'TRP-maxson',
+      tripDate: '2026-09-09',
+      consignee: 'Maxson',
+      actualPay: 388.8,
+      actualDetention: 150,
+      actualExtra: 25,
+      actualReefer: 40
+    }, '2026-09-16T12:00:00.000Z', storage);
+    assert.equal(rec.amount, 388.8);
+    assert.equal(rec.lastActuals[0].amount, 388.8);
+    assert.notEqual(rec.amount, 603.8);
+    assert.notEqual(rec.amount, 8945.5);
+  });
+
+  it('does not publish add-ons when line haul is blank', () => {
+    const storage = memoryStorage();
+    const rec = baseline.publishFromTrip({
+      id: 'TRP-addons',
+      tripDate: '2026-09-09',
+      actualPay: '',
+      actualDetention: 150,
+      actualExtra: 25,
+      actualReefer: 40
+    }, '2026-09-16T12:00:00.000Z', storage);
+    assert.equal(rec.amount, null);
+    assert.equal(storage.getItem(baseline.KEY), null);
+    assert.equal(baseline.actualTotal({
+      actualPay: '',
+      actualDetention: 150,
+      actualExtra: 25,
+      actualReefer: 40
+    }), 215);
   });
 
   it('does not publish when Rosa has not entered actuals', () => {
@@ -302,6 +341,8 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     assert.match(app, /publishManualBaseline/);
     assert.doesNotMatch(app, /send-week-baseline|publishWeekBaseline|weekBaselineAmt/);
     assert.match(app, /not a valid Nickey baseline/);
+    assert.match(app, /line haul only/);
+    assert.doesNotMatch(app, /pay, detention, extra, and reefer/);
     assert.doesNotMatch(app, /This saved amount is a week total/);
     assert.doesNotMatch(app, /booked actuals to Nickey|send the total to Nickey/);
     assert.doesNotMatch(store, /publishFromWeek|publishWeekBaseline/);
