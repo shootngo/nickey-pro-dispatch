@@ -7,7 +7,7 @@
 
 'use strict';
 
-const CACHE_VERSION = 'rosa-v3';
+const CACHE_VERSION = 'rosa-v4';
 const CACHE_NAME = 'rosa-shell-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [

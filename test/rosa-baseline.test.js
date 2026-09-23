@@ -68,20 +68,43 @@ describe('rosa/nickey baseline contract', () => {
     assert.equal(storage.getItem(baseline.KEY), null);
   });
 
-  it('sums booked actuals for a pay week', () => {
+  it('publishes one trip actual and leaves the other Pros in that week alone', () => {
     const storage = memoryStorage();
-    const trips = [
-      { payWeek: '2026-09-06', actualPay: 800, actualDetention: 0, actualExtra: 0, actualReefer: 0 },
-      { payWeek: '2026-09-06', actualPay: 400, actualDetention: 0, actualExtra: 0, actualReefer: 0 },
-      { payWeek: '2026-08-30', actualPay: 999, actualDetention: 0, actualExtra: 0, actualReefer: 0 }
-    ];
-    const rec = baseline.publishFromWeek(trips, '2026-09-06', '2026-09-16T12:00:00.000Z', storage);
-    assert.equal(rec.amount, 1200);
-    assert.equal(rec.kind, 'week');
-    assert.match(rec.label, /2 trips/);
+    const rec = baseline.publishFromTrip({
+      id: '605621',
+      tripDate: '2026-08-31',
+      payWeek: '2026-08-30',
+      consignee: 'Vi-Jon',
+      actualPay: 1398.27,
+      actualDetention: 0,
+      actualExtra: 0,
+      actualReefer: 0
+    }, '2026-09-16T12:00:00.000Z', storage);
+    assert.equal(rec.amount, 1398.27);
+    assert.equal(rec.kind, 'trip');
+    assert.match(rec.label, /Vi-Jon/);
+    assert.notEqual(rec.amount, 8945.5);
+    assert.equal(typeof baseline.publishFromWeek, 'undefined');
   });
 
-  it('accepts a typed period total from Rosa', () => {
+  it('still reads a legacy week record without turning it into a new write', () => {
+    const storage = memoryStorage({
+      [baseline.KEY]: JSON.stringify({
+        version: 1,
+        amount: 8945.5,
+        kind: 'week',
+        payWeek: '2026-08-30',
+        label: 'Week of Aug 30–Sep 5 · 4 trips'
+      })
+    });
+    const before = storage.getItem(baseline.KEY);
+    const rec = baseline.read(storage);
+    assert.equal(rec.kind, 'week');
+    assert.equal(rec.amount, 8945.5);
+    assert.equal(storage.getItem(baseline.KEY), before);
+  });
+
+  it('accepts a typed single-trip amount from Rosa', () => {
     const storage = memoryStorage();
     const rec = baseline.publishManual({
       amount: 1200,
@@ -167,7 +190,14 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     const rosaHtml = read('rosas-ledger/index.html');
     assert.match(rosaHtml, /nickey-rosa-baseline\.js/);
     assert.match(app, /Set as Frank/);
-    assert.match(app, /publishFromTrip|publishFromWeek|publishManual/);
+    assert.match(app, /publishTripBaseline/);
+    assert.match(app, /setNickeyBaseline/);
+    assert.match(app, /publishManualBaseline/);
+    assert.doesNotMatch(app, /send-week-baseline|publishWeekBaseline|weekBaselineAmt/);
+    assert.doesNotMatch(app, /booked actuals to Nickey|send the total to Nickey/);
+    assert.doesNotMatch(store, /publishFromWeek|publishWeekBaseline/);
     assert.match(store, /NickeyRosaBaseline|nickeyRosa\.baseline/);
+    const helper = read('nickey-rosa-baseline.js');
+    assert.doesNotMatch(helper, /function publishFromWeek/);
   });
 });

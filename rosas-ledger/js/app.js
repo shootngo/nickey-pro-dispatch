@@ -5,14 +5,14 @@ import {
   pnlForYear, prefillWeeklyDraft, shortMonth, startOfPayWeek, toCsv, toISODate, todayISO,
   tripsInMonth, tripsInWeek, tripsInYear, tripsOnDay, varianceOf, weekdayShort, weeklyExportRows,
   weeklyFieldEdited, weeklyTotalsInYear, weekPaySheet, weekRunningTotal, weekShade
-} from "./core.js?v=20260922a";
-import { buildXlsx } from "./xlsx-lite.js?v=20260922a";
-import { ROSA_APP_VERSION } from "./config.js?v=20260922a";
+} from "./core.js?v=20260923a";
+import { buildXlsx } from "./xlsx-lite.js?v=20260923a";
+import { ROSA_APP_VERSION } from "./config.js?v=20260923a";
 import {
   currentAuthor, enterDemo, getSettings, getState, initStore, isFirebaseConfigured,
-  publishedBaseline, publishManualBaseline, publishTripBaseline, publishWeekBaseline,
+  publishedBaseline, publishManualBaseline, publishTripBaseline,
   readSession, resetDemoData, saveTolerance, saveTrip, saveWeeklyTotals, signIn, signOutUser, subscribe
-} from "./store.js?v=20260922a";
+} from "./store.js?v=20260923a";
 
 const appEl = document.getElementById("app");
 const toastEl = document.getElementById("toast");
@@ -179,10 +179,14 @@ function baselineCard({ compact } = {}) {
   const sub = has
     ? `${esc(rec.label || rec.kind || "Actual pay")}${rec.savedAt ? " · sent to Nickey" : ""}`
     : "Nickey still has no baseline until you save an actual";
+  const legacyWeek = has && rec.kind === "week"
+    ? `<p class="hint" style="margin:8px 0 0">This saved amount is a week total. Open one trip, check Set as Frank's baseline, and save actuals to replace it with that trip's pay.</p>`
+    : "";
   return `<div class="baseline-card${compact ? " compact" : ""}">
     <div class="k">Frank's Current Baseline</div>
     <div class="v tabular">${amt}</div>
     <div class="sub">${sub}</div>
+    ${legacyWeek}
   </div>`;
 }
 
@@ -405,16 +409,7 @@ function renderWeek() {
       <div class="tot tabular">${run.tripCount} trip${run.tripCount === 1 ? "" : "s"} · ${esc(status)}</div>
     </div>
     ${baselineCard({ compact: true })}
-    ${run.actualCount ? `<div class="week-send">
-      <div class="k">Send this week's booked actuals to Nickey</div>
-      <p class="hint">Prefills with ${money(run.actual)} across ${run.actualCount} booked trip${run.actualCount === 1 ? "" : "s"}. Frank will see this as Current Baseline. This is trip pay only — weekly deductions stay on the pay sheet.</p>
-      <div class="fld money-fld">
-        <label for="weekBaselineAmt">Confirm actual pay</label>
-        <span class="pre">$</span>
-        <input id="weekBaselineAmt" name="weekBaselineAmt" inputmode="decimal" type="number" step="0.01" value="${esc(String(run.actual))}">
-      </div>
-      <button class="btn btn-gold" type="button" data-act="send-week-baseline">Set as Frank's baseline</button>
-    </div>` : `<p class="hint" style="margin:0 14px 12px">Book at least one trip actual this week, then you can send the total to Nickey as Frank's baseline.</p>`}
+    <p class="hint week-baseline-hint">Current Baseline is one trip's pay-sheet actual. Open that trip, check Set as Frank's baseline, and save actuals. Week gross stays on this pay sheet.</p>
     ${days.map((iso) => {
       const list = tripsOnDay(trips, iso);
       const hi = iso === ui.selectedDay ? " hi" : "";
@@ -566,6 +561,7 @@ function renderTrip() {
         <input id="setNickeyBaseline" type="checkbox" ${baselineApi() && baselineApi().isRecentPayWeek(trip.tripDate) ? "checked" : ""}>
         <span>Set as Frank's baseline in Nickey Dispatch</span>
       </label>
+      <p class="hint" style="margin-top:0">Sends this trip's pay-sheet actual only (pay, detention, extra, and reefer).</p>
       <div class="sticky-save">
         <button class="btn btn-gold" data-act="save-actuals">Save actuals</button>
       </div>
@@ -729,12 +725,12 @@ function renderSettings() {
     <div class="settings">
       ${baselineCard()}
       <div class="card">
-        <div class="sec-title" style="margin-top:0">Send a period total to Nickey</div>
-        <p class="hint" style="margin-top:0">Type the pay-sheet actual (load or week). Nickey will show this as Current Baseline — not a leftover $900 default.</p>
+        <div class="sec-title" style="margin-top:0">Type one trip's actual</div>
+        <p class="hint" style="margin-top:0">Type a single trip's pay-sheet actual (one trip or one period amount). Nickey shows that number as Current Baseline.</p>
         <div class="fld money-fld">
-          <label for="manualBaselineAmt">Actual pay</label>
+          <label for="manualBaselineAmt">Single-trip actual pay</label>
           <span class="pre">$</span>
-          <input id="manualBaselineAmt" name="manualBaselineAmt" inputmode="decimal" type="number" step="0.01" placeholder="1200.00" value="${publishedBaseline().amount != null ? esc(String(publishedBaseline().amount)) : ""}">
+          <input id="manualBaselineAmt" name="manualBaselineAmt" inputmode="decimal" type="number" step="0.01" placeholder="1200.00">
         </div>
         <button class="btn btn-gold" type="button" data-act="send-manual-baseline">Set as Frank's baseline</button>
       </div>
@@ -953,25 +949,13 @@ async function onClick(e) {
     render();
     return;
   }
-  if (act === "send-week-baseline") {
-    const amtEl = document.getElementById("weekBaselineAmt");
-    const typed = amtEl && amtEl.value !== "" ? num(amtEl.value) : null;
-    const rec = typed != null
-      ? publishManualBaseline({ amount: typed, payWeek: ui.weekSunday, label: formatWeekRange(ui.weekSunday) + " · confirmed" })
-      : publishWeekBaseline(getState().trips, ui.weekSunday);
-    if (rec && rec.amount != null) toast("Nickey baseline set to " + money(rec.amount));
-    else toast("Enter a booked actual first");
-    render();
-    return;
-  }
   if (act === "send-manual-baseline") {
     const amtEl = document.getElementById("manualBaselineAmt");
     const typed = amtEl && amtEl.value !== "" ? num(amtEl.value) : null;
     if (typed == null) { toast("Enter an actual pay amount"); return; }
     const rec = publishManualBaseline({
       amount: typed,
-      payWeek: startOfPayWeek(todayISO()),
-      label: "Rosa confirmed"
+      label: "Single trip · Rosa confirmed"
     });
     toast("Nickey baseline set to " + money(rec.amount));
     render();
