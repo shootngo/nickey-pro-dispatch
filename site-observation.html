@@ -68,6 +68,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
   .grid th.col,.mark-cell{width:58px}
   .grid td.item{font-size:13px;padding:7px 4px}
 }
+@page{size:letter;margin:0.4in}
 @media print{
   body{background:#fff;padding:0}
   .hdr,.form-link-row,.dispatch-note,.sec-tools,.action-bar,.autosave-pill,.nd-mic-btn,.photos-actions,.photo-remove{display:none !important}
@@ -78,7 +79,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
   a{color:#1a4fa3;text-decoration:underline}
 }
 /* Off-screen paper used only to rasterize the JPEG Daniel receives. */
-.so-export-host{position:fixed;left:0;top:0;width:880px;background:#fff;z-index:-1;opacity:0;pointer-events:none}
+.so-export-host{position:fixed;left:0;top:0;width:816px;background:#fff;z-index:-1;opacity:0;pointer-events:none}
 .so-export-host .paper{box-shadow:none;max-width:none;width:100%;margin:0}
 .so-export-host .sec-tools,.so-export-host .nd-mic-btn,.so-export-host .site-photos{display:none !important}
 .site-photos{margin:12px 4px 4px;padding-top:8px;border-top:1px solid #ccc}
@@ -266,7 +267,7 @@ body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-he
 </div>
 
 <div class="action-bar">
-  <button type="button" class="email-btn" id="emailBtn" onclick="emailChecklist()">✉️ Email to Daniel<span class="sub" id="emailSub">Sends a JPEG of this checklist</span></button>
+  <button type="button" class="email-btn" id="emailBtn" onclick="emailChecklist()">✉️ Email to Daniel<span class="sub" id="emailSub">Sends two Letter JPEGs of this checklist</span></button>
   <div class="action-row">
     <button type="button" onclick="window.print()">🖨️ Print / Save as PDF</button>
     <button type="button" onclick="saveLocalCopy()">💾 Save copy</button>
@@ -466,6 +467,12 @@ function collect() {
   data.photoCount = photos.length;
   return data;
 }
+function defaultSafeItems() {
+  PPE.forEach(function(_, i) { state.items['ppe-' + i] = 'safe'; });
+  HOUSE.forEach(function(_, i) { state.items['house-' + i] = 'safe'; });
+  AFTER.forEach(function(_, i) { state.items['after-' + i] = 'safe'; });
+  OFFLOAD.forEach(function(_, i) { state.items['off-' + i] = 'checked'; });
+}
 function applyData(data) {
   FIELD_IDS.forEach(function(id) {
     var el = document.getElementById(id);
@@ -473,8 +480,10 @@ function applyData(data) {
     el.value = data[id];
   });
   state.items = {};
-  if (data && data.items) {
+  if (data && data.items && Object.keys(data.items).length) {
     Object.keys(data.items).forEach(function(k) { state.items[k] = data.items[k]; });
+  } else {
+    defaultSafeItems();
   }
   paintAll();
 }
@@ -720,10 +729,11 @@ function formatClock(hhmm) {
   if (h12 === 0) h12 = 12;
   return h12 + ':' + m[2] + ' ' + suf;
 }
-function jpegFilename() {
+function jpegFilename(page) {
   var v = val('obsDate');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) v = localIsoDate();
-  return 'site-observation-' + v + '.jpg';
+  var n = page || 1;
+  return 'site-observation-' + v + '-page-' + n + '.jpg';
 }
 function mailMeta() {
   var place = val('customerLocation') || 'Site';
@@ -920,38 +930,53 @@ function paintElement(ctx, el, origin) {
   }
   if (w > 0 && h > 0) strokeBorder(ctx, cs, x, y, w, h);
 }
-function renderChecklistJpeg() {
+function sheetToLetterBlob(sheetEl, originalPaper) {
+  var LETTER_W = 2550;
+  var LETTER_H = 3300;
   var host = document.createElement('div');
   host.className = 'so-export-host';
   host.setAttribute('aria-hidden', 'true');
-  var original = document.getElementById('paper');
-  var clone = original.cloneNode(true);
+  var pageWrap = document.createElement('div');
+  pageWrap.className = 'paper';
+  var clone = sheetEl.cloneNode(true);
   clone.removeAttribute('id');
   var photoUi = clone.querySelectorAll('.site-photos');
   for (var pi = 0; pi < photoUi.length; pi++) {
     if (photoUi[pi].parentNode) photoUi[pi].parentNode.removeChild(photoUi[pi]);
   }
-  flattenControls(original, clone);
-  host.appendChild(clone);
+  flattenControls(originalPaper, clone);
+  pageWrap.appendChild(clone);
+  host.appendChild(pageWrap);
   document.body.appendChild(host);
-  var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
-  return ready.then(nextFrame).then(function() {
-    var rect = clone.getBoundingClientRect();
-    if (!rect.width || !rect.height) throw new Error('empty checklist');
-    var pad = 12;
-    var width = Math.ceil(rect.width + pad * 2);
-    var height = Math.ceil(rect.height + pad * 2);
-    var canvas = document.createElement('canvas');
+  return nextFrame().then(function() {
+    var rect = pageWrap.getBoundingClientRect();
+    if (!rect.width || !rect.height) throw new Error('empty sheet');
+    var pad = 8;
+    var srcW = Math.ceil(rect.width + pad * 2);
+    var srcH = Math.ceil(rect.height + pad * 2);
+    var srcCanvas = document.createElement('canvas');
     var scale = 2;
-    canvas.width = width * scale;
-    canvas.height = height * scale;
-    var ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-    paintElement(ctx, clone, { x: rect.left - pad, y: rect.top - pad });
+    srcCanvas.width = srcW * scale;
+    srcCanvas.height = srcH * scale;
+    var sctx = srcCanvas.getContext('2d', { willReadFrequently: true });
+    sctx.setTransform(scale, 0, 0, scale, 0, 0);
+    sctx.fillStyle = '#ffffff';
+    sctx.fillRect(0, 0, srcW, srcH);
+    paintElement(sctx, pageWrap, { x: rect.left - pad, y: rect.top - pad });
+    var out = document.createElement('canvas');
+    out.width = LETTER_W;
+    out.height = LETTER_H;
+    var octx = out.getContext('2d');
+    octx.fillStyle = '#ffffff';
+    octx.fillRect(0, 0, LETTER_W, LETTER_H);
+    var fit = Math.min(LETTER_W / srcCanvas.width, LETTER_H / srcCanvas.height);
+    var dw = Math.floor(srcCanvas.width * fit);
+    var dh = Math.floor(srcCanvas.height * fit);
+    var dx = Math.floor((LETTER_W - dw) / 2);
+    var dy = Math.floor((LETTER_H - dh) / 2);
+    octx.drawImage(srcCanvas, dx, dy, dw, dh);
     return new Promise(function(resolve, reject) {
-      canvas.toBlob(function(blob) {
+      out.toBlob(function(blob) {
         if (host.parentNode) host.parentNode.removeChild(host);
         if (!blob) reject(new Error('jpeg'));
         else resolve(blob);
@@ -960,6 +985,24 @@ function renderChecklistJpeg() {
   }).catch(function(err) {
     if (host.parentNode) host.parentNode.removeChild(host);
     throw err;
+  });
+}
+function renderChecklistJpeg() {
+  var original = document.getElementById('paper');
+  var pages = original.querySelectorAll('.sheet-page');
+  if (!pages.length) throw new Error('no sheets');
+  var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  return ready.then(function() {
+    var chain = Promise.resolve([]);
+    Array.prototype.forEach.call(pages, function(sheet) {
+      chain = chain.then(function(list) {
+        return sheetToLetterBlob(sheet, original).then(function(blob) {
+          list.push(blob);
+          return list;
+        });
+      });
+    });
+    return chain;
   });
 }
 function downloadBlob(blob, filename) {
@@ -989,8 +1032,11 @@ function downloadAll(items) {
     next();
   });
 }
-function fallbackMail(blob, meta, filename, dispatchEmail) {
-  var items = [{ blob: blob, name: filename }];
+function fallbackMail(blobs, meta, filenames, dispatchEmail) {
+  var items = [];
+  filenames.forEach(function(name, i) {
+    items.push({ blob: blobs[i], name: name });
+  });
   var photoNames = [];
   photos.forEach(function(p, i) {
     var name = 'site-photo-' + (i + 1) + '.jpg';
@@ -998,12 +1044,12 @@ function fallbackMail(blob, meta, filename, dispatchEmail) {
     items.push({ blob: p.blob, name: name });
   });
   var body = 'Site Observation Checklist — ' + meta.place + ' — ' + meta.dateLabel + '.\n\n'
-    + 'The checklist image was saved as ' + filename + '.';
+    + 'The checklist Letter pages were saved as ' + filenames.join(', ') + '.';
   if (photoNames.length) {
     body += '\nSite photos were saved as ' + photoNames.join(', ') + '.';
   }
-  body += '\nPlease attach the downloaded JPEG' + (photoNames.length ? 's' : '') + '.\n';
-  var savedList = [filename].concat(photoNames).join(', ');
+  body += '\nPlease attach the downloaded JPEGs.\n';
+  var savedList = filenames.concat(photoNames).join(', ');
   return downloadAll(items).then(function() {
     alert('Saved ' + savedList + '.\n\nAttach them from Downloads. Mail will open to ' + dispatchEmail + '.');
     openChecklistMailto(dispatchEmail, meta.subject, body);
@@ -1022,19 +1068,23 @@ function emailChecklist() {
   emailBusy = true;
   autoSave();
   var meta = mailMeta();
-  var filename = jpegFilename();
   var dispatchEmail = ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
   var btn = document.getElementById('emailBtn');
   var sub = document.getElementById('emailSub');
   var prevSub = sub ? sub.textContent : '';
   if (btn) btn.disabled = true;
-  if (sub) sub.textContent = photos.length ? 'Preparing checklist and photos…' : 'Preparing checklist image…';
-  renderChecklistJpeg().then(function(blob) {
-    var files = [new File([blob], filename, { type: 'image/jpeg' })];
+  if (sub) sub.textContent = photos.length ? 'Preparing Letter pages and photos…' : 'Preparing Letter pages…';
+  renderChecklistJpeg().then(function(blobs) {
+    if (!Array.isArray(blobs) || !blobs.length) throw new Error('jpeg');
+    var filenames = blobs.map(function(_, i) { return jpegFilename(i + 1); });
+    var files = blobs.map(function(blob, i) {
+      return new File([blob], filenames[i], { type: 'image/jpeg' });
+    });
     photos.forEach(function(p, i) {
       files.push(new File([p.blob], 'site-photo-' + (i + 1) + '.jpg', { type: 'image/jpeg' }));
     });
-    var text = 'Site Observation Checklist — ' + meta.place + ' — ' + meta.dateLabel + '\nTo: ' + dispatchEmail;
+    var text = 'Site Observation Checklist — ' + meta.place + ' — ' + meta.dateLabel + '\nTo: ' + dispatchEmail
+      + '\nTwo US Letter JPEG pages attached.';
     if (photos.length) {
       text += '\n' + photos.length + ' site photo' + (photos.length === 1 ? '' : 's') + ' attached.';
     }
@@ -1042,13 +1092,13 @@ function emailChecklist() {
     if (canShareFiles(payload)) {
       return navigator.share(payload).catch(function(err) {
         if (err && err.name === 'AbortError') return;
-        return fallbackMail(blob, meta, filename, dispatchEmail);
+        return fallbackMail(blobs, meta, filenames, dispatchEmail);
       });
     }
-    return fallbackMail(blob, meta, filename, dispatchEmail);
+    return fallbackMail(blobs, meta, filenames, dispatchEmail);
   }).catch(function(err) {
     console.warn(err);
-    alert('Could not create the checklist image. Use Print / Save as PDF, or try again.');
+    alert('Could not create the checklist images. Use Print / Save as PDF, or try again.');
   }).then(function() {
     emailBusy = false;
     if (btn) btn.disabled = false;
@@ -1103,7 +1153,19 @@ document.getElementById('paper').addEventListener('click', function(e) {
   if (mark) {
     var id = mark.getAttribute('data-id');
     var status = mark.getAttribute('data-status');
-    if (state.items[id] === status) status = '';
+    var cur = state.items[id] || '';
+    if (status === 'checked') {
+      setItem(id, cur === 'checked' ? '' : 'checked');
+      return;
+    }
+    if (status === 'safe' || status === 'concern') {
+      if (cur === status) {
+        setItem(id, status === 'safe' ? 'concern' : 'safe');
+      } else {
+        setItem(id, status);
+      }
+      return;
+    }
     setItem(id, status);
     return;
   }
