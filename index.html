@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Professional Dispatch V 9.5</title>
+<title>Nickey Professional Dispatch V 9.6</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico" sizes="48x48">
@@ -160,27 +160,11 @@ body.nd-menu-open{overflow:hidden}
 .sr-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #333}
 .sr-row{display:flex;gap:10px;align-items:flex-start;background:#252525;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:12px;position:relative}
 .sr-check{width:22px;height:22px;margin-top:4px;flex-shrink:0;accent-color:#ffd700}
-.baseline-banner{background:linear-gradient(135deg,#0a1a2a 0%,#1a2208 100%);border:2px solid #ffd700;border-radius:12px;padding:14px 16px;margin-bottom:16px}
-.baseline-banner .k{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:#aaa;font-weight:700}
-.baseline-banner .v{font-family:Rajdhani,sans-serif;font-size:34px;font-weight:800;color:#ffd700;line-height:1.1;margin-top:2px}
-.baseline-banner .sub{font-size:13px;color:#9ba;margin-top:4px;line-height:1.35}
-.pay-compare{margin-top:10px;background:#1a1a1a;border:1px solid #444;border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.4}
-.pay-compare .pc-k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:4px}
-.pay-compare .pc-v{font-weight:700;color:#eee}
-.pay-compare.over{border-color:#4caf50;background:#0f2a0f}
-.pay-compare.over .pc-v{color:#4caf50}
-.pay-compare.under{border-color:#ffd700;background:#2a2500}
-.pay-compare.under .pc-v{color:#ffd700}
-.pay-compare.even{border-color:#4caf50}
-.pay-compare.none{color:#888}
-.sr-compare{font-size:12px;margin-top:4px;color:#ccc}
-.sr-compare.over{color:#4caf50}
-.sr-compare.under{color:#ffd700}
 </style>
 </head>
 <body>
 <div class="splash-overlay" id="splashOverlay">
-  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 9.5</div></div>
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 9.6</div></div>
   <div class="splash-truck-wrap">
     <img class="splash-truck-img" id="splashTruckImg" alt="">
     <div class="splash-flames"></div>
@@ -189,7 +173,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="splash-loading"><span></span><span></span><span></span></div>
 </div>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 9.5</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 9.6</span></div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="driver-badge" id="driverBadge">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -200,11 +184,6 @@ body.nd-menu-open{overflow:hidden}
   <div class="edit-banner" id="editBanner">
     <div><div class="edit-label">✏️ EDITING</div><div class="edit-pickup" id="editPickupLabel">Pickup #—</div></div>
     <button class="exit-edit-btn" onclick="exitEditMode()">Exit Edit Mode</button>
-  </div>
-  <div class="baseline-banner" id="baselineBanner">
-    <div class="k">Current Baseline</div>
-    <div class="v" id="baselineAmount">—</div>
-    <div class="sub" id="baselineSub">Waiting on Rosa — save a trip line haul.</div>
   </div>
   <div class="sec">
 <div class="sec">
@@ -234,10 +213,6 @@ body.nd-menu-open{overflow:hidden}
     <div class="sb">
       <div class="fld"><label>Customer</label><select id="customerSelect" class="customer-select" onchange="loadCustomerData()"><option value="">— Select Customer —</option></select></div>
       <div class="fld"><label>Base Pay</label><input type="number" id="bpay" step="0.01" placeholder="0.00" style="font-size:18px">
-        <div class="pay-compare none" id="payCompareBox">
-          <div class="pc-k">Estimated vs line haul</div>
-          <div class="pc-v" id="payCompareText">Enter base pay to compare against the last trip line haul.</div>
-        </div>
       </div>
       <div class="fld"><label>Customer High Limit (gallons)</label><input type="number" id="thl" placeholder="5400" style="font-size:18px" oninput="updateWarning()"></div>
       <div class="fld"><label>Tanker / Trailer Number</label><select id="tki" class="trailer-select" onchange="calcAndUpdate()"><option value="">— Select Trailer —</option></select></div>
@@ -414,10 +389,6 @@ body.nd-menu-open{overflow:hidden}
         <input type="number" id="paMiles" step="0.1" placeholder="Enter total miles" style="font-size:24px;text-align:center;" oninput="updatePayAnalyzer()">
       </div>
 
-      <div id="paBaselineCompare" class="pay-compare none" style="margin-top:4px;margin-bottom:8px;">
-        <div class="pc-k">Vs line haul (Rosa)</div>
-        <div class="pc-v" id="paBaselineText">No baseline yet.</div>
-      </div>
 
       <div class="pay-result-box">
         <div class="pay-result-value" id="paCentsPerMile">—</div>
@@ -1721,60 +1692,18 @@ function currentRosaBaseline() {
 }
 
 function paintCompareBox(box, textEl, estimate, customer) {
-  var api = rosaBaselineApi();
-  if (!box || !textEl) return;
-  if (!api) {
-    box.className = 'pay-compare none';
-    textEl.textContent = 'Baseline module did not load.';
-    return;
-  }
-  var rec = api.read();
-  var amount = (rec.kind === 'week' || !api.hasAmount(rec)) ? null : rec.amount;
-  var viaCustomer = customer ? api.lastActualForCustomer(customer) : null;
-  if (viaCustomer && viaCustomer.amount != null) amount = viaCustomer.amount;
-  var cmp = api.compareEstimate(estimate, amount);
-  box.className = 'pay-compare ' + cmp.tone;
-  textEl.textContent = api.compareSummary(cmp);
-  if (viaCustomer && viaCustomer.consignee && cmp.tone !== 'none') {
-    textEl.textContent += ' · ' + viaCustomer.consignee;
-  }
+  /* V 9.6: baseline compare UI removed from the form */
 }
 
 function refreshBaselineBanner() {
-  var amtEl = document.getElementById('baselineAmount');
-  var subEl = document.getElementById('baselineSub');
-  var api = rosaBaselineApi();
-  if (!amtEl) return;
-  if (!api) {
-    amtEl.textContent = '—';
-    if (subEl) subEl.textContent = 'Baseline module did not load.';
-    return;
-  }
-  var rec = api.read();
-  if (!api.hasAmount(rec) || rec.kind === 'week') {
-    amtEl.textContent = '—';
-    if (subEl) subEl.textContent = 'Waiting on Rosa — save a trip line haul.';
-    return;
-  }
-  amtEl.textContent = api.formatMoney(rec.amount);
-  var bits = [];
-  if (rec.label) bits.push(rec.label);
-  else if (rec.kind === 'trip') bits.push('Last trip line haul');
-  else if (rec.kind === 'manual') bits.push('Rosa confirmed');
-  bits.push('from Rosa');
-  if (subEl) subEl.textContent = bits.join(' · ');
+  /* V 9.6: gold baseline card removed */
 }
 
 function refreshPayCompare() {
-  var bpay = document.getElementById('bpay');
-  var estimate = parseFloat(bpay && bpay.value) || 0;
-  var customer = (document.getElementById('customerSelect') || {}).value || '';
-  paintCompareBox(document.getElementById('payCompareBox'), document.getElementById('payCompareText'), estimate, customer);
+  /* V 9.6: Est-vs line haul box removed */
 }
 
 function refreshAllBaselineUI() {
-  refreshBaselineBanner();
-  refreshPayCompare();
   var ov = document.getElementById('savedRecordsOverlay');
   if (ov && ov.style.display === 'flex') renderSavedRecordsBody();
   var pa = document.getElementById('payAnalyzerOverlay');
@@ -1782,15 +1711,7 @@ function refreshAllBaselineUI() {
 }
 
 function savedRecordBaselineHtml(r) {
-  var api = rosaBaselineApi();
-  if (!api) return '';
-  var rec = api.read();
-  var amount = (rec.kind === 'week' || !api.hasAmount(rec)) ? null : rec.amount;
-  var via = r && r.customer ? api.lastActualForCustomer(r.customer) : null;
-  if (via && via.amount != null) amount = via.amount;
-  var cmp = api.compareEstimate(r && r.basePay, amount);
-  if (cmp.tone === 'none') return '<div class="sr-compare none">Est vs line haul — waiting on Rosa</div>';
-  return '<div class="sr-compare ' + cmp.tone + '">' + api.compareSummary(cmp) + '</div>';
+  return '';
 }
 
 function hydrateBaselineForDrive() {
@@ -1838,7 +1759,6 @@ function updatePayAnalyzer() {
   const resultBox = document.querySelector("#payAnalyzerOverlay .pay-result-box");
   const hint = document.getElementById("paMilesHint");
   const paCust = document.getElementById("paCustomer");
-  paintCompareBox(document.getElementById("paBaselineCompare"), document.getElementById("paBaselineText"), basePay, paCust && paCust.value);
   if (hint) {
     const odo = calcTripMiles();
     hint.textContent = (odo > 0 && miles === odo) ? "  •  from odometer" : "";
@@ -2235,7 +2155,7 @@ function sendEmail() {
     if (insp.remarks) body += `\n  REMARKS:\n  ${insp.remarks}\n`;
   });
 
-  body += `\n\nSent from Nickey Dispatch V 9.5`;
+  body += `\n\nSent from Nickey Dispatch V 9.6`;
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 
