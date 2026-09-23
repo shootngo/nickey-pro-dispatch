@@ -69,12 +69,13 @@
 /* ── Inspection / Intermodal Tabs ──────────────────────────────────────────── */
 .form-link-row { display: flex; gap: 8px; padding: 10px 16px; background: #000; border-bottom: 1px solid var(--border); }
 .form-link {
-  flex: 1; padding: 10px;
+  flex: 1 1 0; min-width: 0; padding: 8px 4px;
   background: #1a1a1a; color: var(--text-dim);
   border: 1px solid var(--border-mid); border-radius: var(--rad);
   text-align: center; text-decoration: none;
-  font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;
   font-family: 'Rajdhani', sans-serif;
+  line-height: 1.15;
 }
 .form-link.active { background: #000; color: var(--gold); border-color: var(--gold); }
 

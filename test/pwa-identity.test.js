@@ -78,7 +78,7 @@ describe('Nickey and Rosa PWA identities stay distinct', () => {
   });
 
   it('points Nickey HTML heads at Night run favicons', () => {
-    for (const page of ['index.html', 'earnings.html', 'inspection.html', 'intermodal.html', 'sds.html']) {
+    for (const page of ['index.html', 'earnings.html', 'inspection.html', 'intermodal.html', 'sds.html', 'site-observation.html']) {
       const html = read(page);
       assert.match(html, /rel="apple-touch-icon"[^>]*href="apple-touch-icon\.png"/);
       assert.match(html, /href="icon-192\.png"/);
@@ -113,7 +113,7 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   const rosaHtml = read('rosas-ledger/index.html');
 
   it('bumps Nickey cache when the manifest/icons change', () => {
-    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v9\.0'/);
+    assert.match(nickeySw, /CACHE_VERSION = 'nickey-v9\.1'/);
     assert.match(nickeySw, /'\.\/icon-192\.png'/);
     assert.match(nickeySw, /'\.\/icon-512-2\.png'/);
     assert.match(nickeySw, /'\.\/icon-maskable-512\.png'/);

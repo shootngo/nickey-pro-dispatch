@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Professional Dispatch V 9.0</title>
+<title>Nickey Professional Dispatch V 9.1</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico" sizes="48x48">
@@ -180,7 +180,7 @@ body.nd-menu-open{overflow:hidden}
 </head>
 <body>
 <div class="splash-overlay" id="splashOverlay">
-  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 9.0</div></div>
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 9.1</div></div>
   <div class="splash-truck-wrap">
     <img class="splash-truck-img" id="splashTruckImg" alt="">
     <div class="splash-flames"></div>
@@ -189,7 +189,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="splash-loading"><span></span><span></span><span></span></div>
 </div>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 9.0</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 9.1</span></div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="driver-badge" id="driverBadge">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -382,6 +382,7 @@ body.nd-menu-open{overflow:hidden}
     <div class="menu-item" onclick="openPayAnalyzer()" style="background:linear-gradient(135deg,#1e3a8a 0%,#2d4fbd 100%);color:#ffd700;border:2px solid #ffd700;">📊 Pay Analyzer</div>
     <a href="earnings.html" class="menu-item" style="background:linear-gradient(135deg,#2a2500 0%,#3a3000 100%);color:#ffd700;border:1px solid #ffd700;">💰 Earnings & Expenses</a>
     <a href="inspection.html" class="menu-item">🚛 Trailer Inspection</a>
+    <a href="site-observation.html" class="menu-item">📋 Site Observation Checklist</a>
     <div class="menu-item" onclick="openRoadsideEmergencies()">🚨 Roadside Emergencies</div>
     <div class="menu-item" onclick="openSettings()">⚙️ Settings</div>
     <div class="menu-item" onclick="ndCheckForUpdate()">🔄 Check for update</div>
@@ -2234,7 +2235,7 @@ function sendEmail() {
     if (insp.remarks) body += `\n  REMARKS:\n  ${insp.remarks}\n`;
   });
 
-  body += `\n\nSent from Nickey Dispatch V 9.0`;
+  body += `\n\nSent from Nickey Dispatch V 9.1`;
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 
