@@ -515,29 +515,6 @@ label { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform:
   font-weight: 700;
 }
 .addon-grid .money-fld:last-child { grid-column: 1 / -1; }
-.baseline-send {
-  margin-top: 14px;
-  padding: 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 16px;
-  background: rgba(212, 175, 122, 0.07);
-}
-.baseline-send .k {
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin-bottom: 8px;
-}
-.baseline-send .check-row { margin: 0 0 6px; }
-.baseline-send .hint { margin-top: 0; }
-.baseline-send .btn {
-  margin-top: 10px;
-  letter-spacing: 0.03em;
-  line-height: 1.25;
-  white-space: normal;
-  text-align: center;
-}
 .baseline-card .hint { margin-top: 8px; }
 .check-row {
   display: flex; align-items: flex-start; gap: 10px;
