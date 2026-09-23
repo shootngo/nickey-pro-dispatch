@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Site Observation Checklist - Nickey Dispatch</title>
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512-2.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="stylesheet" href="nickey-shared.css">
+<style>
+body{font-family:'Source Sans 3',sans-serif;background:#0a0a0a;color:#111;min-height:100vh;font-size:16px;line-height:1.4;padding-bottom:132px}
+.hdr{background:#000}
+.paper-wrap{padding:10px 8px 16px}
+.dispatch-note{margin:0 8px 8px;background:#2a2500;border:1px solid #ffd700;border-radius:8px;padding:10px 12px;color:#ffe680;font-size:13px;line-height:1.35}
+.dispatch-note strong{color:#ffd700}
+.paper{background:#fff;color:#111;border:1.5px solid #222;max-width:860px;margin:0 auto;padding:10px 8px 8px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.sheet-page + .sheet-page{margin-top:18px;padding-top:12px;border-top:1px dashed #bbb}
+.brand{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:2px 4px 0}
+.brand-mark{width:52px;height:52px;flex:none;display:block}
+.brand-name{font-family:Arial,Helvetica,'Source Sans 3',sans-serif;font-weight:800;font-size:26px;letter-spacing:.5px;color:#8C1D42;line-height:.9}
+.brand-sub{font-family:Arial,Helvetica,'Source Sans 3',sans-serif;font-size:8.5px;letter-spacing:.38em;color:#8C1D42;text-align:center;margin-top:3px;padding-left:.38em;font-weight:700}
+.paper-title{text-align:center;font-size:16px;font-weight:600;margin:8px 6px 10px;color:#111;line-height:1.3}
+.grid{width:100%;border-collapse:collapse;table-layout:fixed;margin:0 0 8px}
+.grid th,.grid td{border:1px solid #222;vertical-align:middle}
+.grid th{font-weight:700;text-align:center;padding:6px 4px;font-size:13.5px;background:#fff}
+.grid td.item,.grid th.item-h{text-align:center;padding:8px 6px;font-size:14px;font-weight:600;line-height:1.25;word-wrap:break-word}
+.grid th.item-h{font-size:14px}
+.grid th.col,.mark-cell{width:68px}
+.meta td,.times td{padding:6px 7px;text-align:left;vertical-align:top}
+.flabel{display:block;font-size:13px;font-weight:700;color:#111;margin-bottom:2px}
+.paper input[type="text"],.paper input[type="date"],.paper input[type="time"],.paper textarea{width:100%;border:none;border-bottom:1px solid #c8c8c8;background:transparent;color:#111;font-family:'Source Sans 3',sans-serif;font-size:16px;padding:4px 2px;outline:none;border-radius:0}
+.paper input:focus,.paper textarea:focus{border-bottom-color:#8C1D42}
+.split{display:flex;flex-direction:column;gap:6px}
+.split > div{flex:1;min-width:0}
+@media (min-width:720px){
+  .split{flex-direction:row;gap:8px}
+}
+.when{display:flex;flex-direction:column;gap:4px}
+.when-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.when-line .flabel{margin:0;flex:1 1 100%}
+.dt-pair{display:flex;align-items:center;gap:4px;flex:1 1 100%;min-width:0}
+.dt-pair input{min-width:0}
+.dt-tag{font-size:12px;font-weight:700;letter-spacing:.4px;flex:none}
+.mark-cell{padding:0;text-align:center}
+.mark{display:flex;align-items:center;justify-content:center;width:100%;min-height:46px;border:none;background:transparent;color:#111;font-size:22px;font-weight:800;cursor:pointer;font-family:'Source Sans 3',sans-serif;padding:0;-webkit-tap-highlight-color:transparent}
+.mark[aria-pressed="true"][data-status="safe"]{background:#e5f6e8}
+.mark[aria-pressed="true"][data-status="concern"]{background:#fde2e2}
+.mark[aria-pressed="true"][data-status="checked"]{background:#e7eef8}
+.sec-tools{display:flex;justify-content:flex-end;gap:8px;padding:2px 0 4px}
+.sec-tools button{background:#fff;color:#8C1D42;border:1px solid #8C1D42;border-radius:6px;font-size:12px;font-weight:700;padding:7px 10px;min-height:36px;cursor:pointer;font-family:'Source Sans 3',sans-serif}
+.nonconf{color:#1a4fa3;font-size:13.5px;line-height:1.45;padding:8px 6px 4px;margin:0}
+.nonconf a{color:#1a4fa3}
+.comments-label{font-weight:700;font-size:15px;padding:8px 4px 4px}
+.paper textarea#comments{min-height:8.6em;line-height:1.7em;resize:vertical;border:none;background-image:repeating-linear-gradient(to bottom,transparent,transparent calc(1.7em - 1px),#c5c5c5 calc(1.7em - 1px),#c5c5c5 1.7em);background-attachment:local;padding:0 4px}
+.paper-foot{display:flex;justify-content:space-between;align-items:flex-end;padding:8px 4px 2px;font-size:12px;color:#222}
+.paper-foot .pages{letter-spacing:.3px}
+.action-bar{position:fixed;left:0;right:0;bottom:0;z-index:120;background:#0a0a0a;border-top:1px solid #333;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+.email-btn{display:block;width:100%;padding:14px 12px;background:#000;color:#ffd700;border:2px solid #ffd700;border-radius:10px;font-size:18px;font-weight:800;cursor:pointer;text-align:center;letter-spacing:.4px;font-family:'Rajdhani',sans-serif}
+.email-btn .sub{display:block;font-size:12px;font-weight:600;color:#aaa;letter-spacing:0;margin-top:2px;font-family:'Source Sans 3',sans-serif;text-transform:none}
+.action-row{display:flex;gap:8px;margin-top:8px}
+.action-row button{flex:1;padding:11px 8px;background:#1a1a1a;color:#eee;border:1px solid #444;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Source Sans 3',sans-serif}
+.autosave-pill{top:64px}
+@media (max-width:380px){
+  .brand-name{font-size:22px}
+  .grid th.col,.mark-cell{width:58px}
+  .grid td.item{font-size:13px;padding:7px 4px}
+}
+@media print{
+  body{background:#fff;padding:0}
+  .hdr,.form-link-row,.dispatch-note,.sec-tools,.action-bar,.autosave-pill,.nd-mic-btn{display:none !important}
+  .paper-wrap{padding:0}
+  .paper{box-shadow:none;border:none;max-width:none;padding:0}
+  .sheet-page + .sheet-page{border-top:none;margin-top:0;padding-top:0;break-before:page;page-break-before:always}
+  .mark{min-height:22px;font-size:16px}
+  a{color:#1a4fa3;text-decoration:underline}
+}
+</style>
+<script src="nickey-shared.js"></script>
+<script src="nickey-persist.js"></script>
+<script src="ndsync.js" defer></script>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-title">📋 SITE OBSERVATION</div>
+  <a href="index.html" class="back-btn">← BACK</a>
+</div>
+<div class="form-link-row">
+  <a class="form-link" href="inspection.html">Trailer Inspection</a>
+  <a class="form-link" href="intermodal.html">Intermodal</a>
+  <a class="form-link active" href="site-observation.html">Site Observation</a>
+</div>
+<div class="autosave-pill" id="autosavePill">💾 Auto-saved</div>
+<div class="paper-wrap">
+  <div class="dispatch-note" id="dispatchNote" style="display:none;"></div>
+  <article class="paper" id="paper">
+    <section class="sheet-page" id="page1">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="27.5" fill="none" stroke="#8C1D42" stroke-width="3.2"/>
+          <path d="M47 32.2c0-9.4-6.7-15.8-15.6-15.8-9.6 0-16.4 7-16.4 15.8s6.8 15.8 16.4 15.8c6.4 0 11.4-2.7 14.2-6.8" fill="none" stroke="#8C1D42" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M24.2 32.2H42" fill="none" stroke="#8C1D42" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="brand-name">EVONIK</div>
+          <div class="brand-sub">INDUSTRIES</div>
+        </div>
+      </div>
+      <h1 class="paper-title">Evonik Customer Site Observation Checklist</h1>
+
+      <table class="grid meta">
+        <tr>
+          <td colspan="2">
+            <label class="flabel" for="driverName">Driver Name:</label>
+            <input type="text" id="driverName" autocomplete="name">
+          </td>
+          <td colspan="2">
+            <label class="flabel" for="customerLocation">Customer Location:</label>
+            <input type="text" id="customerLocation" autocomplete="off">
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <div class="split">
+              <div>
+                <label class="flabel" for="carrier">Carrier:</label>
+                <input type="text" id="carrier" autocomplete="organization">
+              </div>
+              <div>
+                <label class="flabel" for="trailer">Trailer #</label>
+                <input type="text" id="trailer" autocomplete="off">
+              </div>
+            </div>
+          </td>
+          <td colspan="2">
+            <label class="flabel" for="product">Product description:</label>
+            <input type="text" id="product" autocomplete="off">
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <label class="flabel" for="delivery">Delivery #:</label>
+            <input type="text" id="delivery" inputmode="numeric" autocomplete="off">
+          </td>
+          <td colspan="2">
+            <label class="flabel" for="obsDate">Date:</label>
+            <input type="date" id="obsDate">
+          </td>
+        </tr>
+      </table>
+
+      <table class="grid times">
+        <tr>
+          <th>Pickup Information</th>
+          <th>Delivery Information</th>
+        </tr>
+        <tr>
+          <td>
+            <div class="when">
+              <div class="when-line">
+                <span class="flabel">Arrival Time:</span>
+                <span class="dt-pair"><span class="dt-tag">DT</span><input type="date" id="pickupArrivalDate" aria-label="Pickup arrival date"></span>
+                <span class="dt-pair"><span class="dt-tag">TIME</span><input type="time" id="pickupArrivalTime" aria-label="Pickup arrival time"></span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="when">
+              <div class="when-line">
+                <span class="flabel">Arrival Time:</span>
+                <span class="dt-pair"><span class="dt-tag">DT</span><input type="date" id="deliveryArrivalDate" aria-label="Delivery arrival date"></span>
+                <span class="dt-pair"><span class="dt-tag">TIME</span><input type="time" id="deliveryArrivalTime" aria-label="Delivery arrival time"></span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <div class="when">
+              <div class="when-line">
+                <span class="flabel">Depart Time:</span>
+                <span class="dt-pair"><span class="dt-tag">DT</span><input type="date" id="pickupDepartDate" aria-label="Pickup depart date"></span>
+                <span class="dt-pair"><span class="dt-tag">TIME</span><input type="time" id="pickupDepartTime" aria-label="Pickup depart time"></span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="when">
+              <div class="when-line">
+                <span class="flabel">Depart Time:</span>
+                <span class="dt-pair"><span class="dt-tag">DT</span><input type="date" id="deliveryDepartDate" aria-label="Delivery depart date"></span>
+                <span class="dt-pair"><span class="dt-tag">TIME</span><input type="time" id="deliveryDepartTime" aria-label="Delivery depart time"></span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="sec-tools">
+        <button type="button" data-mark="ppe" data-val="safe">Mark all safe</button>
+        <button type="button" data-mark="ppe" data-val="">Clear</button>
+      </div>
+      <div id="ppeTable"></div>
+      <div id="offTable"></div>
+      <div class="paper-foot"><span>[Internal]</span><span class="pages">1 | Page</span></div>
+    </section>
+
+    <section class="sheet-page" id="page2">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="27.5" fill="none" stroke="#8C1D42" stroke-width="3.2"/>
+          <path d="M47 32.2c0-9.4-6.7-15.8-15.6-15.8-9.6 0-16.4 7-16.4 15.8s6.8 15.8 16.4 15.8c6.4 0 11.4-2.7 14.2-6.8" fill="none" stroke="#8C1D42" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M24.2 32.2H42" fill="none" stroke="#8C1D42" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="brand-name">EVONIK</div>
+          <div class="brand-sub">INDUSTRIES</div>
+        </div>
+      </div>
+      <div class="sec-tools">
+        <button type="button" data-mark="house" data-val="safe">Mark all safe</button>
+        <button type="button" data-mark="house" data-val="">Clear</button>
+      </div>
+      <div id="houseTable"></div>
+      <div id="afterTable"></div>
+      <p class="nonconf">Please email all non-conformance issues to , <a href="mailto:jim.dollahan@evonik.com">jim.dollahan@evonik.com</a> , <a href="mailto:Jacob-D.Smith@evonik.com">Jacob-D.Smith@evonik.com</a> , <a href="mailto:bruce.eaton@evonik.com">bruce.eaton@evonik.com</a></p>
+      <div class="comments-label">Comments:</div>
+      <textarea id="comments" rows="5" aria-label="Comments"></textarea>
+      <div class="paper-foot"><span>[Internal]</span><span class="pages">2 | Page</span></div>
+    </section>
+  </article>
+</div>
+
+<div class="action-bar">
+  <button type="button" class="email-btn" id="emailBtn" onclick="emailChecklist()">✉️ Email to Daniel<span class="sub" id="emailSub">Opens your mail app with this checklist</span></button>
+  <div class="action-row">
+    <button type="button" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    <button type="button" onclick="saveLocalCopy()">💾 Save copy</button>
+  </div>
+</div>
+
+<script>
+/* Wording matches Frank Mulkey's printed Evonik Customer Site Observation Checklist. Do not rephrase. */
+var DRAFT_KEY = 'nickeySiteObservationDraft';
+var HISTORY_KEY = 'nickeySiteObservationHistory';
+var NONCONF_EMAILS = 'jim.dollahan@evonik.com , Jacob-D.Smith@evonik.com , bruce.eaton@evonik.com';
+
+var PPE = [
+  'Hard hat',
+  'Safety Goggles',
+  'Face Shield',
+  'Steel toe / Rubber Boots/Gloves',
+  'Chemical Suit',
+  'Hearing Protection (if Appl)'
+];
+var OFFLOAD = [
+  'Verify seals',
+  'Paperwork Signed and Dated by Customer',
+  'All PPE on',
+  'Check Safety Shower / eye wash for Proper Operation',
+  'Water hose',
+  'Confirm with Customer Tank Level Acceptable for Full Load',
+  'Access tank level (gauges /sight glass)',
+  'Hydraulic Lines Connected (if appl)',
+  'Gas operator power cord connected (if appl)',
+  'Purge Fitting Hooked on Discharge of Trailer (if Appl)',
+  'Daily Visual Inspection of each H2O2 Hose',
+  'Ensure dike containment is dry, if not, obtain approval of safe conditions to access dike',
+  'Hoses Connected and Secure',
+  'All Drain Valves on Trailer/Tank Closed',
+  'Sight glass valve open if loading into an ISO',
+  'Dome Lid Open on Trailer',
+  'Dip-leg Valve Open on Trailer',
+  'Secondary Suction Valve Closed',
+  'Trailer Discharge Valve Open (If appl)',
+  'Customer Tank Valve Open'
+];
+var HOUSE = [
+  'Area free of combustibles (paper, wood, grass)',
+  'Safety Shower /Eye Wash',
+  'Water hose available',
+  'Adequate lighting',
+  'Work area free of slips or trip hazards',
+  'Road conditions adequate to off-loading area',
+  'Off-loading area free of obstacles',
+  'Customer provided water for diluting',
+  'Customer tank and valves clearly marked (accessible)'
+];
+var AFTER = [
+  'Approval from Customer to Start Off-Load, sign off on shipping documents.',
+  'Monitor tank level and area for leaks',
+  'Trailer is Empty',
+  'Shut down product pump',
+  'Reconfirm All PPE still on!',
+  'Close Discharge Valve/Start hose Purge/dip tube',
+  'Hoses Are Completely Blown Out?',
+  'Close purge valve',
+  'Close Valve on Customer Tank',
+  'Clean Bucket for Walking Out Hoses',
+  'Open Drain to Relieve Pressure From Hose',
+  'Drain Hoses in Clean Bucket',
+  'Ask Customer for Proper Disposal Location',
+  'Close All Trailer Valves, drains and Dome Lid',
+  'Place ends on all hoses and store in hose tubes',
+  'Wash Down Area If Needed'
+];
+
+var FIELD_IDS = [
+  'driverName','carrier','trailer','customerLocation','product','delivery','obsDate',
+  'pickupArrivalDate','pickupArrivalTime','pickupDepartDate','pickupDepartTime',
+  'deliveryArrivalDate','deliveryArrivalTime','deliveryDepartDate','deliveryDepartTime',
+  'comments'
+];
+
+var state = { items: {} };
+var ready = false;
+var autoSaveTimer = null;
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+}
+function val(id) {
+  var el = document.getElementById(id);
+  return el ? String(el.value || '').trim() : '';
+}
+function markBtn(id, status, label) {
+  var name = status === 'safe' ? 'Safe' : (status === 'concern' ? 'Concerns' : 'Checked');
+  return '<td class="mark-cell"><button type="button" class="mark" data-id="' + id + '" data-status="' + status + '" aria-pressed="false" aria-label="' + esc(label) + ' ' + name + '"></button></td>';
+}
+function safeTable(title, items, prefix) {
+  var rows = items.map(function(label, i) {
+    var id = prefix + '-' + i;
+    return '<tr><td class="item">' + esc(label) + '</td>' + markBtn(id, 'safe', label) + markBtn(id, 'concern', label) + '</tr>';
+  }).join('');
+  var head = '<thead><tr><th class="item-h">' + esc(title) + '</th><th class="col">Safe</th><th class="col">Concerns</th></tr></thead>';
+  return '<table class="grid">' + head + '<tbody>' + rows + '</tbody></table>';
+}
+function checkTable(title, items, prefix) {
+  var rows = items.map(function(label, i) {
+    var id = prefix + '-' + i;
+    return '<tr><td class="item">' + esc(label) + '</td>' + markBtn(id, 'checked', label) + '</tr>';
+  }).join('');
+  var head = '<thead><tr><th class="item-h">' + esc(title) + '</th><th class="col">Checked</th></tr></thead>';
+  return '<table class="grid">' + head + '<tbody>' + rows + '</tbody></table>';
+}
+function idsFor(group) {
+  if (group === 'ppe') return PPE.map(function(_, i) { return 'ppe-' + i; });
+  if (group === 'house') {
+    return HOUSE.map(function(_, i) { return 'house-' + i; }).concat(AFTER.map(function(_, i) { return 'after-' + i; }));
+  }
+  return [];
+}
+function paint(id) {
+  var cur = state.items[id] || '';
+  document.querySelectorAll('.mark[data-id="' + id + '"]').forEach(function(btn) {
+    var on = !!cur && btn.getAttribute('data-status') === cur;
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.textContent = on ? '✓' : '';
+  });
+}
+function paintAll() {
+  document.querySelectorAll('.mark').forEach(function(btn) { paint(btn.getAttribute('data-id')); });
+}
+function setItem(id, status) {
+  state.items[id] = status || '';
+  paint(id);
+  if (ready) autoSave();
+}
+function markGroup(group, status) {
+  idsFor(group).forEach(function(id) {
+    state.items[id] = status || '';
+    paint(id);
+  });
+  if (ready) autoSave();
+}
+
+function readDispatch() {
+  var ctx = {
+    driver: localStorage.getItem('currentDriver') || '',
+    date: '', delivery: '', trailer: '', customer: '',
+    arrivalDate: '', arrivalTime: '', departureDate: '', departureTime: ''
+  };
+  try {
+    var raw = localStorage.getItem('nickeyDispatchFormState');
+    if (raw) {
+      var s = JSON.parse(raw);
+      ctx.date = s.td || '';
+      ctx.delivery = s.pki || '';
+      ctx.trailer = s.tki || '';
+      ctx.customer = s.customerSelect || '';
+      ctx.arrivalDate = s.arrivalDate || '';
+      ctx.arrivalTime = s.arrivalTime || '';
+      ctx.departureDate = s.departureDate || '';
+      ctx.departureTime = s.departureTime || '';
+    }
+  } catch (e) {}
+  if (!ctx.delivery && !ctx.trailer && !ctx.customer) {
+    try {
+      var records = JSON.parse(localStorage.getItem('nickeySavedRecords') || '[]');
+      if (records.length) {
+        var latest = records[records.length - 1];
+        ctx.delivery = latest.pickup || '';
+        ctx.trailer = latest.trailer || '';
+        ctx.customer = latest.customer || '';
+        ctx.date = ctx.date || latest.date || '';
+        ctx.arrivalDate = ctx.arrivalDate || latest.arrivalDate || '';
+        ctx.arrivalTime = ctx.arrivalTime || latest.arrivalTime || '';
+        ctx.departureDate = ctx.departureDate || latest.departureDate || '';
+        ctx.departureTime = ctx.departureTime || latest.departureTime || '';
+      }
+    } catch (e2) {}
+  }
+  if (!ctx.date) ctx.date = new Date().toISOString().slice(0, 10);
+  return ctx;
+}
+function tripKey(delivery, trailer) {
+  return (delivery || '') + '|' + (trailer || '');
+}
+function collect() {
+  var data = { items: {} };
+  FIELD_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    data[id] = el ? el.value : '';
+  });
+  Object.keys(state.items).forEach(function(k) {
+    if (state.items[k]) data.items[k] = state.items[k];
+  });
+  return data;
+}
+function applyData(data) {
+  FIELD_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el || !data || data[id] == null) return;
+    el.value = data[id];
+  });
+  state.items = {};
+  if (data && data.items) {
+    Object.keys(data.items).forEach(function(k) { state.items[k] = data.items[k]; });
+  }
+  paintAll();
+}
+function showNote(ctx, fromDraft) {
+  var note = document.getElementById('dispatchNote');
+  if (!note) return;
+  if (fromDraft) {
+    note.style.display = 'block';
+    note.innerHTML = '💾 <strong>Draft restored</strong> for this delivery and trailer. Edits keep saving on this phone.';
+    return;
+  }
+  if (ctx.delivery || ctx.trailer || ctx.customer) {
+    note.style.display = 'block';
+    note.innerHTML = '📋 <strong>Filled from your current dispatch.</strong> Driver, trailer, delivery #, customer, date, and delivery times can still be edited. Carrier is left blank.';
+  } else {
+    note.style.display = 'block';
+    note.innerHTML = '⚠️ <strong>No active dispatch on this phone.</strong> Driver name and today’s date are filled in. Trailer, delivery #, and customer are blank until you enter them.';
+  }
+}
+function autoSave() {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(collect()));
+  } catch (e) {}
+  var pill = document.getElementById('autosavePill');
+  if (pill) {
+    pill.classList.add('show');
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(function() { pill.classList.remove('show'); }, 1200);
+  }
+}
+function formatLongDate(iso) {
+  if (!iso) return '';
+  var d = new Date(iso + 'T12:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+function statusWord(v, kind) {
+  if (kind === 'check') return v === 'checked' ? 'Checked' : 'blank';
+  if (v === 'safe') return 'Safe';
+  if (v === 'concern') return 'Concern';
+  return 'blank';
+}
+function line(label, status) {
+  return label + ': ' + status;
+}
+function buildBody() {
+  var concerns = [];
+  var body = 'EVONIK CUSTOMER SITE OBSERVATION CHECKLIST\n';
+  body += '-------------------------------------------\n\n';
+  body += 'Driver Name: ' + (val('driverName') || 'blank') + '\n';
+  body += 'Carrier: ' + (val('carrier') || 'blank') + '\n';
+  body += 'Trailer #: ' + (val('trailer') || 'blank') + '\n';
+  body += 'Delivery #: ' + (val('delivery') || 'blank') + '\n';
+  body += 'Customer Location: ' + (val('customerLocation') || 'blank') + '\n';
+  body += 'Product description: ' + (val('product') || 'blank') + '\n';
+  body += 'Date: ' + (formatLongDate(val('obsDate')) || val('obsDate') || 'blank') + '\n\n';
+  body += 'PICKUP INFORMATION\n';
+  body += 'Arrival Time: DT ' + (val('pickupArrivalDate') || '____') + '  TIME ' + (val('pickupArrivalTime') || '____') + '\n';
+  body += 'Depart Time: DT ' + (val('pickupDepartDate') || '____') + '  TIME ' + (val('pickupDepartTime') || '____') + '\n\n';
+  body += 'DELIVERY INFORMATION\n';
+  body += 'Arrival Time: DT ' + (val('deliveryArrivalDate') || '____') + '  TIME ' + (val('deliveryArrivalTime') || '____') + '\n';
+  body += 'Depart Time: DT ' + (val('deliveryDepartDate') || '____') + '  TIME ' + (val('deliveryDepartTime') || '____') + '\n\n';
+  body += 'DRIVER PERSONAL PROTECTIVE EQUIPMENT\n';
+  PPE.forEach(function(label, i) {
+    var st = statusWord(state.items['ppe-' + i], 'safe');
+    if (st === 'Concern') concerns.push(label);
+    body += line(label, st) + '\n';
+  });
+  body += '\nOFF-LOADING CHECKLIST\n';
+  OFFLOAD.forEach(function(label, i) {
+    body += line(label, statusWord(state.items['off-' + i], 'check')) + '\n';
+  });
+  body += '\nWORK CONDITIONS AND HOUSEKEEPING\n';
+  HOUSE.forEach(function(label, i) {
+    var st = statusWord(state.items['house-' + i], 'safe');
+    if (st === 'Concern') concerns.push(label);
+    body += line(label, st) + '\n';
+  });
+  body += '\n';
+  AFTER.forEach(function(label, i) {
+    var st = statusWord(state.items['after-' + i], 'safe');
+    if (st === 'Concern') concerns.push(label);
+    body += line(label, st) + '\n';
+  });
+  body += '\nCOMMENTS\n';
+  body += (val('comments') || 'blank') + '\n';
+  if (concerns.length) {
+    body += '\nNON-CONFORMANCE\n';
+    body += 'Please email all non-conformance issues to , ' + NONCONF_EMAILS + '\n';
+    concerns.forEach(function(label) { body += '- ' + label + '\n'; });
+  }
+  var ver = (typeof ND_APP_VERSION === 'string') ? ND_APP_VERSION : '';
+  body += '\nSent from Nickey Dispatch ' + ver;
+  return body;
+}
+function emailChecklist() {
+  autoSave();
+  var place = val('customerLocation') || 'Site';
+  var dateLabel = formatLongDate(val('obsDate')) || val('obsDate') || formatLongDate(new Date().toISOString().slice(0, 10));
+  var subject = 'Site Observation Checklist — ' + place + ' — ' + dateLabel;
+  var dispatchEmail = ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
+  var mailUrl = 'mailto:' + dispatchEmail + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(buildBody());
+  window.location.href = mailUrl;
+}
+function saveLocalCopy() {
+  autoSave();
+  var snap = collect();
+  snap.savedAt = new Date().toISOString();
+  snap.id = 'OBS-' + Date.now();
+  var history = [];
+  try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch (e) { history = []; }
+  if (!Array.isArray(history)) history = [];
+  history.push(snap);
+  if (history.length > 30) history = history.slice(-30);
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    alert('Checklist saved on this phone.');
+  } catch (err) {
+    alert('Could not save a copy on this phone.');
+  }
+}
+
+document.getElementById('ppeTable').innerHTML = safeTable('Driver Personal Protective Equipment', PPE, 'ppe');
+document.getElementById('offTable').innerHTML = checkTable('Off-Loading Checklist', OFFLOAD, 'off');
+document.getElementById('houseTable').innerHTML = safeTable('Work Conditions and Housekeeping', HOUSE, 'house');
+document.getElementById('afterTable').innerHTML = safeTable('', AFTER, 'after');
+
+document.getElementById('paper').addEventListener('click', function(e) {
+  var mark = e.target.closest('.mark');
+  if (mark) {
+    var id = mark.getAttribute('data-id');
+    var status = mark.getAttribute('data-status');
+    if (state.items[id] === status) status = '';
+    setItem(id, status);
+    return;
+  }
+  var tool = e.target.closest('[data-mark]');
+  if (tool) markGroup(tool.getAttribute('data-mark'), tool.getAttribute('data-val') || '');
+});
+
+window.onload = function() {
+  var ctx = readDispatch();
+  var draft = null;
+  try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
+  var ctxKey = tripKey(ctx.delivery, ctx.trailer);
+  var draftKey = draft ? tripKey(draft.delivery, draft.trailer) : '';
+  var useDraft = !!(draft && (draftKey === ctxKey || (!ctx.delivery && !ctx.trailer)));
+  if (useDraft) {
+    applyData(draft);
+    showNote(ctx, true);
+  } else {
+    applyData({
+      driverName: ctx.driver,
+      trailer: ctx.trailer,
+      delivery: ctx.delivery,
+      customerLocation: ctx.customer,
+      obsDate: ctx.date,
+      deliveryArrivalDate: ctx.arrivalDate,
+      deliveryArrivalTime: ctx.arrivalTime,
+      deliveryDepartDate: ctx.departureDate,
+      deliveryDepartTime: ctx.departureTime,
+      items: {}
+    });
+    showNote(ctx, false);
+  }
+  var sub = document.getElementById('emailSub');
+  if (sub && typeof ndGetContactEmail === 'function') {
+    sub.textContent = 'Opens mail to ' + ndGetContactEmail('dispatch', 'DKlein@nickeywarehouse.com');
+  }
+  ready = true;
+  FIELD_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', autoSave);
+    el.addEventListener('change', autoSave);
+  });
+  ['driverName','carrier','trailer','customerLocation','product','delivery','comments'].forEach(function(id) {
+    if (typeof ndAttachVoiceInput === 'function') ndAttachVoiceInput(id);
+  });
+  window.addEventListener('beforeunload', function() { if (ready) autoSave(); });
+};
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js', typeof ndSwRegisterOpts === 'function' ? ndSwRegisterOpts() : {scope: './', updateViaCache: 'none'})
+      .then(function(reg) {
+        if (typeof ndWatchServiceWorker === 'function') ndWatchServiceWorker(reg);
+      }).catch(function(err) { console.warn('[SW] Registration failed:', err); });
+  });
+}
+</script>
+</body>
+</html>
