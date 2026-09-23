@@ -29,8 +29,8 @@ Open `rosas-ledger/` and tap **Continue in demo mode**. Sample trips load from `
 1. Land on the **month calendar** (Sun–Sat pay weeks, alternate-week shading, trip dots, flagged days).
 2. Tap a day → **whole pay week**, with that day highlighted and a running weekly total. Scroll **older weeks**.
 3. Open a trip → date, shipper, city, and **pay for that trip** (pay amount, detention, extra pay, reefer fuel). Truck lease, insurance, IFTA, fuel, and truck wash are **not** on the trip.
-4. **Save actuals** — variance and flag recompute against the tolerance band using **trip pay only**. Check **Set as Frank's baseline** (on for this week / last week) so Nickey Dispatch picks up **Current Baseline: $X**.
-5. On **Week**, the bottom shows **Gross**, **Deductions**, and **Net** once weekly totals exist. A week with trips but no totals yet says **Pending deductions** and shows gross only. Tap **Enter Weekly Totals** — the form copies last week, and an edited number is highlighted. Week gross is the pay sheet only. **Current Baseline** is one trip: open that trip, check **Set as Frank's baseline**, and save actuals. **More** can also type a single-trip amount.
+4. **Save actuals** — variance and flag recompute against the tolerance band using **trip pay only**. Check **Set as Frank's baseline** (on for this week / last week) so Nickey Dispatch picks up **Current Baseline** as that trip's **line haul** (`actualPay`), not detention, extra, reefer, or the week gross.
+5. On **Week**, the bottom shows **Gross**, **Deductions**, and **Net** once weekly totals exist. A week with trips but no totals yet says **Pending deductions** and shows gross only. Tap **Enter Weekly Totals** — the form copies last week, and an edited number is highlighted. Week gross is the pay sheet only. **Current Baseline** is one trip's line haul: open that trip, check **Set as Frank's baseline**, and save. **More** can also type a line haul.
 6. **Budget / P&L** charts (money in vs out) and **year CSV / XLSX** export.
 7. **SimplyWise** is a stub: it accepts a file and does not parse it yet.
 

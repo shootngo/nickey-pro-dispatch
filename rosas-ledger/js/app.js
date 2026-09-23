@@ -12,7 +12,7 @@ import {
   currentAuthor, enterDemo, getSettings, getState, initStore, isFirebaseConfigured,
   publishedBaseline, publishManualBaseline, publishTripBaseline,
   readSession, resetDemoData, saveTolerance, saveTrip, saveWeeklyTotals, signIn, signOutUser, subscribe
-} from "./store.js?v=20260923b";
+} from "./store.js?v=20260923c";
 
 const appEl = document.getElementById("app");
 const toastEl = document.getElementById("toast");
@@ -179,7 +179,7 @@ function baselineCard({ compact } = {}) {
   const amt = has ? (api ? api.formatMoney(rec.amount) : money(rec.amount)) : "—";
   const sub = has
     ? `${esc(rec.label || rec.kind || "Actual pay")}${rec.savedAt ? " · sent to Nickey" : ""}`
-    : "Nickey still has no baseline until you save an actual";
+    : "Nickey still has no baseline until you save a trip's line haul";
   const legacyWeekHint = legacyWeek
     ? `<p class="hint" style="margin:8px 0 0">A week total is not a valid Nickey baseline. Open one trip, check Set as Frank's baseline, and save to replace it with that trip's pay.</p>`
     : "";
@@ -410,7 +410,7 @@ function renderWeek() {
       <div class="tot tabular">${run.tripCount} trip${run.tripCount === 1 ? "" : "s"} · ${esc(status)}</div>
     </div>
     ${baselineCard({ compact: true })}
-    <p class="hint week-baseline-hint">Current Baseline is one trip's pay-sheet actual. Open that trip, check Set as Frank's baseline, and save actuals. Week gross stays on this pay sheet.</p>
+    <p class="hint week-baseline-hint">Current Baseline is that trip's line haul, not the week gross. Open the trip, check Set as Frank's baseline, and save.</p>
     ${days.map((iso) => {
       const list = tripsOnDay(trips, iso);
       const hi = iso === ui.selectedDay ? " hi" : "";
@@ -533,7 +533,7 @@ function renderTrip() {
       <div class="sec-title">Pay for this trip</div>
       <p class="hint" style="margin-top:0">Trip data only. Truck lease, insurance, IFTA, fuel, and truck wash are entered once on the pay week.</p>
       <div class="form-grid">
-        ${moneyField("actualPay", "Pay amount", draft.actualPay)}
+        ${moneyField("actualPay", "Line haul", draft.actualPay)}
         ${moneyField("actualDetention", "Detention", draft.actualDetention)}
         ${moneyField("actualExtra", "Extra pay", draft.actualExtra)}
         ${moneyField("actualReefer", "Reefer fuel", draft.actualReefer)}
@@ -562,7 +562,7 @@ function renderTrip() {
         <input id="setNickeyBaseline" type="checkbox" ${baselineApi() && baselineApi().isRecentPayWeek(trip.tripDate) ? "checked" : ""}>
         <span>Set as Frank's baseline in Nickey Dispatch</span>
       </label>
-      <p class="hint" style="margin-top:0">Sends this trip's pay-sheet actual only (pay, detention, extra, and reefer).</p>
+      <p class="hint" style="margin-top:0">Sends this trip's line haul only. Detention, extra, and reefer stay on the trip. Week totals are not sent.</p>
       <div class="sticky-save">
         <button class="btn btn-gold" data-act="save-actuals">Save actuals</button>
       </div>
@@ -726,10 +726,10 @@ function renderSettings() {
     <div class="settings">
       ${baselineCard()}
       <div class="card">
-        <div class="sec-title" style="margin-top:0">Type one trip's actual</div>
-        <p class="hint" style="margin-top:0">Type a single trip's pay-sheet actual (one trip or one period amount). Nickey shows that number as Current Baseline.</p>
+        <div class="sec-title" style="margin-top:0">Type one trip's line haul</div>
+        <p class="hint" style="margin-top:0">Type that trip's line haul. Nickey shows that number as Current Baseline. Do not enter a week total.</p>
         <div class="fld money-fld">
-          <label for="manualBaselineAmt">Single-trip actual pay</label>
+          <label for="manualBaselineAmt">Line haul</label>
           <span class="pre">$</span>
           <input id="manualBaselineAmt" name="manualBaselineAmt" inputmode="decimal" type="number" step="0.01" placeholder="1200.00">
         </div>
@@ -940,9 +940,11 @@ async function onClick(e) {
     if (!trip) return;
     const next = draftAsTrip(trip);
     await saveTrip(next);
-    if (wantBaseline && hasActuals(next)) {
+    if (wantBaseline && next.actualPay != null && next.actualPay !== "") {
       const rec = publishTripBaseline(next);
-      toast(next.flagged ? "Saved — flagged, baseline sent to Nickey" : "Actuals saved · Nickey baseline " + money(rec.amount));
+      toast(next.flagged ? "Saved — flagged, line haul sent to Nickey" : "Actuals saved · line haul " + money(rec.amount));
+    } else if (wantBaseline) {
+      toast(next.flagged ? "Saved — flagged. Enter line haul to set the baseline." : "Saved. Enter line haul to set Frank's baseline.");
     } else {
       toast(next.flagged ? "Saved — flagged outside band" : "Actuals saved");
     }
