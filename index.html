@@ -1729,7 +1729,7 @@ function paintCompareBox(box, textEl, estimate, customer) {
     return;
   }
   var rec = api.read();
-  var amount = rec.amount;
+  var amount = (rec.kind === 'week' || !api.hasAmount(rec)) ? null : rec.amount;
   var viaCustomer = customer ? api.lastActualForCustomer(customer) : null;
   if (viaCustomer && viaCustomer.amount != null) amount = viaCustomer.amount;
   var cmp = api.compareEstimate(estimate, amount);
@@ -1751,7 +1751,7 @@ function refreshBaselineBanner() {
     return;
   }
   var rec = api.read();
-  if (!api.hasAmount(rec)) {
+  if (!api.hasAmount(rec) || rec.kind === 'week') {
     amtEl.textContent = '—';
     if (subEl) subEl.textContent = 'Waiting on Rosa — save an actual pay in Rosa’s Ledger (same phone) to set this. Not stuck on a leftover $900.';
     return;
@@ -1759,8 +1759,8 @@ function refreshBaselineBanner() {
   amtEl.textContent = api.formatMoney(rec.amount);
   var bits = [];
   if (rec.label) bits.push(rec.label);
-  else if (rec.kind === 'week') bits.push(api.weekLabel(rec.payWeek));
   else if (rec.kind === 'trip') bits.push('Last booked trip');
+  else if (rec.kind === 'manual') bits.push('Rosa confirmed');
   bits.push('from Rosa');
   if (subEl) subEl.textContent = bits.join(' · ');
 }
@@ -1785,7 +1785,7 @@ function savedRecordBaselineHtml(r) {
   var api = rosaBaselineApi();
   if (!api) return '';
   var rec = api.read();
-  var amount = rec.amount;
+  var amount = (rec.kind === 'week' || !api.hasAmount(rec)) ? null : rec.amount;
   var via = r && r.customer ? api.lastActualForCustomer(r.customer) : null;
   if (via && via.amount != null) amount = via.amount;
   var cmp = api.compareEstimate(r && r.basePay, amount);

@@ -87,21 +87,126 @@ describe('rosa/nickey baseline contract', () => {
     assert.equal(typeof baseline.publishFromWeek, 'undefined');
   });
 
-  it('still reads a legacy week record without turning it into a new write', () => {
+  it('clears a leftover week gross so it cannot be Current Baseline', () => {
     const storage = memoryStorage({
       [baseline.KEY]: JSON.stringify({
         version: 1,
         amount: 8945.5,
         kind: 'week',
         payWeek: '2026-08-30',
-        label: 'Week of Aug 30–Sep 5 · 4 trips'
+        label: 'Aug 30–Sep 5 · confirmed',
+        savedAt: '2026-09-06T00:00:00.000Z',
+        lastActuals: [{
+          amount: 1398.27,
+          tripId: '605621',
+          consignee: 'Vi-Jon',
+          tripDate: '2026-08-31',
+          payWeek: '2026-08-30',
+          savedAt: '2026-09-01T00:00:00.000Z'
+        }, {
+          amount: 8945.5,
+          tripId: '',
+          consignee: 'Maxson',
+          savedAt: '2026-09-06T00:00:00.000Z'
+        }]
+      }),
+      [baseline.TS_KEY]: '2026-09-06T00:00:00.000Z'
+    });
+    const rec = baseline.read(storage);
+    assert.equal(rec.amount, null);
+    assert.equal(rec.kind, '');
+    assert.equal(rec.label, '');
+    assert.equal(baseline.hasAmount(rec), false);
+    assert.equal(rec.lastActuals.length, 1);
+    assert.equal(rec.lastActuals[0].amount, 1398.27);
+    const stored = JSON.parse(storage.getItem(baseline.KEY));
+    assert.equal(stored.amount, null);
+    assert.notEqual(stored.kind, 'week');
+    assert.doesNotMatch(JSON.stringify(stored), /8945\.5/);
+    const ts = storage.getItem(baseline.TS_KEY);
+    assert.ok(ts > '2026-09-06T00:00:00.000Z');
+    assert.equal(stored.savedAt, ts);
+    const raw = storage.getItem(baseline.KEY);
+    const rec2 = baseline.read(storage);
+    assert.equal(rec2.amount, null);
+    assert.equal(storage.getItem(baseline.KEY), raw);
+    assert.equal(storage.getItem(baseline.TS_KEY), ts);
+    const cmp = baseline.compareEstimate(388.8, rec.amount);
+    assert.equal(cmp.baseline, null);
+    assert.equal(cmp.tone, 'none');
+    assert.match(baseline.compareSummary(cmp), /No baseline yet/);
+    assert.doesNotMatch(baseline.compareSummary(cmp), /8,945\.50|8945\.50/);
+    assert.equal(baseline.lastActualForCustomer('Maxson', storage), null);
+    assert.equal(baseline.lastActualForCustomer('Vi-Jon', storage).amount, 1398.27);
+    const normalized = baseline.normalize({ kind: 'week', amount: 8945.5, label: 'Week of Aug 30–Sep 5' });
+    assert.equal(normalized.amount, null);
+    assert.equal(normalized.kind, '');
+  });
+
+  it('stamps a cleared week record after a future-dated Drive timestamp', () => {
+    const storage = memoryStorage({
+      [baseline.KEY]: JSON.stringify({
+        version: 1,
+        amount: 8945.5,
+        kind: 'week',
+        payWeek: '2026-08-30',
+        savedAt: '2026-12-01T00:00:00.000Z'
+      }),
+      [baseline.TS_KEY]: '2026-12-01T00:00:00.000Z'
+    });
+    const rec = baseline.read(storage);
+    assert.equal(rec.amount, null);
+    assert.ok(storage.getItem(baseline.TS_KEY) > '2026-12-01T00:00:00.000Z');
+    const bare = memoryStorage({
+      [baseline.KEY]: JSON.stringify({
+        version: 1,
+        amount: 8945.5,
+        kind: 'week',
+        savedAt: '2026-12-01T00:00:00Z'
+      }),
+      [baseline.TS_KEY]: '2026-12-01T00:00:00Z'
+    });
+    baseline.read(bare);
+    assert.ok(bare.getItem(baseline.TS_KEY) > '2026-12-01T00:00:00Z');
+  });
+
+  it('does not persist a week gross when write is handed a week record', () => {
+    const storage = memoryStorage();
+    const rec = baseline.write({
+      kind: 'week',
+      amount: 8945.5,
+      payWeek: '2026-08-30',
+      label: 'Week of Aug 30–Sep 5 · 4 trips',
+      savedAt: '2026-09-06T00:00:00.000Z'
+    }, storage, '2026-09-06T00:00:00.000Z');
+    assert.equal(rec.amount, null);
+    assert.equal(rec.kind, '');
+    assert.equal(JSON.parse(storage.getItem(baseline.KEY)).amount, null);
+    assert.ok(storage.getItem(baseline.TS_KEY) > '2026-09-06T00:00:00.000Z');
+  });
+
+  it('still accepts a trip actual after a week record was cleared', () => {
+    const storage = memoryStorage({
+      [baseline.KEY]: JSON.stringify({
+        version: 1,
+        amount: 8945.5,
+        kind: 'week',
+        payWeek: '2026-08-30'
       })
     });
-    const before = storage.getItem(baseline.KEY);
-    const rec = baseline.read(storage);
-    assert.equal(rec.kind, 'week');
-    assert.equal(rec.amount, 8945.5);
-    assert.equal(storage.getItem(baseline.KEY), before);
+    baseline.read(storage);
+    const rec = baseline.publishFromTrip({
+      id: 'TRP-maxson',
+      tripDate: '2026-09-10',
+      consignee: 'Maxson',
+      actualPay: 388.8
+    }, '2026-09-23T12:00:00.000Z', storage);
+    assert.equal(rec.kind, 'trip');
+    assert.equal(rec.amount, 388.8);
+    assert.equal(baseline.hasAmount(rec), true);
+    const cmp = baseline.compareEstimate(388.8, rec.amount);
+    assert.equal(cmp.tone, 'even');
+    assert.equal(cmp.baseline, 388.8);
   });
 
   it('accepts a typed single-trip amount from Rosa', () => {
@@ -172,6 +277,8 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     assert.match(html, /Current Baseline/);
     assert.doesNotMatch(html, /Current Baseline: \$900/);
     assert.match(html, /id="payCompareBox"/);
+    assert.match(html, /rec\.kind === 'week'/);
+    assert.doesNotMatch(html, /weekLabel\(rec\.payWeek\)/);
   });
 
   it('keeps the dispatch inline script parseable (splash + baseline UI)', () => {
@@ -194,6 +301,8 @@ describe('baseline is wired into Nickey / Rosa / Drive', () => {
     assert.match(app, /setNickeyBaseline/);
     assert.match(app, /publishManualBaseline/);
     assert.doesNotMatch(app, /send-week-baseline|publishWeekBaseline|weekBaselineAmt/);
+    assert.match(app, /not a valid Nickey baseline/);
+    assert.doesNotMatch(app, /This saved amount is a week total/);
     assert.doesNotMatch(app, /booked actuals to Nickey|send the total to Nickey/);
     assert.doesNotMatch(store, /publishFromWeek|publishWeekBaseline/);
     assert.match(store, /NickeyRosaBaseline|nickeyRosa\.baseline/);

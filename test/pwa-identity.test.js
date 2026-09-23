@@ -137,7 +137,7 @@ describe('service workers do not fight over /rosas-ledger/', () => {
   });
 
   it('registers a Rosa SW scoped to this folder', () => {
-    assert.match(rosaSw, /CACHE_VERSION = 'rosa-v4'/);
+    assert.match(rosaSw, /CACHE_VERSION = 'rosa-v5'/);
     assert.match(rosaHtml, /serviceWorker\.register\('\.\/sw\.js'/);
     assert.match(rosaHtml, /scope:\s*'\.\/'/);
     assert.match(rosaHtml, /rel="manifest"/);

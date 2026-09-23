@@ -12,7 +12,7 @@ import {
   currentAuthor, enterDemo, getSettings, getState, initStore, isFirebaseConfigured,
   publishedBaseline, publishManualBaseline, publishTripBaseline,
   readSession, resetDemoData, saveTolerance, saveTrip, saveWeeklyTotals, signIn, signOutUser, subscribe
-} from "./store.js?v=20260923a";
+} from "./store.js?v=20260923b";
 
 const appEl = document.getElementById("app");
 const toastEl = document.getElementById("toast");
@@ -174,19 +174,20 @@ function baselineApi() {
 function baselineCard({ compact } = {}) {
   const rec = publishedBaseline();
   const api = baselineApi();
-  const has = rec && rec.amount != null;
+  const legacyWeek = !!(rec && rec.kind === "week");
+  const has = !!(rec && rec.amount != null && !legacyWeek);
   const amt = has ? (api ? api.formatMoney(rec.amount) : money(rec.amount)) : "—";
   const sub = has
     ? `${esc(rec.label || rec.kind || "Actual pay")}${rec.savedAt ? " · sent to Nickey" : ""}`
     : "Nickey still has no baseline until you save an actual";
-  const legacyWeek = has && rec.kind === "week"
-    ? `<p class="hint" style="margin:8px 0 0">This saved amount is a week total. Open one trip, check Set as Frank's baseline, and save actuals to replace it with that trip's pay.</p>`
+  const legacyWeekHint = legacyWeek
+    ? `<p class="hint" style="margin:8px 0 0">A week total is not a valid Nickey baseline. Open one trip, check Set as Frank's baseline, and save to replace it with that trip's pay.</p>`
     : "";
   return `<div class="baseline-card${compact ? " compact" : ""}">
     <div class="k">Frank's Current Baseline</div>
     <div class="v tabular">${amt}</div>
     <div class="sub">${sub}</div>
-    ${legacyWeek}
+    ${legacyWeekHint}
   </div>`;
 }
 

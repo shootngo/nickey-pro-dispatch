@@ -11,7 +11,7 @@ This is **not** a new cloud backend. Both apps sit on the same GitHub Pages orig
   version: 1,
   amount: 1200,                 // dollars — what Frank sees as Current Baseline
   currency: "USD",
-  kind: "trip" | "manual" | "week",  // "week" is a legacy record; new writes are one trip or a typed single amount
+  kind: "trip" | "manual",      // leftover "week" is invalid and cleared on read
   payWeek: "2026-09-06",        // Sunday of the Sun–Sat week
   tripDate: "2026-09-08",       // when kind is trip
   tripId, pickup, consignee,
@@ -25,7 +25,7 @@ This is **not** a new cloud backend. Both apps sit on the same GitHub Pages orig
 - **Rosa writes** on: Save actuals with **Set as Frank’s baseline** (that trip’s actual total only), or More → a typed single-trip / period amount.
 - **Nickey reads** on load, pageshow, `storage` events (other tab), and after Drive pull.
 - `amount` is one trip’s actual total (pay + detention + extra + reefer), the same figure as the ledger variance card. Week gross stays on the pay sheet.
-- Older records may still have `kind: "week"`. New publishes are `kind: "trip"` or `kind: "manual"` only. Replace a week total by opening that trip and saving actuals with the baseline checkbox.
+- A leftover `kind: "week"` record is not a Nickey baseline. On read, the shared module rewrites it to an empty amount and stamps a newer Drive time so the week gross cannot come back from localStorage or sync. Replace it by opening one trip and saving actuals with **Set as Frank’s baseline**. New publishes are `kind: "trip"` or `kind: "manual"` only.
 - Drive timestamp key: `ndsync_ts_nickeyRosa.baseline` (stamped on write so last-write-wins works even though Rosa’s PWA does not load `ndsync.js`).
 
 ## Frank / Rosa on the same phone
