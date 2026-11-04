@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Nickey Professional Dispatch V 9.6</title>
+<title>Nickey Professional Dispatch V 9.7</title>
 <meta name="theme-color" content="#1e3a8a">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.ico" sizes="48x48">
@@ -164,7 +164,7 @@ body.nd-menu-open{overflow:hidden}
 </head>
 <body>
 <div class="splash-overlay" id="splashOverlay">
-  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 9.6</div></div>
+  <div class="splash-title">NICKEY DISPATCH<div class="splash-version">V 9.7</div></div>
   <div class="splash-truck-wrap">
     <img class="splash-truck-img" id="splashTruckImg" alt="">
     <div class="splash-flames"></div>
@@ -173,7 +173,7 @@ body.nd-menu-open{overflow:hidden}
   <div class="splash-loading"><span></span><span></span><span></span></div>
 </div>
 <div class="hdr">
-  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 9.6</span></div>
+  <div class="hdr-logo">NICKEY DISPATCH <span style="font-size:16px;color:#ffd700">V 9.7</span></div>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="driver-badge" id="driverBadge">👤 Loading...</div>
     <div class="hamburger" onclick="toggleMenu()">☰</div>
@@ -332,12 +332,12 @@ body.nd-menu-open{overflow:hidden}
           <button class="btn">View Full SDS Details</button>
         </div>
         <div class="sds-card" onclick="window.open('sds.html?chem=placards','_blank')">
-          <h4>🚛 DOT PLACARDS &amp; ERG HANDBOOK</h4>
+          <h4>🚛 DOT PLACARDS & ERG HANDBOOK</h4>
           <p><strong>Two Required Placards</strong></p>
           <p class="hazard">Class 5.1 or 5.2 Oxidizer (yellow) + Class 8 Corrosive (white/black)</p>
           <p class="ppe">PPE: Butyl gloves, face shield + goggles, apron, respirator if vapors</p>
           <ul><li>ERG Guide 140 – Oxidizers (2024)</li><li>Initial isolation: 150–300 ft</li><li>Call CHEMTREC 1-800-424-9300</li></ul>
-          <button class="btn">View Placard &amp; ERG Details</button>
+          <button class="btn">View Placard & ERG Details</button>
         </div>
       </div>
     </div>
@@ -767,10 +767,10 @@ function updateReimbTotal(){let t=0;document.querySelectorAll('#reimbContainer i
 let fuelCounter=0;
 function getFuelStations(){try{return JSON.parse(localStorage.getItem('fuelStations')||'{}')}catch(e){return{}}}
 function saveFuelStation(name){if(!name||!name.trim())return;const s=getFuelStations();const k=name.trim();s[k]=(s[k]||0)+1;localStorage.setItem('fuelStations',JSON.stringify(s))}
-function addFuelEntry(prefill){fuelCounter++;const id=fuelCounter;const c=document.getElementById('fuelContainer');const e=document.createElement('div');e.className='fuel-entry';e.id='fuel-entry-'+id;e.innerHTML='<button class="remove-fuel-btn" onclick="removeFuelEntry('+id+')">✕</button><div class="fld"><label>Station Name</label><div class="fuel-station-wrap"><input type="text" class="fuel-station-input" data-id="'+id+'" placeholder="Type station name" autocomplete="off" value="'+(prefill&&prefill.station?prefill.station.replace(/"/g,'&quot;'):'')+'">\n<div class="fuel-station-suggestions" id="fuelSugg-'+id+'"></div></div></div><div class="fld"><label>Amount Spent ($)</label><input type="number" step="0.01" placeholder="0.00" class="fuel-amount-input" data-id="'+id+'" value="'+(prefill&&prefill.amount?prefill.amount:'')+'" oninput="updateFuelGrandTotal()"></div><div class="fld" style="margin-bottom:0"><label>Gallons Pumped (optional)</label><input type="number" step="0.01" placeholder="0.00" class="fuel-gallons-input" data-id="'+id+'" value="'+(prefill&&prefill.gallons?prefill.gallons:'')+'" style="font-size:18px"></div>';c.appendChild(e);setupStationAutocomplete(e.querySelector('.fuel-station-input'),e.querySelector('.fuel-station-suggestions'));ndAttachVoiceInput(e.querySelector('.fuel-station-input'));ndAttachVoiceInput(e.querySelector('.fuel-amount-input'),{numericOnly:true});ndAttachVoiceInput(e.querySelector('.fuel-gallons-input'),{numericOnly:true});updateFuelGrandTotal()}
+function addFuelEntry(prefill){fuelCounter++;const id=fuelCounter;const c=document.getElementById('fuelContainer');const e=document.createElement('div');e.className='fuel-entry';e.id='fuel-entry-'+id;e.innerHTML='<button class="remove-fuel-btn" onclick="removeFuelEntry('+id+')">✕</button><div class="fld"><label>Station Name</label><div class="fuel-station-wrap"><input type="text" class="fuel-station-input" data-id="'+id+'" placeholder="Type station name" autocomplete="off" value="'+(prefill&&prefill.station?prefill.station.replace(/"/g,'"'):'')+'">\n<div class="fuel-station-suggestions" id="fuelSugg-'+id+'"></div></div></div><div class="fld"><label>Amount Spent ($)</label><input type="number" step="0.01" placeholder="0.00" class="fuel-amount-input" data-id="'+id+'" value="'+(prefill&&prefill.amount?prefill.amount:'')+'" oninput="updateFuelGrandTotal()"></div><div class="fld" style="margin-bottom:0"><label>Gallons Pumped (optional)</label><input type="number" step="0.01" placeholder="0.00" class="fuel-gallons-input" data-id="'+id+'" value="'+(prefill&&prefill.gallons?prefill.gallons:'')+'" style="font-size:18px"></div>';c.appendChild(e);setupStationAutocomplete(e.querySelector('.fuel-station-input'),e.querySelector('.fuel-station-suggestions'));ndAttachVoiceInput(e.querySelector('.fuel-station-input'));ndAttachVoiceInput(e.querySelector('.fuel-amount-input'),{numericOnly:true});ndAttachVoiceInput(e.querySelector('.fuel-gallons-input'),{numericOnly:true});updateFuelGrandTotal()}
 function removeFuelEntry(id){const e=document.getElementById('fuel-entry-'+id);if(e)e.remove();updateFuelGrandTotal()}
 function updateFuelGrandTotal(){let t=0;document.querySelectorAll('.fuel-amount-input').forEach(i=>t+=parseFloat(i.value)||0);document.getElementById('fuelGrandTotal').textContent='Total Fuel: $'+t.toFixed(2)}
-function setupStationAutocomplete(input,sugg){if(!input)return;input.addEventListener('input',function(){const v=input.value.toLowerCase().trim();const s=getFuelStations();const m=Object.keys(s).filter(x=>v===''||x.toLowerCase().includes(v)).sort((a,b)=>s[b]-s[a]).slice(0,6);if(m.length===0){sugg.classList.remove('show');return}sugg.innerHTML=m.map(x=>'<div class="fuel-station-suggestion" data-station="'+x.replace(/"/g,'&quot;')+'">'+x+'<span class="uses">x'+s[x]+'</span></div>').join('');sugg.classList.add('show');sugg.querySelectorAll('.fuel-station-suggestion').forEach(el=>{el.addEventListener('click',function(){input.value=el.dataset.station;sugg.classList.remove('show');updateFuelGrandTotal()})})});input.addEventListener('focus',function(){if(input.value==='')input.dispatchEvent(new Event('input'))});input.addEventListener('blur',function(){setTimeout(()=>sugg.classList.remove('show'),200)})}
+function setupStationAutocomplete(input,sugg){if(!input)return;input.addEventListener('input',function(){const v=input.value.toLowerCase().trim();const s=getFuelStations();const m=Object.keys(s).filter(x=>v===''||x.toLowerCase().includes(v)).sort((a,b)=>s[b]-s[a]).slice(0,6);if(m.length===0){sugg.classList.remove('show');return}sugg.innerHTML=m.map(x=>'<div class="fuel-station-suggestion" data-station="'+x.replace(/"/g,'"')+'">'+x+'<span class="uses">x'+s[x]+'</span></div>').join('');sugg.classList.add('show');sugg.querySelectorAll('.fuel-station-suggestion').forEach(el=>{el.addEventListener('click',function(){input.value=el.dataset.station;sugg.classList.remove('show');updateFuelGrandTotal()})})});input.addEventListener('focus',function(){if(input.value==='')input.dispatchEvent(new Event('input'))});input.addEventListener('blur',function(){setTimeout(()=>sugg.classList.remove('show'),200)})}
 function scanFuelReceipt(){document.getElementById('fuelReceiptInput').value='';document.getElementById('fuelReceiptInput').click()}
 function processFuelReceiptImage(input){
   const file=input.files[0];if(!file)return;
@@ -933,7 +933,7 @@ function renderSavedRecordsBody() {
     var checked = !!savedRecordSelectedIds[key];
     var ft = (r.fuelEntries || []).reduce(function (sum, f) { return sum + (parseFloat(f.amount) || 0); }, 0);
     h += '<div class="sr-row">';
-    h += '<input type="checkbox" class="sr-check" data-sr-key="' + String(key).replace(/"/g, '&quot;') + '"' + (checked ? ' checked' : '') + ' onclick="event.stopPropagation(); toggleSavedRecordSelected(this)">';
+    h += '<input type="checkbox" class="sr-check" data-sr-key="' + String(key).replace(/"/g, '"') + '"' + (checked ? ' checked' : '') + ' onclick="event.stopPropagation(); toggleSavedRecordSelected(this)">';
     h += '<div style="flex:1;min-width:0;cursor:pointer;padding-right:36px;" onclick="loadRecordIntoForm(' + realIdx + '); closeSavedRecords();">';
     h += '<div style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#ffd700;">Pickup #' + (r.pickup || '—') + '</div>';
     h += '<div style="font-size:13px;color:#aaa;">' + (r.date || '') + ' • ' + (r.customer || '') + '</div>';
@@ -1130,10 +1130,10 @@ function renderContactList(){
     card.innerHTML=
       '<div style="display:flex;gap:8px;align-items:flex-start;">'+
         '<div style="flex:1;min-width:0;">'+
-          '<input type="text" value="'+c.label.replace(/"/g,'&quot;')+'" placeholder="Label"'+
+          '<input type="text" value="'+c.label.replace(/"/g,'"')+'" placeholder="Label"'+
             ' style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;margin-bottom:6px;font-size:14px;"'+
             ' onchange="updateContact('+idx+',\'label\',this.value)">'+
-          '<input type="email" value="'+c.email.replace(/"/g,'&quot;')+'" placeholder="email@example.com"'+
+          '<input type="email" value="'+c.email.replace(/"/g,'"')+'" placeholder="email@example.com"'+
             ' style="width:100%;padding:8px;border-radius:6px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:14px;"'+
             ' onchange="updateContact('+idx+',\'email\',this.value)">'+
           '<div style="font-size:11px;color:#555;margin-top:4px;">purpose: '+c.purpose+'</div>'+
@@ -1156,7 +1156,7 @@ function addNewContact(){
 }
 
 // ── HTML escape helper ────────────────────────────────────────────────────────
-function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escHtml(s){return String(s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');}
 
 // ── Custom SDS management ─────────────────────────────────────────────────────
 function getCustomSDS(){
@@ -2155,7 +2155,7 @@ function sendEmail() {
     if (insp.remarks) body += `\n  REMARKS:\n  ${insp.remarks}\n`;
   });
 
-  body += `\n\nSent from Nickey Dispatch V 9.6`;
+  body += `\n\nSent from Nickey Dispatch V 9.7`;
 
   const subject = `Dispatch Report - ${state.tki || 'Trailer'} - ${date}`;
 
