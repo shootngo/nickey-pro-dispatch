@@ -63,7 +63,7 @@ Odometer in/out are stored with **Save Record** and restored when you reopen a t
 
 ## Firestore rules (Rosa’s project)
 
-The shared email/password user needs permission to create/update `trips`. Example (tighten as you like):
+The signed-in email/password user needs permission to create/update `trips`. The real rules live in `rosas-ledger/firestore.rules` (household emails shootngo@gmail.com and haztec.trucking@gmail.com only). Paste them into Firebase Console → Firestore Database → Rules → **Publish**. If they are not published, Push to Rosa shows “Rosa's Ledger refused the save for <email>” (V 9.7+). Older loose example:
 
 ```
 match /trips/{tripId} {

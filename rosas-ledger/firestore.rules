@@ -1,0 +1,29 @@
+rules_version = '2';
+// Rosa's Ledger (project rosa-s-ledger). Only the two household accounts
+// may read or write. Paste into Firebase Console → Firestore → Rules → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function household() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() in [
+          'shootngo@gmail.com',
+          'haztec.trucking@gmail.com'
+        ];
+    }
+
+    match /trips/{tripId} {
+      allow read, write: if household();
+    }
+    match /weeklyTotals/{weekId} {
+      allow read, write: if household();
+    }
+    match /backups/{backupId} {
+      allow read, write: if household();
+    }
+    match /settings/{id} {
+      allow read, write: if household();
+    }
+  }
+}

@@ -430,16 +430,40 @@
     }
     var db = fb.firestore();
     var docId = tripDocId(payload);
-    if (docId) {
-      return db.collection('trips').doc(docId).set(payload, { merge: true }).then(function () { return docId; });
+    var email = user.email || 'this account';
+    var write = docId
+      ? db.collection('trips').doc(docId).set(payload, { merge: true }).then(function () { return docId; })
+      : db.collection('trips').add(payload).then(function (ref) { return ref.id; });
+    return write.catch(function (err) { throw friendlyPushError(err, email); });
+  }
+
+  /**
+   * V 9.7: turn Firestore errors into plain words that name the signed-in email.
+   */
+  function friendlyPushError(err, email) {
+    var code = (err && err.code) || '';
+    var raw = (err && err.message) ? err.message : String(err);
+    var msg;
+    if (code === 'permission-denied' || /insufficient permissions/i.test(raw)) {
+      msg = 'Rosa\'s Ledger refused the save for ' + email + '. Rosa\'s Firestore rules don\'t allow this account to write trips yet. ' +
+        'Publish rosas-ledger/firestore.rules in Firebase Console (Firestore → Rules → Publish), then try again.';
+    } else if (code === 'unauthenticated') {
+      msg = 'Your Rosa sign-in for ' + email + ' expired. Sign in again under Settings → Rosa.';
+    } else if (code === 'unavailable') {
+      msg = 'Could not reach Rosa\'s Ledger (no signal?). Try again when you have service.';
+    } else {
+      msg = 'Signed in as ' + email + '. ' + raw;
     }
-    return db.collection('trips').add(payload).then(function (ref) { return ref.id; });
+    var e = new Error(msg);
+    e.code = code;
+    return e;
   }
 
   return {
     PLACEHOLDER_CONFIG: PLACEHOLDER_CONFIG,
     CONFIG_KEY: CONFIG_KEY,
     EMAIL_KEY: EMAIL_KEY,
+    friendlyPushError: friendlyPushError,
     payWeekOf: payWeekOf,
     milesFromOdo: milesFromOdo,
     costPerMile: costPerMile,
